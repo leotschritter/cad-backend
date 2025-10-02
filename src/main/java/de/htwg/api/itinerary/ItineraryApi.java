@@ -5,12 +5,22 @@ import de.htwg.api.itinerary.model.ItineraryDto;
 import de.htwg.api.itinerary.service.ItineraryService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.ExampleObject;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
 
 @Path("/itinerary")
+@Tag(name = "Itinerary Management", description = "Operations for managing travel itineraries")
 public class ItineraryApi {
 
     private final ItineraryService itineraryService;
@@ -23,8 +33,73 @@ public class ItineraryApi {
 
     @POST
     @Path("/create")
-    public Response createItinerary(@RequestBody final ItineraryDto itineraryDto, 
-                                   @QueryParam("userId") Long userId) {
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Create a new itinerary",
+        description = "Creates a new travel itinerary for a specific user. The itinerary must include title, destination, start date, and descriptions."
+    )
+    @APIResponses(value = {
+        @APIResponse(
+            responseCode = "200",
+            description = "Itinerary created successfully",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"message\": \"Itinerary created successfully\"}"
+            )
+        ),
+        @APIResponse(
+            responseCode = "400",
+            description = "Bad request - User ID is required or invalid data provided",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"User ID is required\"}"
+            )
+        ),
+        @APIResponse(
+            responseCode = "404",
+            description = "User not found",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"User with id 123 not found\"}"
+            )
+        ),
+        @APIResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"An error occurred while creating the itinerary\"}"
+            )
+        )
+    })
+    public Response createItinerary(
+        @RequestBody(
+            description = "Itinerary details",
+            required = true,
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = ItineraryDto.class),
+                examples = @ExampleObject(
+                    name = "Family Trip Example",
+                    summary = "Example of a family trip itinerary",
+                    value = """
+                        {
+                          "title": "Family Trip to Norway",
+                          "destination": "Norway",
+                          "startDate": "2024-06-15",
+                          "shortDescription": "Explore the fjords of southern Norway",
+                          "detailedDescription": "A wonderful family trip to explore the beautiful fjords of southern Norway. We will visit Bergen, Stavanger, and the famous Geirangerfjord."
+                        }
+                        """
+                )
+            )
+        ) final ItineraryDto itineraryDto,
+        @Parameter(
+            description = "ID of the user creating the itinerary",
+            required = true,
+            example = "1"
+        ) @QueryParam("userId") Long userId) {
 
         if (userId == null) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -40,7 +115,65 @@ public class ItineraryApi {
 
     @GET
     @Path("/get")
-    public Response getItinerary(@QueryParam("userId") Long userId) {
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Get itineraries for a user",
+        description = "Retrieves all itineraries associated with a specific user ID. Returns a list of itinerary details including title, destination, start date, and descriptions."
+    )
+    @APIResponses(value = {
+        @APIResponse(
+            responseCode = "200",
+            description = "Itineraries retrieved successfully",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = ItineraryDto[].class),
+                examples = @ExampleObject(
+                    name = "Itinerary List Example",
+                    summary = "Example of returned itinerary list",
+                    value = """
+                        [
+                          {
+                            "title": "Family Trip to Norway",
+                            "destination": "Norway",
+                            "startDate": "2024-06-15",
+                            "shortDescription": "Explore the fjords of southern Norway",
+                            "detailedDescription": "A wonderful family trip to explore the beautiful fjords of southern Norway. We will visit Bergen, Stavanger, and the famous Geirangerfjord."
+                          },
+                          {
+                            "title": "Business Trip to Tokyo",
+                            "destination": "Japan",
+                            "startDate": "2024-07-20",
+                            "shortDescription": "Corporate meetings and cultural exploration",
+                            "detailedDescription": "A business trip combining work meetings with cultural experiences in Tokyo, including visits to traditional temples and modern districts."
+                          }
+                        ]
+                        """
+                )
+            )
+        ),
+        @APIResponse(
+            responseCode = "400",
+            description = "Bad request - User ID is required",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"User ID is required\"}"
+            )
+        ),
+        @APIResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"An error occurred while retrieving itineraries\"}"
+            )
+        )
+    })
+    public Response getItinerary(
+        @Parameter(
+            description = "ID of the user whose itineraries to retrieve",
+            required = true,
+            example = "1"
+        ) @QueryParam("userId") Long userId) {
 
         if (userId == null) {
             return Response.status(Response.Status.BAD_REQUEST)
