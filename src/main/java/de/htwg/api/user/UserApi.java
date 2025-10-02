@@ -47,6 +47,7 @@ public class UserApi {
                     summary = "Example of a successfully registered user",
                     value = """
                         {
+                          "id": 1,
                           "name": "John Doe",
                           "email": "john.doe@example.com"
                         }
@@ -85,7 +86,6 @@ public class UserApi {
     public Response registerUser(
         @RequestBody(
             description = "User registration details",
-            required = true,
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
                 schema = @Schema(implementation = UserDto.class),
@@ -94,6 +94,7 @@ public class UserApi {
                     summary = "Example of user registration data",
                     value = """
                         {
+                          "id": 1,
                           "name": "John Doe",
                           "email": "john.doe@example.com"
                         }
@@ -134,6 +135,7 @@ public class UserApi {
                     summary = "Example of a found user",
                     value = """
                         {
+                          "id": 1,
                           "name": "John Doe",
                           "email": "john.doe@example.com"
                         }
