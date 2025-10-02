@@ -1,54 +1,132 @@
-# travel-app
+# Travel App Backend
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+A Quarkus-based REST API for managing travel itineraries and user accounts. This application provides endpoints for user registration and itinerary management with PostgreSQL database integration.
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+## 🚀 Quick Start
 
-## Running the application in dev mode
+### Prerequisites
+- Java 21+
+- Maven 3.8+
+- Docker & Docker Compose
 
-You can run your application in dev mode that enables live coding using:
+### Local Development Setup
 
-```shell script
-./mvnw quarkus:dev
+#### 1. Start the Database
+First, start the PostgreSQL database using Docker Compose:
+
+```bash
+cd local-setup
+docker-compose up -d
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+This will start a PostgreSQL 16 container with the following configuration:
+- **Host**: localhost:5432
+- **Database**: mydatabase
+- **Username**: myuser
+- **Password**: mypassword
 
-## Packaging and running the application
+#### 2. Run the Application
+In the project root directory, start the Quarkus application in development mode:
 
-The application can be packaged using:
-
-```shell script
-./mvnw package
+```bash
+mvn quarkus:dev
 ```
 
-It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
+The application will start on `http://localhost:8080`
 
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
+#### 3. Access the API Documentation
+Once the application is running, you can access:
 
-If you want to build an _über-jar_, execute the following command:
+- **Swagger UI**: [http://localhost:8080/q/swagger-ui/](http://localhost:8080/q/swagger-ui/)
+- **OpenAPI YAML**: [http://localhost:8080/q/openapi](http://localhost:8080/q/openapi)
+- **Quarkus Dev UI**: [http://localhost:8080/q/dev/](http://localhost:8080/q/dev/)
 
-```shell script
-./mvnw package -Dquarkus.package.jar.type=uber-jar
+## 📚 API Endpoints
+
+### User Management
+- **POST** `/user/register` - Register a new user
+- **GET** `/user/get?email={email}` - Get user by email
+
+### Itinerary Management
+- **POST** `/itinerary/create?userId={userId}` - Create a new itinerary
+- **GET** `/itinerary/get?userId={userId}` - Get user's itineraries
+
+## 🗄️ Database Schema
+
+The application uses PostgreSQL with the following entities:
+
+### User Entity
+- `id` (Long, Primary Key)
+- `name` (String)
+- `email` (String, Unique)
+- `itineraryList` (List<Itinerary>, One-to-Many)
+
+### Itinerary Entity
+- `id` (Long, Primary Key)
+- `title` (String)
+- `shortDescription` (String)
+- `destination` (String)
+- `detailedDescription` (String)
+- `startDate` (LocalDate)
+- `user` (User, Many-to-One)
+
+## 🧪 Testing
+
+Run the test suite:
+
+```bash
+mvn test
 ```
 
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
+The project includes comprehensive unit tests using Mockito for service layer testing.
 
-## Creating a native executable
+## 📦 Building and Packaging
 
-You can create a native executable using:
-
-```shell script
-./mvnw package -Dnative
+### Development Mode
+```bash
+mvn quarkus:dev
 ```
 
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
-
-```shell script
-./mvnw package -Dnative -Dquarkus.native.container-build=true
+### Package Application
+```bash
+mvn package
 ```
 
-You can then execute your native executable with: `./target/travel-app-1.0.0-SNAPSHOT-runner`
+### Create Native Executable
+```bash
+mvn package -Dnative
+```
 
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
+## 🛠️ Development
+
+### Hot Reload
+The application supports hot reload in development mode. Changes to Java files will automatically restart the application.
+
+### Database Migrations
+Hibernate ORM is configured with `database.generation: update`, which automatically creates/updates database schema based on entity definitions.
+
+### Logging
+SQL queries are logged in development mode for debugging purposes.
+
+## 🐳 Docker Support
+
+The project includes Docker Compose configuration for local development:
+
+```bash
+# Start database
+cd local-setup
+docker-compose up -d
+
+# Stop database
+docker-compose down
+```
+
+## 📖 Documentation
+
+- **Quarkus Documentation**: [https://quarkus.io/](https://quarkus.io/)
+- **OpenAPI Specification**: Available at `/q/openapi` when running
+- **Swagger UI**: Available at `/q/swagger-ui/` when running
+
+## 📄 License
+
+This project is part of a university course assignment.

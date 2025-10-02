@@ -6,7 +6,7 @@ import java.util.List;
 
 public interface ItineraryService {
 
-    void createItinerary(ItineraryDto itineraryDto);
+    void createItinerary(ItineraryDto itineraryDto, Long userId);
 
-    List<ItineraryDto> getItinerary();
+    List<ItineraryDto> getItinerariesByUserId(Long userId);
 }
