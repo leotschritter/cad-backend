@@ -17,4 +17,8 @@ public class ItineraryRepository implements PanacheRepository<Itinerary> {
     public List<Itinerary> findByUserId(Long userId) {
         return find("user.id", userId).list();
     }
+
+    public List<Itinerary> findByUserEmail(String email) {
+        return find("user.email", email).list();
+    }
 }

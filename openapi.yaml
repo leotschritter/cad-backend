@@ -95,6 +95,64 @@ paths:
             application/json:
               example:
                 error: An error occurred while creating the itinerary
+  /itinerary/create/{email}:
+    post:
+      summary: Create a new itinerary
+      description: "Creates a new travel itinerary for a specific user. The itinerary\
+        \ must include title, destination, start date, and descriptions."
+      tags:
+      - Itinerary Management
+      parameters:
+      - description: Email of the user creating the itinerary
+        example: pete.david@gmail.com
+        required: true
+        name: email
+        in: path
+        schema:
+          type: string
+      requestBody:
+        description: Itinerary details
+        content:
+          application/json:
+            examples:
+              Family Trip Example:
+                summary: Example of a family trip itinerary
+                value:
+                  title: Family Trip to Norway
+                  destination: Norway
+                  startDate: 2024-06-15
+                  shortDescription: Explore the fjords of southern Norway
+                  detailedDescription: "A wonderful family trip to explore the beautiful\
+                    \ fjords of southern Norway. We will visit Bergen, Stavanger,\
+                    \ and the famous Geirangerfjord."
+            schema:
+              $ref: "#/components/schemas/ItineraryDto"
+        required: true
+      responses:
+        "200":
+          description: Itinerary created successfully
+          content:
+            application/json:
+              example:
+                message: Itinerary created successfully
+        "400":
+          description: Bad request - User Email is required or invalid data provided
+          content:
+            application/json:
+              example:
+                error: User Email is required
+        "404":
+          description: User not found
+          content:
+            application/json:
+              example:
+                error: User with Email not found
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                error: An error occurred while creating the itinerary
   /itinerary/get:
     get:
       summary: Get itineraries for a user
@@ -112,6 +170,61 @@ paths:
         schema:
           type: integer
           format: int64
+      responses:
+        "200":
+          description: Itineraries retrieved successfully
+          content:
+            application/json:
+              examples:
+                Itinerary List Example:
+                  summary: Example of returned itinerary list
+                  value:
+                  - title: Family Trip to Norway
+                    destination: Norway
+                    startDate: 2024-06-15
+                    shortDescription: Explore the fjords of southern Norway
+                    detailedDescription: "A wonderful family trip to explore the beautiful\
+                      \ fjords of southern Norway. We will visit Bergen, Stavanger,\
+                      \ and the famous Geirangerfjord."
+                  - title: Business Trip to Tokyo
+                    destination: Japan
+                    startDate: 2024-07-20
+                    shortDescription: Corporate meetings and cultural exploration
+                    detailedDescription: "A business trip combining work meetings\
+                      \ with cultural experiences in Tokyo, including visits to traditional\
+                      \ temples and modern districts."
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ItineraryDto"
+        "400":
+          description: Bad request - User ID is required
+          content:
+            application/json:
+              example:
+                error: User ID is required
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                error: An error occurred while retrieving itineraries
+  /itinerary/get/{email}:
+    get:
+      summary: Get itineraries for a user
+      description: "Retrieves all itineraries associated with a specific user Email.\
+        \ Returns a list of itinerary details including title, destination, start\
+        \ date, and descriptions."
+      tags:
+      - Itinerary Management
+      parameters:
+      - description: Email of the user whose itineraries to retrieve
+        example: xyz@gmail.com
+        required: true
+        name: email
+        in: path
+        schema:
+          type: string
       responses:
         "200":
           description: Itineraries retrieved successfully

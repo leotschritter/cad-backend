@@ -8,5 +8,10 @@ public interface ItineraryService {
 
     void createItinerary(ItineraryDto itineraryDto, Long userId);
 
+    void createItineraryByEmail(ItineraryDto itineraryDto, String email);
+
     List<ItineraryDto> getItinerariesByUserId(Long userId);
+
+    List<ItineraryDto> getItinerariesByEmail(String email);
+
 }
