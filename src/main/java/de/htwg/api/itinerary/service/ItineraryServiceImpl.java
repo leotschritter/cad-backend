@@ -43,8 +43,29 @@ public class ItineraryServiceImpl implements ItineraryService {
     }
 
     @Override
+    @Transactional
+    public void createItineraryByEmail(ItineraryDto itineraryDto, String email) {
+        Optional<User> userOptional = userRepository.find("email", email).firstResultOptional();
+        if (userOptional.isEmpty()) {
+            throw new IllegalArgumentException("User with email " + email + " not found");
+        }
+
+        User user = userOptional.get();
+        Itinerary itinerary = itineraryMapper.toEntity(itineraryDto, user);
+        itineraryRepository.persist(itinerary);
+    }
+
+
+
+    @Override
     public List<ItineraryDto> getItinerariesByUserId(Long userId) {
         List<Itinerary> itineraries = itineraryRepository.findByUserId(userId);
+        return itineraryMapper.toDtoList(itineraries);
+    }
+
+    @Override
+    public List<ItineraryDto> getItinerariesByEmail(String email) {
+        List<Itinerary> itineraries = itineraryRepository.findByUserEmail(email);
         return itineraryMapper.toDtoList(itineraries);
     }
 }

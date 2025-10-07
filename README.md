@@ -127,6 +127,11 @@ docker-compose down
 - **OpenAPI Specification**: Available at `/q/openapi` when running
 - **Swagger UI**: Available at `/q/swagger-ui/` when running
 
+## Generate `openapi.yaml`
+```bash
+curl -s http://localhost:8080/q/openapi > openapi.yaml
+```
+
 ## 📄 License
 
 This project is part of a university course assignment.

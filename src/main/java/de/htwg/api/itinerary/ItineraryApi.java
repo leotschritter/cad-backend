@@ -112,6 +112,90 @@ public class ItineraryApi {
         return Response.ok().build();
     }
 
+    @POST
+    @Path("/create/{email}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+            summary = "Create a new itinerary",
+            description = "Creates a new travel itinerary for a specific user. The itinerary must include title, destination, start date, and descriptions."
+    )
+    @APIResponses(value = {
+            @APIResponse(
+                    responseCode = "200",
+                    description = "Itinerary created successfully",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON,
+                            example = "{\"message\": \"Itinerary created successfully\"}"
+                    )
+            ),
+            @APIResponse(
+                    responseCode = "400",
+                    description = "Bad request - User Email is required or invalid data provided",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON,
+                            example = "{\"error\": \"User Email is required\"}"
+                    )
+            ),
+            @APIResponse(
+                    responseCode = "404",
+                    description = "User not found",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON,
+                            example = "{\"error\": \"User with Email not found\"}"
+                    )
+            ),
+            @APIResponse(
+                    responseCode = "500",
+                    description = "Internal server error",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON,
+                            example = "{\"error\": \"An error occurred while creating the itinerary\"}"
+                    )
+            )
+    })
+    public Response createItineraryByEmail(
+            @RequestBody(
+                    description = "Itinerary details",
+                    required = true,
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON,
+                            schema = @Schema(implementation = ItineraryDto.class),
+                            examples = @ExampleObject(
+                                    name = "Family Trip Example",
+                                    summary = "Example of a family trip itinerary",
+                                    value = """
+                        {
+                          "title": "Family Trip to Norway",
+                          "destination": "Norway",
+                          "startDate": "2024-06-15",
+                          "shortDescription": "Explore the fjords of southern Norway",
+                          "detailedDescription": "A wonderful family trip to explore the beautiful fjords of southern Norway. We will visit Bergen, Stavanger, and the famous Geirangerfjord."
+                        }
+                        """
+                            )
+                    )
+            ) final ItineraryDto itineraryDto,
+            @Parameter(
+                    description = "Email of the user creating the itinerary",
+                    required = true,
+                    example = "pete.david@gmail.com"
+            ) @PathParam("email") String email) {
+
+        if (email == null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("User ID is required")
+                    .build();
+        }
+
+        itineraryService.createItineraryByEmail(itineraryDto, email);
+
+        return Response.ok().build();
+    }
+
+
+
+
 
     @GET
     @Path("/get")
@@ -185,6 +269,80 @@ public class ItineraryApi {
 
         return Response.ok(itineraryDtos).build();
     }
+
+    @GET
+    @Path("/get/{email}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+            summary = "Get itineraries for a user",
+            description = "Retrieves all itineraries associated with a specific user Email. Returns a list of itinerary details including title, destination, start date, and descriptions."
+    )
+    @APIResponses(value = {
+            @APIResponse(
+                    responseCode = "200",
+                    description = "Itineraries retrieved successfully",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON,
+                            schema = @Schema(implementation = ItineraryDto[].class),
+                            examples = @ExampleObject(
+                                    name = "Itinerary List Example",
+                                    summary = "Example of returned itinerary list",
+                                    value = """
+                        [
+                          {
+                            "title": "Family Trip to Norway",
+                            "destination": "Norway",
+                            "startDate": "2024-06-15",
+                            "shortDescription": "Explore the fjords of southern Norway",
+                            "detailedDescription": "A wonderful family trip to explore the beautiful fjords of southern Norway. We will visit Bergen, Stavanger, and the famous Geirangerfjord."
+                          },
+                          {
+                            "title": "Business Trip to Tokyo",
+                            "destination": "Japan",
+                            "startDate": "2024-07-20",
+                            "shortDescription": "Corporate meetings and cultural exploration",
+                            "detailedDescription": "A business trip combining work meetings with cultural experiences in Tokyo, including visits to traditional temples and modern districts."
+                          }
+                        ]
+                        """
+                            )
+                    )
+            ),
+            @APIResponse(
+                    responseCode = "400",
+                    description = "Bad request - User ID is required",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON,
+                            example = "{\"error\": \"User ID is required\"}"
+                    )
+            ),
+            @APIResponse(
+                    responseCode = "500",
+                    description = "Internal server error",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON,
+                            example = "{\"error\": \"An error occurred while retrieving itineraries\"}"
+                    )
+            )
+    })
+    public Response getItineraryByEmail(
+        @Parameter(
+                description = "Email of the user whose itineraries to retrieve",
+                required = true,
+                example = "xyz@gmail.com"
+        ) @PathParam("email") String email) {
+        if (email == null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Email parameter is required")
+                    .build();
+        }
+
+        final List<ItineraryDto> itineraryDtos = itineraryService.getItinerariesByEmail(email);
+
+        return Response.ok(itineraryDtos).build();
+    }
+
+
 
 
 }
