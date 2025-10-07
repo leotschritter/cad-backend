@@ -21,11 +21,11 @@ public class Itinerary {
 
     private String title;
 
-    private String description;
+    private String shortDescription;
 
     private String destination;
 
-    private String descriptionDetail;
+    private String detailedDescription;
 
     private LocalDate startDate;
 
