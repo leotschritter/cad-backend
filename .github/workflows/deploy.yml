@@ -1,0 +1,27 @@
+name: deploy-vm
+
+on:
+  workflow_dispatch: {}   # manual trigger only
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd ~/travel-app
+
+            # Login to GHCR (read:packages token)
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io/leotschritter/backend -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
+            # build the app with the latest images
+            docker compose up -d
+
+            # quick status
+            docker compose ps
