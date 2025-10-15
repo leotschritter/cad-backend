@@ -24,4 +24,4 @@ jobs:
             sudo docker compose up -d
 
             # quick status
-            docker compose ps
+            sudo docker compose ps
