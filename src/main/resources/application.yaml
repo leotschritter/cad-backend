@@ -1,12 +1,22 @@
 quarkus:
   datasource:
     db-kind: postgresql
-    username: myuser
-    password: mypassword
+    username: ${DB_USER:myuser}
+    password: ${DB_PASSWORD:mypassword}
     jdbc:
-      url: jdbc:postgresql://localhost:5432/mydatabase
+      url: ${DB_URL:jdbc:postgresql://localhost:5432/mydatabase}
   hibernate-orm:
-    database:
-      generation: update
+    schema-generation:
+      database:
+        generation: update
     log:
       sql: true
+
+# Profile-specific configurations
+"%prod":
+  quarkus:
+    datasource:
+      username: ${DB_USER}
+      password: ${DB_PASSWORD}
+      jdbc:
+        url: ${DB_URL}

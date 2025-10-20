@@ -1,6 +1,8 @@
 package de.htwg.api.itinerary.service;
 
 import de.htwg.api.itinerary.model.ItineraryDto;
+import de.htwg.api.itinerary.model.ItinerarySearchDto;
+import de.htwg.api.itinerary.model.ItinerarySearchResponseDto;
 
 import java.util.List;
 
@@ -13,5 +15,7 @@ public interface ItineraryService {
     List<ItineraryDto> getItinerariesByUserId(Long userId);
 
     List<ItineraryDto> getItinerariesByEmail(String email);
+
+    List<ItinerarySearchResponseDto> searchItineraries(ItinerarySearchDto searchDto);
 
 }
