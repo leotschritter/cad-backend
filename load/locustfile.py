@@ -5,9 +5,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os, time
 
-# --- load .env from the same folder as this file ---
 BASE_DIR = Path(__file__).resolve().parent
-load_dotenv(BASE_DIR / ".env.iaas")   # or load_dotenv() if you run from repo root
+load_dotenv(BASE_DIR / ".env.iaas")
 
 # ---- unique email generator ----
 _RUN_ID = os.getenv("RUN_ID", time.strftime("%Y%m%d%H%M%S"))
