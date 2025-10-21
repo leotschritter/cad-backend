@@ -1,3 +1,4 @@
+VERSION="1.1.1"
 #gcloud services enable sqladmin.googleapis.com secretmanager.googleapis.com
 #gcloud sql databases create "$DB" --instance="$INSTANCE"
 
@@ -19,27 +20,33 @@ CONN_NAME=graphite-plane-474510-s9:europe-west1:cad-travel-db
 
 # Create docker repo and activate cloud run
 
-gcloud services enable artifactregistry.googleapis.com
-
-gcloud artifacts repositories create docker-repo --repository-format=docker --location=europe-west1 --description="Docker repository for travel app"
-
-gcloud auth configure-docker europe-west1-docker.pkg.dev
-
-gcloud services enable run.googleapis.com
+#gcloud services enable artifactregistry.googleapis.com
+#
+#gcloud artifacts repositories create docker-repo --repository-format=docker --location=europe-west1 --description="Docker repository for travel app"
+#
+#gcloud auth configure-docker europe-west1-docker.pkg.dev
+#
+#gcloud services enable run.googleapis.com
 
 # Build and push Docker image
- docker build -t europe-west1-docker.pkg.dev/$PROJECT_ID/docker-repo/travel-backend:"$VERSION" .
+ docker build -t de.htwg-konstanz.in/travel-backend:"$VERSION" .
+#
+ docker tag de.htwg-konstanz.in/travel-backend:"$VERSION" europe-west1-docker.pkg.dev/"$PROJECT_ID"/docker-repo/travel-backend:"$VERSION"
  docker push europe-west1-docker.pkg.dev/$PROJECT_ID/docker-repo/travel-backend:"$VERSION"
 
 # Deploy to Cloud Run with Cloud SQL connection
-# gcloud run deploy travel-backend \
-#     --image europe-west1-docker.pkg.dev/$PROJECT_ID/docker-repo/travel-backend:"$VERSION" \
-#     --region $REGION \
-#     --platform managed \
-#     --allow-unauthenticated \
-#     --service-account ${RUN_SA}@${PROJECT_ID}.iam.gserviceaccount.com \
-#     --add-cloudsql-instances $CONN_NAME \
-#     --set-env-vars "DB_USER=$DB_USER" \
-#     --set-env-vars "DB_PASSWORD=$DB_PASS" \
-#     --set-env-vars "DB_URL=jdbc:postgresql:///$DB?cloudSqlInstance=$CONN_NAME&socketFactory=com.google.cloud.sql.postgres.SocketFactory" \
-#     --set-env-vars "QUARKUS_PROFILE=prod"
+ gcloud run deploy travel-backend \
+     --image europe-west1-docker.pkg.dev/$PROJECT_ID/docker-repo/travel-backend:"$VERSION" \
+     --region $REGION \
+     --platform managed \
+     --allow-unauthenticated \
+     --service-account ${RUN_SA}@${PROJECT_ID}.iam.gserviceaccount.com \
+     --add-cloudsql-instances $CONN_NAME \
+     --set-env-vars "DB_USER=$DB_USER" \
+     --set-env-vars "DB_PASSWORD=$DB_PASS" \
+     --set-env-vars "DB_URL=jdbc:postgresql:///$DB?cloudSqlInstance=$CONN_NAME&socketFactory=com.google.cloud.sql.postgres.SocketFactory" \
+     --set-env-vars "QUARKUS_PROFILE=prod"
+## DNS
+# gcloud domains verify tripico.fun
+
+# gcloud beta run domain-mappings create --region=europe-west1 --service travel-backend --domain backend.tripico.fun

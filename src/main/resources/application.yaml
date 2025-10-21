@@ -6,9 +6,8 @@ quarkus:
     jdbc:
       url: ${DB_URL:jdbc:postgresql://localhost:5432/mydatabase}
   hibernate-orm:
-    schema-generation:
-      database:
-        generation: update
+    database:
+      generation: update
     log:
       sql: true
 
@@ -20,3 +19,8 @@ quarkus:
       password: ${DB_PASSWORD}
       jdbc:
         url: ${DB_URL}
+    hibernate-orm:
+      database:
+        generation: update
+      log:
+        sql: true
