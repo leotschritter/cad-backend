@@ -14,8 +14,12 @@ quarkus:
     cloud:
       projectId: ${PROJECT_ID:myprojectid}
     firestore:
-      use-emulator: ${USE_EMULATOR:false}
-      emulator-host: ${EMULATOR_HOST:localhost:8080}
+      use-emulator: ${USE_FIRESTORE_EMULATOR:false}
+      emulator-host: ${FIRESTORE_EMULATOR_HOST:localhost:8080}
+    storage:
+      use-emulator: ${USE_STORAGE_EMULATOR:false}
+      emulator-host: ${STORAGE_EMULATOR_HOST:localhost:8080}
+      bucket-name: 'tripico-comments'
 
 # Profile-specific configurations
 "%prod":
@@ -36,3 +40,7 @@ quarkus:
     firestore:
       use-emulator: false
       emulator-host: ''
+    storage:
+      use-emulator: false
+      emulator-host: ''
+      bucket-name: 'tripico-comments'
