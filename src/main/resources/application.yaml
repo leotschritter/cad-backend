@@ -10,6 +10,12 @@ quarkus:
       generation: update
     log:
       sql: true
+  google:
+    cloud:
+      projectId: ${PROJECT_ID:myprojectid}
+    firestore:
+      use-emulator: ${USE_EMULATOR:false}
+      emulator-host: ${EMULATOR_HOST:localhost:8080}
 
 # Profile-specific configurations
 "%prod":
@@ -24,3 +30,9 @@ quarkus:
         generation: update
       log:
         sql: true
+  google:
+    cloud:
+      projectId: ${PROJECT_ID}
+    firestore:
+      use-emulator: false
+      emulator-host: ''
