@@ -257,6 +257,19 @@ public class UserApi {
         }
 
         try {
+            // Check if user already has a profile image and delete it
+            try {
+                String oldImageUrl = userService.getProfileImageUrl(email);
+                if (oldImageUrl != null && !oldImageUrl.isEmpty()) {
+                    String oldFileName = extractFileNameFromUrl(oldImageUrl);
+                    imageStorageService.deleteImage(oldFileName);
+                }
+            } catch (Exception e) {
+                // Log but don't fail if old image deletion fails
+                System.err.println("Warning: Could not delete old profile image: " + e.getMessage());
+            }
+
+            // Upload new profile image
             String fileName = "profile-images/" + email + "/" + System.currentTimeMillis() + "_" + file.fileName();
             String imageUrl = imageStorageService.uploadImage(
                 new FileInputStream(file.uploadedFile().toFile()),
@@ -337,5 +350,40 @@ public class UserApi {
                     .entity("An error occurred while retrieving the profile image")
                     .build();
         }
+    }
+
+    /**
+     * Extract filename from a signed URL or raw GCS URL
+     * Handles both formats:
+     * - <a href="https://storage.googleapis.com/bucket/path/to/filename.jpg">...</a>
+     * - <a href="https://storage.googleapis.com/bucket/path/to/filename.jpg?X-Goog-Algorithm=">...</a>...
+     */
+    private String extractFileNameFromUrl(String url) {
+        if (url == null || url.isEmpty()) {
+            return null;
+        }
+        
+        // Remove query parameters (signed URL signature)
+        String urlWithoutQuery = url.split("\\?")[0];
+        
+        // Extract the full path after bucket name
+        // URL format: https://storage.googleapis.com/bucket-name/path/to/file.jpg
+        String[] parts = urlWithoutQuery.split("/");
+        if (parts.length >= 5) {
+            // Reconstruct path after bucket (e.g., "profile-images/email/timestamp_file.jpg")
+            StringBuilder pathBuilder = new StringBuilder();
+            for (int i = 4; i < parts.length; i++) {
+                if (i > 4) pathBuilder.append("/");
+                pathBuilder.append(parts[i]);
+            }
+            return pathBuilder.toString();
+        }
+        
+        // Fallback: just get the last segment
+        if (parts.length > 0) {
+            return parts[parts.length - 1];
+        }
+        
+        return url;
     }
 }
