@@ -1,8 +1,7 @@
-package de.htwg.api.like;
+package de.htwg.api.comment;
 
-import de.htwg.api.itinerary.model.LikeDto;
-import de.htwg.api.itinerary.model.LikeResponseDto;
-import de.htwg.service.firestore.LikeService;
+import de.htwg.api.itinerary.model.CommentDto;
+import de.htwg.service.firestore.CommentService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -12,60 +11,56 @@ import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.ExampleObject;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
-import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
 
-@Path("/like")
-@Tag(name = "Like Management", description = "Operations for managing likes and comments on itineraries")
-public class LikeApi {
+@Path("/comment")
+@Tag(name = "Comment Management", description = "Operations for managing comments on itineraries")
+public class CommentApi {
 
-    private final LikeService likeService;
+    private final CommentService commentService;
 
     @Inject
-    public LikeApi(LikeService likeService) {
-        this.likeService = likeService;
+    public CommentApi(CommentService commentService) {
+        this.commentService = commentService;
     }
 
     @POST
     @Path("/itinerary/{itineraryId}")
+    @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
-        summary = "Like an itinerary",
-        description = "Adds a like to an itinerary. Users can only like once per itinerary."
+        summary = "Add comment to itinerary",
+        description = "Adds a comment to an itinerary. Users can add multiple comments."
     )
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
-            description = "Itinerary liked successfully",
+            description = "Comment added successfully",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
-                schema = @Schema(implementation = LikeDto.class)
+                schema = @Schema(implementation = CommentDto.class)
             )
         ),
         @APIResponse(
             responseCode = "400",
-            description = "Bad request - User already liked this itinerary or missing user email",
+            description = "Bad request - Missing required fields or empty comment",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
-                example = "{\"error\": \"User has already liked this itinerary\"}"
+                example = "{\"error\": \"Comment text cannot be empty\"}"
             )
         )
     })
-    public Response likeItinerary(
+    public Response addComment(
         @Parameter(
-            description = "ID of the itinerary to like",
+            description = "ID of the itinerary to comment on",
             required = true,
             example = "1"
         ) @PathParam("itineraryId") Long itineraryId,
-        @Parameter(
-            description = "Email of the user liking the itinerary",
-            required = true,
-            example = "john.doe@example.com"
-        ) @QueryParam("userEmail") String userEmail) {
+        final CommentRequest request) {
 
         if (itineraryId == null) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -73,66 +68,80 @@ public class LikeApi {
                     .build();
         }
 
-        if (userEmail == null || userEmail.trim().isEmpty()) {
+        if (request == null || request.userEmail == null || request.userEmail.trim().isEmpty()) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\": \"User email is required\"}")
                     .build();
         }
 
+        if (request.comment == null || request.comment.trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"Comment text cannot be empty\"}")
+                    .build();
+        }
+
         try {
-            LikeDto createdLike = likeService.addLike(userEmail, itineraryId);
-            return Response.ok(createdLike).build();
+            CommentDto createdComment = commentService.addComment(request.userEmail, itineraryId, request.comment);
+            return Response.ok(createdComment).build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\": \"" + e.getMessage() + "\"}")
                     .build();
         } catch (Exception e) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("{\"error\": \"An error occurred while liking the itinerary\"}")
+                    .entity("{\"error\": \"An error occurred while adding the comment\"}")
                     .build();
         }
     }
 
     @DELETE
-    @Path("/itinerary/{itineraryId}")
+    @Path("/{commentId}")
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
-        summary = "Remove like from itinerary",
-        description = "Removes a like from an itinerary."
+        summary = "Delete comment",
+        description = "Deletes a comment. Users can only delete their own comments."
     )
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
-            description = "Like removed successfully",
+            description = "Comment deleted successfully",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
-                example = "{\"message\": \"Like removed successfully\"}"
+                example = "{\"message\": \"Comment deleted successfully\"}"
             )
         ),
         @APIResponse(
             responseCode = "400",
-            description = "Bad request - User email is required",
+            description = "Bad request - Missing required fields or unauthorized",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
-                example = "{\"error\": \"User email is required\"}"
+                example = "{\"error\": \"You can only delete your own comments\"}"
+            )
+        ),
+        @APIResponse(
+            responseCode = "404",
+            description = "Comment not found",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Comment not found\"}"
             )
         )
     })
-    public Response removeLikeFromItinerary(
+    public Response deleteComment(
         @Parameter(
-            description = "ID of the itinerary to remove like from",
+            description = "ID of the comment to delete",
             required = true,
-            example = "1"
-        ) @PathParam("itineraryId") Long itineraryId,
+            example = "abc123"
+        ) @PathParam("commentId") String commentId,
         @Parameter(
-            description = "Email of the user removing the like",
+            description = "Email of the user deleting the comment",
             required = true,
             example = "john.doe@example.com"
         ) @QueryParam("userEmail") String userEmail) {
 
-        if (itineraryId == null) {
+        if (commentId == null || commentId.trim().isEmpty()) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("{\"error\": \"Itinerary ID is required\"}")
+                    .entity("{\"error\": \"Comment ID is required\"}")
                     .build();
         }
 
@@ -143,13 +152,17 @@ public class LikeApi {
         }
 
         try {
-            likeService.removeLike(userEmail, itineraryId);
+            commentService.deleteComment(commentId, userEmail);
             return Response.ok()
-                    .entity("{\"message\": \"Like removed successfully\"}")
+                    .entity("{\"message\": \"Comment deleted successfully\"}")
+                    .build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"" + e.getMessage() + "\"}")
                     .build();
         } catch (Exception e) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("{\"error\": \"An error occurred while removing the like\"}")
+                    .entity("{\"error\": \"An error occurred while deleting the comment\"}")
                     .build();
         }
     }
@@ -158,24 +171,36 @@ public class LikeApi {
     @Path("/itinerary/{itineraryId}")
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
-        summary = "Get like count for itinerary",
-        description = "Retrieves the number of likes for a specific itinerary."
+        summary = "Get comments for itinerary",
+        description = "Retrieves all comments for a specific itinerary, ordered by creation date (newest first)."
     )
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
-            description = "Like count retrieved successfully",
+            description = "Comments retrieved successfully",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
-                schema = @Schema(implementation = LikeResponseDto.class),
+                schema = @Schema(implementation = CommentDto[].class),
                 examples = @ExampleObject(
-                    name = "Likes response",
-                    summary = "Example of likes response",
+                    name = "Comments response",
+                    summary = "Example of comments response",
                     value = """
-                        {
-                          "itineraryId": 1,
-                          "likeCount": 5
-                        }
+                        [
+                          {
+                            "id": "abc123",
+                            "userEmail": "john@example.com",
+                            "itineraryId": 1,
+                            "comment": "Amazing trip! Would love to visit.",
+                            "createdAt": "2024-06-15T10:30:00"
+                          },
+                          {
+                            "id": "def456",
+                            "userEmail": "jane@example.com",
+                            "itineraryId": 1,
+                            "comment": "Great photos!",
+                            "createdAt": "2024-06-14T14:20:00"
+                          }
+                        ]
                         """
                 )
             )
@@ -189,9 +214,9 @@ public class LikeApi {
             )
         )
     })
-    public Response getLikesForItinerary(
+    public Response getCommentsForItinerary(
         @Parameter(
-            description = "ID of the itinerary to get likes for",
+            description = "ID of the itinerary to get comments for",
             required = true,
             example = "1"
         ) @PathParam("itineraryId") Long itineraryId) {
@@ -203,11 +228,11 @@ public class LikeApi {
         }
 
         try {
-            LikeResponseDto likes = likeService.getLikesForItinerary(itineraryId);
-            return Response.ok(likes).build();
+            List<CommentDto> comments = commentService.getCommentsForItinerary(itineraryId);
+            return Response.ok(comments).build();
         } catch (Exception e) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("{\"error\": \"An error occurred while retrieving likes\"}")
+                    .entity("{\"error\": \"An error occurred while retrieving comments\"}")
                     .build();
         }
     }
@@ -216,16 +241,16 @@ public class LikeApi {
     @Path("/user/{userEmail}")
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
-        summary = "Get likes by user",
-        description = "Retrieves all likes made by a specific user."
+        summary = "Get comments by user",
+        description = "Retrieves all comments made by a specific user, ordered by creation date (newest first)."
     )
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
-            description = "User likes retrieved successfully",
+            description = "User comments retrieved successfully",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
-                schema = @Schema(implementation = LikeDto[].class)
+                schema = @Schema(implementation = CommentDto[].class)
             )
         ),
         @APIResponse(
@@ -237,9 +262,9 @@ public class LikeApi {
             )
         )
     })
-    public Response getLikesByUser(
+    public Response getCommentsByUser(
         @Parameter(
-            description = "Email of the user to get likes for",
+            description = "Email of the user to get comments for",
             required = true,
             example = "john.doe@example.com"
         ) @PathParam("userEmail") String userEmail) {
@@ -251,13 +276,19 @@ public class LikeApi {
         }
 
         try {
-            List<LikeDto> likes = likeService.getLikesByUser(userEmail);
-            return Response.ok(likes).build();
+            List<CommentDto> comments = commentService.getCommentsByUser(userEmail);
+            return Response.ok(comments).build();
         } catch (Exception e) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("{\"error\": \"An error occurred while retrieving user likes\"}")
+                    .entity("{\"error\": \"An error occurred while retrieving user comments\"}")
                     .build();
         }
+    }
+
+    // Request DTO for adding comments
+    public static class CommentRequest {
+        public String userEmail;
+        public String comment;
     }
 }
 

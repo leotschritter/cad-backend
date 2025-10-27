@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface LikeService {
     
-    LikeDto addLike(String userEmail, Long itineraryId, String comment);
+    LikeDto addLike(String userEmail, Long itineraryId);
     
     void removeLike(String userEmail, Long itineraryId);
     

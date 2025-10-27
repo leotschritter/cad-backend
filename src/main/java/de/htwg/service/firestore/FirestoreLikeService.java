@@ -46,7 +46,7 @@ public class FirestoreLikeService implements LikeService {
     }
 
     @Override
-    public LikeDto addLike(String userEmail, Long itineraryId, String comment) {
+    public LikeDto addLike(String userEmail, Long itineraryId) {
         try {
             // Check if user already liked this itinerary
             if (hasUserLiked(userEmail, itineraryId)) {
@@ -60,7 +60,6 @@ public class FirestoreLikeService implements LikeService {
                     .id(likeId)
                     .userEmail(userEmail)
                     .itineraryId(itineraryId)
-                    .comment(comment)
                     .createdAt(now)
                     .build();
 
@@ -98,21 +97,14 @@ public class FirestoreLikeService implements LikeService {
         try {
             Query query = getFirestore()
                     .collection(COLLECTION_NAME)
-                    .whereEqualTo("itineraryId", itineraryId)
-                    .orderBy("createdAt", Query.Direction.ASCENDING);
+                    .whereEqualTo("itineraryId", itineraryId);
 
             QuerySnapshot querySnapshot = query.get().get();
-            List<LikeDto> likes = new ArrayList<>();
-
-            for (QueryDocumentSnapshot document : querySnapshot.getDocuments()) {
-                LikeDto like = document.toObject(LikeDto.class);
-                likes.add(like);
-            }
+            long likeCount = querySnapshot.size();
 
             return LikeResponseDto.builder()
                     .itineraryId(itineraryId)
-                    .likeCount(likes.size())
-                    .likes(likes)
+                    .likeCount(likeCount)
                     .build();
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Failed to get likes for itinerary", e);
