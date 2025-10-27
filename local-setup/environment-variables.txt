@@ -1,0 +1,22 @@
+# Local Development Environment Variables
+# These variables are used by the application in local mode
+# Most of these are already configured with defaults in application-local.yaml
+
+# PostgreSQL Configuration
+DB_URL=jdbc:postgresql://localhost:5432/mydatabase
+DB_USER=myuser
+DB_PASSWORD=mypassword
+
+# Google Cloud Configuration
+PROJECT_ID=local-project
+STORAGE_BUCKET_NAME=tripico-images
+
+# Emulator Configuration
+USE_FIRESTORE_EMULATOR=true
+FIRESTORE_EMULATOR_HOST=localhost:8081
+USE_STORAGE_EMULATOR=true
+STORAGE_EMULATOR_HOST=localhost:4443
+
+# Application Configuration
+QUARKUS_PROFILE=local
+

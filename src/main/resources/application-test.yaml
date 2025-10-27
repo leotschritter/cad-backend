@@ -1,0 +1,35 @@
+quarkus:
+  # Datasource configuration for testing with H2
+  datasource:
+    db-kind: h2
+    jdbc:
+      url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+
+  # Hibernate ORM configuration for testing
+  hibernate-orm:
+    database:
+      generation: drop-and-create  # Fresh database for each test
+    log:
+      sql: false
+      format-sql: false
+
+
+  # Logging for tests
+  log:
+    level: WARN
+    category:
+      "de.htwg":
+        level: DEBUG
+
+# Google Cloud configuration for testing (override base)
+google:
+  cloud:
+    projectId: test-project
+  firestore:
+    use-emulator: true
+    emulator-host: localhost:8081
+  storage:
+    use-emulator: true
+    emulator-host: localhost:4443
+    bucket-name: test-bucket
+

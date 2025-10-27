@@ -1,0 +1,44 @@
+quarkus:
+  # Datasource configuration for local PostgreSQL
+  datasource:
+    username: ${DB_USER:myuser}
+    password: ${DB_PASSWORD:mypassword}
+    jdbc:
+      url: ${DB_URL:jdbc:postgresql://localhost:5432/mydatabase}
+
+  # Hibernate ORM configuration for local development
+  hibernate-orm:
+    database:
+      generation: update  # Auto-create/update schema for development
+    log:
+      sql: true  # Log SQL statements
+      format-sql: true
+
+
+  # Development mode configuration
+  dev:
+    instrumentation: true
+
+  # Logging for local development
+  log:
+    level: DEBUG
+    category:
+      "de.htwg":
+        level: DEBUG
+      "org.hibernate.SQL":
+        level: DEBUG
+      "org.hibernate.type.descriptor.sql.BasicBinder":
+        level: TRACE
+
+# Google Cloud configuration for local emulators (override base)
+google:
+  cloud:
+    projectId: ${PROJECT_ID:local-project}
+  firestore:
+    use-emulator: true
+    emulator-host: ${FIRESTORE_EMULATOR_HOST:localhost:8081}
+  storage:
+    use-emulator: true
+    emulator-host: ${STORAGE_EMULATOR_HOST:localhost:4443}
+    bucket-name: ${STORAGE_BUCKET_NAME:tripico-images}
+

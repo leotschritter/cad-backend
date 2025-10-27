@@ -7,4 +7,8 @@ public interface UserService {
     UserDto registerUser(UserDto userDto);
 
     UserDto getUserByEmail(String email);
+
+    void updateProfileImage(String email, String imageUrl);
+
+    String getProfileImageUrl(String email);
 }

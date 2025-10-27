@@ -73,7 +73,6 @@
             <artifactId>quarkus-smallrye-openapi</artifactId>
         </dependency>
 
-
         <!-- Database -->
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -142,6 +141,11 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-storage</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${org.mapstruct.version}</version>
         </dependency>
     </dependencies>
 

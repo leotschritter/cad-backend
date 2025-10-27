@@ -24,7 +24,7 @@ public class ItineraryServiceImpl implements ItineraryService {
 
     @Inject
     public ItineraryServiceImpl(ItineraryRepository itineraryRepository, 
-                               UserRepository userRepository, 
+                               UserRepository userRepository,
                                ItineraryMapper itineraryMapper) {
         this.itineraryRepository = itineraryRepository;
         this.userRepository = userRepository;
