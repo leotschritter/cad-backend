@@ -31,11 +31,11 @@ public class LocationMapper {
     }
 
     public LocationDto toDto(Location location) {
-        // Generate fresh signed URLs for all images
+        // Generate fresh signed URLs (or direct URLs in dev) for all images
+        // The location.getImageUrls() contains filename paths, not URLs
         List<String> signedImageUrls = null;
         if (location.getImageUrls() != null && !location.getImageUrls().isEmpty()) {
             signedImageUrls = location.getImageUrls().stream()
-                    .map(this::extractFileNameFromUrl)
                     .map(imageStorageService::getImageUrl)
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
@@ -61,28 +61,5 @@ public class LocationMapper {
         return locationDtos.stream()
                 .map(this::toEntity)
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Extract filename from a signed URL or raw GCS URL
-     * Handles both formats:
-     * - <a href="https://storage.googleapis.com/bucket/filename">...</a>
-     * - <a href="https://storage.googleapis.com/bucket/filename?X-Goog-Algorithm=">...</a>...
-     */
-    private String extractFileNameFromUrl(String url) {
-        if (url == null || url.isEmpty()) {
-            return null;
-        }
-        
-        // Remove query parameters (signed URL signature)
-        String urlWithoutQuery = url.split("\\?")[0];
-        
-        // Extract filename from path
-        String[] pathParts = urlWithoutQuery.split("/");
-        if (pathParts.length > 0) {
-            return pathParts[pathParts.length - 1];
-        }
-        
-        return url; // Fallback to original URL
     }
 }

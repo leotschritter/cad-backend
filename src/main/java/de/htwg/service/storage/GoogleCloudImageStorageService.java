@@ -1,10 +1,13 @@
 package de.htwg.service.storage;
 
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.NoCredentials;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
+import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -25,17 +28,35 @@ public class GoogleCloudImageStorageService implements ImageStorageService {
     @ConfigProperty(name = "google.cloud.projectId")
     String projectId;
 
+    @Inject
+    @ConfigProperty(name = "google.storage.use-emulator", defaultValue = "false")
+    boolean useEmulator;
+
+    @Inject
+    @ConfigProperty(name = "google.storage.emulator-host", defaultValue = "localhost:9023")
+    String emulatorHost;
+
     private Storage storage;
 
-    private Storage getStorage() {
-        if (storage == null) {
-            storage = StorageOptions.newBuilder()
-                    .setProjectId(projectId)
-                    .build()
-                    .getService();
+    @PostConstruct
+    void init() throws IOException {
+        StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder()
+                .setProjectId(projectId);
+
+
+        if (useEmulator) {
+            // For fake-gcs-server emulator, we need to set the host properly
+            // The emulator expects requests at http://host:port/storage/v1/
+            storageOptionsBuilder
+                    .setHost("http://" + emulatorHost)
+                    .setCredentials(NoCredentials.getInstance());
+        } else {
+            storageOptionsBuilder.setCredentials(GoogleCredentials.getApplicationDefault());
         }
-        return storage;
+        this.storage = storageOptionsBuilder.build().getService();
+
     }
+
 
     @Override
     public String uploadImage(InputStream imageStream, String fileName, String contentType) {
@@ -45,9 +66,10 @@ public class GoogleCloudImageStorageService implements ImageStorageService {
                     .setContentType(contentType)
                     .build();
 
-            getStorage().create(blobInfo, imageStream.readAllBytes());
-            // Return signed URL instead of raw GCS URL
-            return generateSignedUrl(fileName, 15); // 15 minutes expiration
+            Blob uploadedBlob = storage.create(blobInfo, imageStream.readAllBytes());
+            System.out.println("Successfully uploaded blob: " + uploadedBlob.getName() +
+                             " (exists: " + uploadedBlob.exists() + ")");
+            return fileName;
         } catch (IOException e) {
             throw new RuntimeException("Failed to upload image", e);
         }
@@ -55,19 +77,32 @@ public class GoogleCloudImageStorageService implements ImageStorageService {
 
     @Override
     public String getImageUrl(String fileName) {
+        System.out.println("Getting image URL for fileName: " + fileName + ", bucket: " + bucketName);
+
+        // In emulator mode, return direct URL without blob existence check
+        // (fake-gcs-server has issues with storage.get())
+        if (useEmulator) {
+            return "http://" + emulatorHost + "/storage/v1/b/" + bucketName + "/o/" +
+                   fileName.replace("/", "%2F") + "?alt=media";
+        }
+
+        // In production, verify blob exists before generating signed URL
         BlobId blobId = BlobId.of(bucketName, fileName);
-        Blob blob = getStorage().get(blobId);
+        Blob blob = storage.get(blobId);
+
         if (blob == null) {
+            System.err.println("Blob not found for fileName: " + fileName);
             return null;
         }
-        // Return signed URL instead of raw GCS URL
-        return generateSignedUrl(fileName, 15); // 15 minutes expiration
+
+        System.out.println("Blob found: " + blob.getName() + " (exists: " + blob.exists() + ")");
+        return generateSignedUrl(fileName, 15);
     }
 
     @Override
     public void deleteImage(String fileName) {
         BlobId blobId = BlobId.of(bucketName, fileName);
-        getStorage().delete(blobId);
+        storage.delete(blobId);
     }
 
     @Override
@@ -75,7 +110,7 @@ public class GoogleCloudImageStorageService implements ImageStorageService {
         BlobId blobId = BlobId.of(bucketName, fileName);
         BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
         
-        URL signedUrl = getStorage().signUrl(blobInfo, expirationTimeInMinutes, TimeUnit.MINUTES);
+        URL signedUrl = storage.signUrl(blobInfo, expirationTimeInMinutes, TimeUnit.MINUTES);
         return signedUrl.toString();
     }
 }

@@ -25,11 +25,11 @@ public class UserMapper {
     }
 
     public UserDto toDto(User entity) {
-        // Generate fresh signed URL for profile image
+        // Generate fresh signed URL (or direct URL in dev) for profile image
+        // The entity.getProfileImageUrl() contains the filename path, not a URL
         String signedProfileImageUrl = null;
-        if (entity.getProfileImageUrl() != null) {
-            String fileName = extractFileNameFromUrl(entity.getProfileImageUrl());
-            signedProfileImageUrl = imageStorageService.getImageUrl(fileName);
+        if (entity.getProfileImageUrl() != null && !entity.getProfileImageUrl().isEmpty()) {
+            signedProfileImageUrl = imageStorageService.getImageUrl(entity.getProfileImageUrl());
         }
 
         return UserDto.builder()
@@ -38,25 +38,5 @@ public class UserMapper {
                 .email(entity.getEmail())
                 .profileImageUrl(signedProfileImageUrl)
                 .build();
-    }
-    
-    /**
-     * Extract filename from a signed URL or raw GCS URL
-     */
-    private String extractFileNameFromUrl(String url) {
-        if (url == null || url.isEmpty()) {
-            return null;
-        }
-        
-        // Remove query parameters (signed URL signature)
-        String urlWithoutQuery = url.split("\\?")[0];
-        
-        // Extract filename from path
-        String[] pathParts = urlWithoutQuery.split("/");
-        if (pathParts.length > 0) {
-            return pathParts[pathParts.length - 1];
-        }
-        
-        return url; // Fallback to original URL
     }
 }

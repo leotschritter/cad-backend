@@ -8,10 +8,12 @@ import de.htwg.service.storage.ImageStorageService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Optional;
 
 @ApplicationScoped
+@Slf4j
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
@@ -60,6 +62,7 @@ public class UserServiceImpl implements UserService {
         }
 
         User user = userOptional.get();
+        log.info("user available" + user.getEmail());
         user.setProfileImageUrl(imageUrl);
         userRepository.persist(user);
     }
@@ -78,28 +81,6 @@ public class UserServiceImpl implements UserService {
             return null;
         }
         
-        // Generate fresh signed URL
-        String fileName = extractFileNameFromUrl(imageUrl);
-        return imageStorageService.getImageUrl(fileName);
-    }
-    
-    /**
-     * Extract filename from a signed URL or raw GCS URL
-     */
-    private String extractFileNameFromUrl(String url) {
-        if (url == null || url.isEmpty()) {
-            return null;
-        }
-        
-        // Remove query parameters (signed URL signature)
-        String urlWithoutQuery = url.split("\\?")[0];
-        
-        // Extract filename from path
-        String[] pathParts = urlWithoutQuery.split("/");
-        if (pathParts.length > 0) {
-            return pathParts[pathParts.length - 1];
-        }
-        
-        return url; // Fallback to original URL
+        return imageStorageService.getImageUrl(imageUrl);
     }
 }

@@ -27,7 +27,7 @@ services:
   gcs-emulator:
     image: fsouza/fake-gcs-server
     container_name: gcs_emulator
-    command: -scheme http -port 4443 -external-url http://localhost:4443
+    command: -scheme http -port 4443 -external-url http://localhost:4443 -filesystem-root /data
     ports:
       - "4443:4443"
     volumes:

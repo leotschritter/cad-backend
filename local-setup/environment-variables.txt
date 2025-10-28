@@ -9,11 +9,11 @@ DB_PASSWORD=mypassword
 
 # Google Cloud Configuration
 PROJECT_ID=local-project
-STORAGE_BUCKET_NAME=tripico-images
+BUCKET_NAME=tripico-images
 
 # Emulator Configuration
 USE_FIRESTORE_EMULATOR=true
-FIRESTORE_EMULATOR_HOST=localhost:8081
+FIRESTORE_EMULATOR_HOST=localhost:8200
 USE_STORAGE_EMULATOR=true
 STORAGE_EMULATOR_HOST=localhost:4443
 

@@ -484,11 +484,10 @@ public class LocationApi {
         }
 
         try {
-            // Extract filename from URL and delete from storage
-            String fileName = extractFileNameFromUrl(imageUrl);
-            imageStorageService.deleteImage(fileName);
-            
-            // Remove URL from location record
+            // imageUrl is actually a filename, not a URL
+            imageStorageService.deleteImage(imageUrl);
+
+            // Remove filename from location record
             locationService.removeImageFromLocation(locationId, imageUrl);
 
             return Response.ok()
@@ -503,41 +502,6 @@ public class LocationApi {
                     .entity("{\"error\": \"An error occurred while deleting the image\"}")
                     .build();
         }
-    }
-
-    /**
-     * Extract filename from a signed URL or raw GCS URL
-     * Handles both formats:
-     * - <a href="https://storage.googleapis.com/bucket/path/to/filename.jpg">...</a>
-     * - <a href="https://storage.googleapis.com/bucket/path/to/filename.jpg?X-Goog-Algorithm=">...</a>...
-     */
-    private String extractFileNameFromUrl(String url) {
-        if (url == null || url.isEmpty()) {
-            return null;
-        }
-        
-        // Remove query parameters (signed URL signature)
-        String urlWithoutQuery = url.split("\\?")[0];
-        
-        // Extract the full path after bucket name
-        // URL format: https://storage.googleapis.com/bucket-name/path/to/file.jpg
-        String[] parts = urlWithoutQuery.split("/");
-        if (parts.length >= 5) {
-            // Reconstruct path after bucket (e.g., "location-images/1/timestamp_file.jpg")
-            StringBuilder pathBuilder = new StringBuilder();
-            for (int i = 4; i < parts.length; i++) {
-                if (i > 4) pathBuilder.append("/");
-                pathBuilder.append(parts[i]);
-            }
-            return pathBuilder.toString();
-        }
-        
-        // Fallback: just get the last segment
-        if (parts.length > 0) {
-            return parts[parts.length - 1];
-        }
-        
-        return url;
     }
 }
 
