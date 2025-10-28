@@ -3,14 +3,6 @@ quarkus:
   application:
     name: travel-app
 
-  # REST Configuration
-  rest:
-    cors:
-      ~: true
-      origins: "*"
-      methods: "GET,POST,PUT,DELETE,OPTIONS"
-      headers: "Content-Type,Authorization"
-
   # OpenAPI Configuration
   smallrye-openapi:
     info-title: Travel App API
@@ -44,8 +36,6 @@ google:
     projectId: ${PROJECT_ID:local-project}
   firestore:
     use-emulator: ${USE_FIRESTORE_EMULATOR:false}
-    emulator-host: ${FIRESTORE_EMULATOR_HOST:localhost:8200}
   storage:
     use-emulator: ${USE_STORAGE_EMULATOR:false}
-    emulator-host: ${STORAGE_EMULATOR_HOST:localhost:4443}
     bucket-name: ${BUCKET_NAME:tripico-images}

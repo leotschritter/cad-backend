@@ -34,8 +34,6 @@ google:
     projectId: ${PROJECT_ID}
   firestore:
     use-emulator: false
-    emulator-host: ''
   storage:
     use-emulator: false
-    emulator-host: ''
     bucket-name: ${BUCKET_NAME}
