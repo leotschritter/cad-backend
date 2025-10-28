@@ -3,13 +3,16 @@ package de.htwg.service.firestore;
 import com.google.cloud.firestore.*;
 import de.htwg.api.itinerary.model.LikeDto;
 import de.htwg.api.itinerary.model.LikeResponseDto;
-import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -20,32 +23,7 @@ public class FirestoreLikeService implements LikeService {
     private static final String COLLECTION_NAME = "likes";
 
     @Inject
-    @ConfigProperty(name = "google.firestore.use-emulator", defaultValue = "false")
-    boolean useEmulator;
-
-    @Inject
-    @ConfigProperty(name = "google.firestore.emulator-host", defaultValue = "localhost:8080")
-    String emulatorHost;
-
-    @Inject
-    @ConfigProperty(name = "google.cloud.projectId")
-    String projectId;
-
-    private Firestore firestore;
-
-    @PostConstruct
-    void init() {
-        FirestoreOptions.Builder builder = FirestoreOptions.newBuilder()
-                .setProjectId(projectId);
-
-        if (useEmulator) {
-            builder.setHost(emulatorHost)
-                    .setCredentials(new FirestoreOptions.EmulatorCredentials());
-        }
-
-        firestore = builder.build().getService();
-        System.out.println("✅ FirestoreLikeService initialized. Emulator=" + useEmulator + " Host=" + emulatorHost);
-    }
+    Firestore firestore;
 
     @Override
     public LikeDto addLike(String userEmail, Long itineraryId) {
@@ -58,20 +36,24 @@ public class FirestoreLikeService implements LikeService {
             String likeId = UUID.randomUUID().toString();
             LocalDateTime now = LocalDateTime.now();
 
-            LikeDto likeDto = LikeDto.builder()
-                    .id(likeId)
-                    .userEmail(userEmail)
-                    .itineraryId(itineraryId)
-                    .createdAt(now)
-                    .build();
+            LikeData likeData = new LikeData(
+                    userEmail,
+                    itineraryId,
+                    Date.from(now.toInstant(ZoneOffset.UTC))
+            );
 
             DocumentReference docRef = firestore
                     .collection(COLLECTION_NAME)
                     .document(likeId);
 
-            docRef.set(likeDto).get();
+            docRef.set(likeData).get();
 
-            return likeDto;
+            return LikeDto.builder()
+                    .id(likeId)
+                    .userEmail(userEmail)
+                    .itineraryId(itineraryId)
+                    .createdAt(now)
+                    .build();
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Failed to add like", e);
         }
@@ -141,13 +123,37 @@ public class FirestoreLikeService implements LikeService {
             List<LikeDto> likes = new ArrayList<>();
 
             for (QueryDocumentSnapshot document : querySnapshot.getDocuments()) {
-                LikeDto like = document.toObject(LikeDto.class);
-                likes.add(like);
+                LikeData likeData = document.toObject(LikeData.class);
+                likes.add(LikeDto.builder()
+                        .id(document.getId())
+                        .userEmail(likeData.getUserEmail())
+                        .itineraryId(likeData.getItineraryId())
+                        .createdAt(LocalDateTime.ofInstant(
+                                likeData.getCreatedAt().toInstant(),
+                                ZoneOffset.UTC
+                        ))
+                        .build());
             }
 
             return likes;
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Failed to get likes by user", e);
+        }
+    }
+
+    // Inner class for Firestore document structure
+    @Setter
+    @Getter
+    @NoArgsConstructor
+    private static class LikeData {
+        private String userEmail;
+        private Long itineraryId;
+        private Date createdAt;
+
+        public LikeData(String userEmail, Long itineraryId, Date createdAt) {
+            this.userEmail = userEmail;
+            this.itineraryId = itineraryId;
+            this.createdAt = createdAt;
         }
     }
 }

@@ -1,24 +1,25 @@
 package de.htwg.service.storage;
 
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.cloud.NoCredentials;
-import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.BlobId;
-import com.google.cloud.storage.BlobInfo;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
-import jakarta.annotation.PostConstruct;
+import com.google.auth.oauth2.ImpersonatedCredentials;
+import com.google.cloud.storage.*;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 @ApplicationScoped
 public class GoogleCloudImageStorageService implements ImageStorageService {
+
+    private static final Logger log = LoggerFactory.getLogger(GoogleCloudImageStorageService.class);
 
     @Inject
     @ConfigProperty(name = "google.storage.bucket-name")
@@ -36,26 +37,11 @@ public class GoogleCloudImageStorageService implements ImageStorageService {
     @ConfigProperty(name = "google.storage.emulator-host", defaultValue = "localhost:9023")
     String emulatorHost;
 
-    private Storage storage;
+    @ConfigProperty(name = "google.storage.service-account-email")
+    Optional<String> serviceAccountEmail;
 
-    @PostConstruct
-    void init() throws IOException {
-        StorageOptions.Builder storageOptionsBuilder = StorageOptions.newBuilder()
-                .setProjectId(projectId);
-
-
-        if (useEmulator) {
-            // For fake-gcs-server emulator, we need to set the host properly
-            // The emulator expects requests at http://host:port/storage/v1/
-            storageOptionsBuilder
-                    .setHost("http://" + emulatorHost)
-                    .setCredentials(NoCredentials.getInstance());
-        } else {
-            storageOptionsBuilder.setCredentials(GoogleCredentials.getApplicationDefault());
-        }
-        this.storage = storageOptionsBuilder.build().getService();
-
-    }
+    @Inject
+    Storage storage;
 
 
     @Override
@@ -67,23 +53,23 @@ public class GoogleCloudImageStorageService implements ImageStorageService {
                     .build();
 
             Blob uploadedBlob = storage.create(blobInfo, imageStream.readAllBytes());
-            System.out.println("Successfully uploaded blob: " + uploadedBlob.getName() +
-                             " (exists: " + uploadedBlob.exists() + ")");
+            log.info("Successfully uploaded blob: {} (exists: {})", uploadedBlob.getName(), uploadedBlob.exists());
             return fileName;
         } catch (IOException e) {
+            log.error("Failed to upload image: {}", fileName, e);
             throw new RuntimeException("Failed to upload image", e);
         }
     }
 
     @Override
     public String getImageUrl(String fileName) {
-        System.out.println("Getting image URL for fileName: " + fileName + ", bucket: " + bucketName);
+        log.info("Getting image URL for fileName: {}, bucket: {}", fileName, bucketName);
 
         // In emulator mode, return direct URL without blob existence check
         // (fake-gcs-server has issues with storage.get())
         if (useEmulator) {
             return "http://" + emulatorHost + "/storage/v1/b/" + bucketName + "/o/" +
-                   fileName.replace("/", "%2F") + "?alt=media";
+                    fileName.replace("/", "%2F") + "?alt=media";
         }
 
         // In production, verify blob exists before generating signed URL
@@ -91,11 +77,11 @@ public class GoogleCloudImageStorageService implements ImageStorageService {
         Blob blob = storage.get(blobId);
 
         if (blob == null) {
-            System.err.println("Blob not found for fileName: " + fileName);
+            log.error("Blob not found for fileName: {}", fileName);
             return null;
         }
 
-        System.out.println("Blob found: " + blob.getName() + " (exists: " + blob.exists() + ")");
+        log.info("Blob found: {} (exists: {})", blob.getName(), blob.exists());
         return generateSignedUrl(fileName, 15);
     }
 
@@ -107,10 +93,56 @@ public class GoogleCloudImageStorageService implements ImageStorageService {
 
     @Override
     public String generateSignedUrl(String fileName, long expirationTimeInMinutes) {
-        BlobId blobId = BlobId.of(bucketName, fileName);
-        BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
-        
-        URL signedUrl = storage.signUrl(blobInfo, expirationTimeInMinutes, TimeUnit.MINUTES);
-        return signedUrl.toString();
+        try {
+            BlobId blobId = BlobId.of(bucketName, fileName);
+            BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
+
+            // For Cloud Run, use IAM-based signing with ImpersonatedCredentials
+            // This requires the service account to have roles/iam.serviceAccountTokenCreator on itself
+            if (!useEmulator && serviceAccountEmail.isPresent() && !serviceAccountEmail.get().isEmpty()) {
+                String saEmail = serviceAccountEmail.get();
+                log.info("Using IAM-based signing with service account: {}", saEmail);
+                
+                // Get the current credentials and create an impersonated version
+                GoogleCredentials sourceCredentials = GoogleCredentials.getApplicationDefault();
+                ImpersonatedCredentials impersonatedCredentials = ImpersonatedCredentials.create(
+                        sourceCredentials,
+                        saEmail,
+                        null,  // delegates
+                        List.of("https://www.googleapis.com/auth/devstorage.read_write"),
+                        300  // lifetime in seconds
+                );
+                
+                // Create a new Storage client with impersonated credentials for signing
+                Storage signingStorage = StorageOptions.newBuilder()
+                        .setCredentials(impersonatedCredentials)
+                        .setProjectId(projectId)
+                        .build()
+                        .getService();
+                
+                URL signedUrl = signingStorage.signUrl(
+                        blobInfo,
+                        expirationTimeInMinutes,
+                        TimeUnit.MINUTES,
+                        Storage.SignUrlOption.httpMethod(HttpMethod.GET),
+                        Storage.SignUrlOption.withV4Signature()
+                );
+                return signedUrl.toString();
+            }
+
+            // Fallback to standard signing (works locally with service account key file)
+            log.info("Using standard credential-based signing");
+            URL signedUrl = storage.signUrl(
+                    blobInfo,
+                    expirationTimeInMinutes,
+                    TimeUnit.MINUTES,
+                    Storage.SignUrlOption.httpMethod(HttpMethod.GET),
+                    Storage.SignUrlOption.withV4Signature()
+            );
+            return signedUrl.toString();
+        } catch (Exception e) {
+            log.error("Failed to generate signed URL for: {}", fileName, e);
+            throw new RuntimeException("Failed to generate signed URL", e);
+        }
     }
 }

@@ -5,6 +5,9 @@ quarkus:
     path: /q/swagger-ui
     enable: true
 
+  smallrye-openapi:
+    servers: ${BACKEND_URL}
+
   # Datasource configuration for production
   datasource:
     username: ${DB_USER}
@@ -40,3 +43,4 @@ google:
   storage:
     use-emulator: false
     bucket-name: ${BUCKET_NAME}
+    service-account-email: ${SERVICE_ACCOUNT_EMAIL}

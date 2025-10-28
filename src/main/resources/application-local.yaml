@@ -21,7 +21,7 @@ quarkus:
 
   # Logging for local development
   log:
-    level: INFO
+    level: ALL
 
 # Google Cloud configuration for local emulators (override base)
 google:

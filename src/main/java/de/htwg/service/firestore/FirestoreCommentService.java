@@ -2,11 +2,11 @@ package de.htwg.service.firestore;
 
 import com.google.cloud.firestore.*;
 import de.htwg.api.itinerary.model.CommentDto;
-import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -21,31 +21,8 @@ public class FirestoreCommentService implements CommentService {
 
     private static final String COLLECTION_NAME = "comments";
 
-    @ConfigProperty(name = "google.cloud.projectId")
-    String configuredProjectId;
-
-    @ConfigProperty(name = "google.firestore.use-emulator", defaultValue = "false")
-    boolean useEmulator;
-
-    @ConfigProperty(name = "google.firestore.emulator-host", defaultValue = "localhost:8081")
-    String emulatorHost;
-
-    private Firestore firestore;
-
-    @PostConstruct
-    void init() {
-
-        FirestoreOptions.Builder builder = FirestoreOptions.newBuilder()
-                .setProjectId(configuredProjectId);
-
-        if (useEmulator) {
-            builder.setHost(emulatorHost)
-                    .setCredentials(new FirestoreOptions.EmulatorCredentials());
-        }
-
-        this.firestore = builder.build().getService();
-        System.out.println("✅ Firestore initialized. Emulator=" + useEmulator + " Host=" + emulatorHost);
-    }
+    @Inject
+    Firestore firestore;
 
     @Override
     public CommentDto addComment(String userEmail, Long itineraryId, String comment) {
@@ -165,6 +142,7 @@ public class FirestoreCommentService implements CommentService {
     // Inner class for Firestore document structure
     @Setter
     @Getter
+    @NoArgsConstructor
     private static class CommentData {
         private String userEmail;
         private Long itineraryId;
