@@ -96,33 +96,48 @@ public class LocationApi {
 
         try {
             // Upload images first
-            List<String> imageUrls = new ArrayList<>();
+            List<String> imageFileNames = new ArrayList<>();
             if (files != null && !files.isEmpty()) {
                 for (FileUpload file : files) {
                     if (file != null && file.fileName() != null) {
                         String fileName = "location-images/" + itineraryId + "/" + 
                                         System.currentTimeMillis() + "_" + file.fileName();
-                        String imageUrl = imageStorageService.uploadImage(
+                        String uploadedFileName = imageStorageService.uploadImage(
                             new java.io.FileInputStream(file.uploadedFile().toFile()),
                             fileName,
                             file.contentType()
                         );
-                        imageUrls.add(imageUrl);
+                        imageFileNames.add(uploadedFileName);
                     }
                 }
             }
 
-            // Create location with uploaded image URLs
+            // Create location with uploaded image filenames (stored in DB)
             LocationDto locationDto = LocationDto.builder()
                     .name(name)
                     .description(description)
                     .fromDate(fromDate)
                     .toDate(toDate)
-                    .imageUrls(imageUrls)
+                    .imageUrls(imageFileNames)
                     .build();
 
             LocationDto createdLocation = locationService.addLocationToItinerary(itineraryId, locationDto);
-            return Response.ok(createdLocation).build();
+
+            // Convert filenames to signed URLs for the response
+            List<String> signedUrls = createdLocation.imageUrls().stream()
+                    .map(imageStorageService::getImageUrl)
+                    .toList();
+
+            LocationDto responseLocation = LocationDto.builder()
+                    .id(createdLocation.id())
+                    .name(createdLocation.name())
+                    .description(createdLocation.description())
+                    .fromDate(createdLocation.fromDate())
+                    .toDate(createdLocation.toDate())
+                    .imageUrls(signedUrls)
+                    .build();
+
+            return Response.ok(responseLocation).build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity("{\"error\": \"" + e.getMessage() + "\"}")
@@ -198,7 +213,28 @@ public class LocationApi {
 
         try {
             List<LocationDto> locations = locationService.getLocationsForItinerary(itineraryId);
-            return Response.ok(locations).build();
+
+            // Convert filenames to signed URLs for each location
+            List<LocationDto> locationsWithSignedUrls = locations.stream()
+                    .map(location -> {
+                        List<String> signedUrls = location.imageUrls() != null
+                            ? location.imageUrls().stream()
+                                .map(imageStorageService::getImageUrl)
+                                .toList()
+                            : List.of();
+
+                        return LocationDto.builder()
+                                .id(location.id())
+                                .name(location.name())
+                                .description(location.description())
+                                .fromDate(location.fromDate())
+                                .toDate(location.toDate())
+                                .imageUrls(signedUrls)
+                                .build();
+                    })
+                    .toList();
+
+            return Response.ok(locationsWithSignedUrls).build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity("{\"error\": \"" + e.getMessage() + "\"}")
@@ -250,7 +286,24 @@ public class LocationApi {
 
         try {
             LocationDto location = locationService.getLocationById(locationId);
-            return Response.ok(location).build();
+
+            // Convert filenames to signed URLs
+            List<String> signedUrls = location.imageUrls() != null
+                ? location.imageUrls().stream()
+                    .map(imageStorageService::getImageUrl)
+                    .toList()
+                : List.of();
+
+            LocationDto locationWithSignedUrls = LocationDto.builder()
+                    .id(location.id())
+                    .name(location.name())
+                    .description(location.description())
+                    .fromDate(location.fromDate())
+                    .toDate(location.toDate())
+                    .imageUrls(signedUrls)
+                    .build();
+
+            return Response.ok(locationWithSignedUrls).build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity("{\"error\": \"" + e.getMessage() + "\"}")
@@ -400,27 +453,32 @@ public class LocationApi {
             // Verify location exists
             locationService.getLocationById(locationId);
 
-            // Upload images and collect URLs
-            List<String> imageUrls = new ArrayList<>();
+            // Upload images and collect filenames
+            List<String> imageFileNames = new ArrayList<>();
             for (FileUpload file : files) {
                 if (file != null && file.fileName() != null) {
                     String fileName = "location-images/" + locationId + "/" + 
                                     System.currentTimeMillis() + "_" + file.fileName();
-                    String imageUrl = imageStorageService.uploadImage(
+                    String uploadedFileName = imageStorageService.uploadImage(
                         new java.io.FileInputStream(file.uploadedFile().toFile()),
                         fileName,
                         file.contentType()
                     );
-                    imageUrls.add(imageUrl);
+                    imageFileNames.add(uploadedFileName);
                 }
             }
 
-            // Add image URLs to location
-            locationService.addImagesToLocation(locationId, imageUrls);
+            // Add image filenames to location (stored in DB)
+            locationService.addImagesToLocation(locationId, imageFileNames);
+
+            // Convert filenames to signed URLs for the response
+            List<String> signedUrls = imageFileNames.stream()
+                    .map(imageStorageService::getImageUrl)
+                    .toList();
 
             LocationImageUploadResponseDto response = new LocationImageUploadResponseDto(
-                imageUrls.size() + " images uploaded successfully",
-                imageUrls
+                signedUrls.size() + " images uploaded successfully",
+                signedUrls
             );
 
             return Response.ok(response).build();

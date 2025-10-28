@@ -283,17 +283,21 @@ public class UserApi {
 
             // Upload new profile image
             String fileName = "profile-images/" + email + "/" + System.currentTimeMillis() + "_" + file.fileName();
-            String imageUrl = imageStorageService.uploadImage(
+            String uploadedFileName = imageStorageService.uploadImage(
                 new FileInputStream(file.uploadedFile().toFile()),
                 fileName,
                 file.contentType()
             );
 
-            userService.updateProfileImage(email, imageUrl);
+            // Store the filename in the database
+            userService.updateProfileImage(email, uploadedFileName);
+
+            // Get the signed URL for the response
+            String signedUrl = imageStorageService.getImageUrl(uploadedFileName);
 
             ProfileImageUploadResponseDto response = new ProfileImageUploadResponseDto(
                 "Profile image uploaded successfully",
-                imageUrl
+                signedUrl
             );
             return Response.ok(response).build();
         } catch (IllegalArgumentException e) {
