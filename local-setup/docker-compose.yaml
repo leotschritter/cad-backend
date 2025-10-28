@@ -14,20 +14,15 @@ services:
       - travel-app-network
 
   firestore-emulator:
-    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    image: mtlynch/firestore-emulator
     container_name: firestore_emulator
-    command: gcloud emulators firestore start --host-port=0.0.0.0:8080
-    ports:
-      - "8081:8080"
     environment:
-      - FIRESTORE_PROJECT_ID=local-project
+      - FIRESTORE_PROJECT_ID=dummy-project-id
+      - PORT=8200
+    ports:
+      - "8200:8200"
     networks:
       - travel-app-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   gcs-emulator:
     image: fsouza/fake-gcs-server

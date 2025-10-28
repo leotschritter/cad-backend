@@ -11,7 +11,7 @@ quarkus:
   # Hibernate ORM configuration for production
   hibernate-orm:
     database:
-      generation: validate  # Never auto-create schema in production
+      generation: update  # Never auto-create schema in production
     log:
       sql: false  # Disable SQL logging in production
       format-sql: false

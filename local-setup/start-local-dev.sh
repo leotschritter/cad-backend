@@ -77,7 +77,7 @@ fi
 echo -n "  Firestore Emulator... "
 RETRY_COUNT=0
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if curl -s -f http://localhost:8081 > /dev/null 2>&1; then
+    if curl -s -f http://localhost:8200 > /dev/null 2>&1; then
         print_success "Ready"
         break
     fi

@@ -2,8 +2,10 @@ package de.htwg.service.firestore;
 
 import com.google.cloud.firestore.*;
 import de.htwg.api.itinerary.model.CommentDto;
+import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
+import lombok.Getter;
+import lombok.Setter;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.time.LocalDateTime;
@@ -18,8 +20,6 @@ import java.util.concurrent.ExecutionException;
 public class FirestoreCommentService implements CommentService {
 
     private static final String COLLECTION_NAME = "comments";
-    private final Firestore firestore;
-    private final String projectId;
 
     @ConfigProperty(name = "google.cloud.projectId")
     String configuredProjectId;
@@ -30,23 +30,21 @@ public class FirestoreCommentService implements CommentService {
     @ConfigProperty(name = "google.firestore.emulator-host", defaultValue = "localhost:8081")
     String emulatorHost;
 
-    @Inject
-    public FirestoreCommentService() {
-        this.projectId = configuredProjectId;
+    private Firestore firestore;
+
+    @PostConstruct
+    void init() {
+
+        FirestoreOptions.Builder builder = FirestoreOptions.newBuilder()
+                .setProjectId(configuredProjectId);
 
         if (useEmulator) {
-            this.firestore = FirestoreOptions.newBuilder()
-                    .setProjectId(projectId)
-                    .setHost(emulatorHost)
-                    .setCredentials(new FirestoreOptions.EmulatorCredentials())
-                    .build()
-                    .getService();
-        } else {
-            this.firestore = FirestoreOptions.newBuilder()
-                    .setProjectId(projectId)
-                    .build()
-                    .getService();
+            builder.setHost(emulatorHost)
+                    .setCredentials(new FirestoreOptions.EmulatorCredentials());
         }
+
+        this.firestore = builder.build().getService();
+        System.out.println("✅ Firestore initialized. Emulator=" + useEmulator + " Host=" + emulatorHost);
     }
 
     @Override
@@ -58,7 +56,7 @@ public class FirestoreCommentService implements CommentService {
 
             String commentId = UUID.randomUUID().toString();
             LocalDateTime now = LocalDateTime.now();
-            
+
             CommentData commentData = new CommentData(
                 userEmail,
                 itineraryId,
@@ -165,14 +163,13 @@ public class FirestoreCommentService implements CommentService {
     }
 
     // Inner class for Firestore document structure
+    @Setter
+    @Getter
     private static class CommentData {
         private String userEmail;
         private Long itineraryId;
         private String comment;
         private Date createdAt;
-
-        public CommentData() {
-        }
 
         public CommentData(String userEmail, Long itineraryId, String comment, Date createdAt) {
             this.userEmail = userEmail;
@@ -181,37 +178,6 @@ public class FirestoreCommentService implements CommentService {
             this.createdAt = createdAt;
         }
 
-        public String getUserEmail() {
-            return userEmail;
-        }
-
-        public void setUserEmail(String userEmail) {
-            this.userEmail = userEmail;
-        }
-
-        public Long getItineraryId() {
-            return itineraryId;
-        }
-
-        public void setItineraryId(Long itineraryId) {
-            this.itineraryId = itineraryId;
-        }
-
-        public String getComment() {
-            return comment;
-        }
-
-        public void setComment(String comment) {
-            this.comment = comment;
-        }
-
-        public Date getCreatedAt() {
-            return createdAt;
-        }
-
-        public void setCreatedAt(Date createdAt) {
-            this.createdAt = createdAt;
-        }
     }
 }
 

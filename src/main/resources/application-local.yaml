@@ -21,14 +21,7 @@ quarkus:
 
   # Logging for local development
   log:
-    level: DEBUG
-    category:
-      "de.htwg":
-        level: DEBUG
-      "org.hibernate.SQL":
-        level: DEBUG
-      "org.hibernate.type.descriptor.sql.BasicBinder":
-        level: TRACE
+    level: ALL
 
 # Google Cloud configuration for local emulators (override base)
 google:
@@ -36,7 +29,7 @@ google:
     projectId: ${PROJECT_ID:local-project}
   firestore:
     use-emulator: true
-    emulator-host: ${FIRESTORE_EMULATOR_HOST:localhost:8081}
+    emulator-host: ${FIRESTORE_EMULATOR_HOST:localhost:8200}
   storage:
     use-emulator: true
     emulator-host: ${STORAGE_EMULATOR_HOST:localhost:4443}

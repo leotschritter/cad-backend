@@ -22,9 +22,6 @@ quarkus:
   # Logging
   log:
     level: INFO
-    category:
-      "de.htwg":
-        level: DEBUG
 
   # HTTP Configuration
   http:
@@ -47,7 +44,7 @@ google:
     projectId: ${PROJECT_ID:local-project}
   firestore:
     use-emulator: ${USE_FIRESTORE_EMULATOR:false}
-    emulator-host: ${FIRESTORE_EMULATOR_HOST:localhost:8081}
+    emulator-host: ${FIRESTORE_EMULATOR_HOST:localhost:8200}
   storage:
     use-emulator: ${USE_STORAGE_EMULATOR:false}
     emulator-host: ${STORAGE_EMULATOR_HOST:localhost:4443}

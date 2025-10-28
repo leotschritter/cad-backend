@@ -1,6 +1,7 @@
 package de.htwg.config;
 
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.NoCredentials;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.FirestoreOptions;
 import jakarta.enterprise.inject.Produces;
@@ -24,7 +25,7 @@ public class FirestoreConfig {
     boolean useEmulator;
 
     @Inject
-    @ConfigProperty(name = "firestore.emulator-host", defaultValue = "localhost:8080")
+    @ConfigProperty(name = "firestore.emulator-host", defaultValue = "localhost:8200")
     String emulatorHost;
 
     private static final Logger log = LoggerFactory.getLogger(FirestoreConfig.class);
@@ -38,6 +39,7 @@ public class FirestoreConfig {
         if (useEmulator) {
             // Use emulator settings
             firestoreOptionsBuilder.setEmulatorHost(emulatorHost);
+            firestoreOptionsBuilder.setCredentials(NoCredentials.getInstance());
             log.info("Using Firestore Emulator at " + emulatorHost);
         } else {
             log.info("Connect to Firestore in Google Cloud for project " + projectId);

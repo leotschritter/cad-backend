@@ -3,6 +3,7 @@ package de.htwg.service.firestore;
 import com.google.cloud.firestore.*;
 import de.htwg.api.itinerary.model.LikeDto;
 import de.htwg.api.itinerary.model.LikeResponseDto;
+import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -15,6 +16,8 @@ import java.util.concurrent.ExecutionException;
 
 @ApplicationScoped
 public class FirestoreLikeService implements LikeService {
+
+    private static final String COLLECTION_NAME = "likes";
 
     @Inject
     @ConfigProperty(name = "google.firestore.use-emulator", defaultValue = "false")
@@ -29,20 +32,19 @@ public class FirestoreLikeService implements LikeService {
     String projectId;
 
     private Firestore firestore;
-    private static final String COLLECTION_NAME = "likes";
 
-    private Firestore getFirestore() {
-        if (firestore == null) {
-            FirestoreOptions.Builder optionsBuilder = FirestoreOptions.newBuilder()
-                    .setProjectId(projectId);
+    @PostConstruct
+    void init() {
+        FirestoreOptions.Builder builder = FirestoreOptions.newBuilder()
+                .setProjectId(projectId);
 
-            if (useEmulator) {
-                optionsBuilder.setHost(emulatorHost);
-            }
-
-            firestore = optionsBuilder.build().getService();
+        if (useEmulator) {
+            builder.setHost(emulatorHost)
+                    .setCredentials(new FirestoreOptions.EmulatorCredentials());
         }
-        return firestore;
+
+        firestore = builder.build().getService();
+        System.out.println("✅ FirestoreLikeService initialized. Emulator=" + useEmulator + " Host=" + emulatorHost);
     }
 
     @Override
@@ -63,7 +65,7 @@ public class FirestoreLikeService implements LikeService {
                     .createdAt(now)
                     .build();
 
-            DocumentReference docRef = getFirestore()
+            DocumentReference docRef = firestore
                     .collection(COLLECTION_NAME)
                     .document(likeId);
 
@@ -78,7 +80,7 @@ public class FirestoreLikeService implements LikeService {
     @Override
     public void removeLike(String userEmail, Long itineraryId) {
         try {
-            Query query = getFirestore()
+            Query query = firestore
                     .collection(COLLECTION_NAME)
                     .whereEqualTo("userEmail", userEmail)
                     .whereEqualTo("itineraryId", itineraryId);
@@ -95,7 +97,7 @@ public class FirestoreLikeService implements LikeService {
     @Override
     public LikeResponseDto getLikesForItinerary(Long itineraryId) {
         try {
-            Query query = getFirestore()
+            Query query = firestore
                     .collection(COLLECTION_NAME)
                     .whereEqualTo("itineraryId", itineraryId);
 
@@ -114,7 +116,7 @@ public class FirestoreLikeService implements LikeService {
     @Override
     public boolean hasUserLiked(String userEmail, Long itineraryId) {
         try {
-            Query query = getFirestore()
+            Query query = firestore
                     .collection(COLLECTION_NAME)
                     .whereEqualTo("userEmail", userEmail)
                     .whereEqualTo("itineraryId", itineraryId)
@@ -130,7 +132,7 @@ public class FirestoreLikeService implements LikeService {
     @Override
     public List<LikeDto> getLikesByUser(String userEmail) {
         try {
-            Query query = getFirestore()
+            Query query = firestore
                     .collection(COLLECTION_NAME)
                     .whereEqualTo("userEmail", userEmail)
                     .orderBy("createdAt", Query.Direction.DESCENDING);
