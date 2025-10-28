@@ -48,4 +48,4 @@ google:
   storage:
     use-emulator: ${USE_STORAGE_EMULATOR:false}
     emulator-host: ${STORAGE_EMULATOR_HOST:localhost:4443}
-    bucket-name: ${STORAGE_BUCKET_NAME:tripico-images}
+    bucket-name: ${BUCKET_NAME:tripico-images}

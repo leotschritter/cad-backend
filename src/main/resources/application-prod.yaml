@@ -36,4 +36,4 @@ google:
   storage:
     use-emulator: false
     emulator-host: ''
-    bucket-name: ${STORAGE_BUCKET_NAME}
+    bucket-name: ${BUCKET_NAME}

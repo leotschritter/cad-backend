@@ -112,7 +112,7 @@ DB_USER=myuser
 DB_PASSWORD=mypassword
 FIRESTORE_EMULATOR_HOST=localhost:8081
 STORAGE_EMULATOR_HOST=localhost:4443
-STORAGE_BUCKET_NAME=tripico-images
+BUCKET_NAME=tripico-images
 USE_FIRESTORE_EMULATOR=true
 USE_STORAGE_EMULATOR=true
 ```
@@ -229,7 +229,7 @@ PROJECT_ID=your-gcp-project-id
 DB_URL=jdbc:postgresql://your-db-host:5432/your-database
 DB_USER=your-db-user
 DB_PASSWORD=your-db-password
-STORAGE_BUCKET_NAME=your-bucket-name
+BUCKET_NAME=your-bucket-name
 USE_FIRESTORE_EMULATOR=false
 USE_STORAGE_EMULATOR=false
 ```
