@@ -1,5 +1,7 @@
 package de.htwg.api.user;
 
+import de.htwg.api.user.model.ProfileImageResponseDto;
+import de.htwg.api.user.model.ProfileImageUploadResponseDto;
 import de.htwg.api.user.model.UserDto;
 import de.htwg.api.user.service.UserService;
 import de.htwg.service.storage.ImageStorageService;
@@ -213,7 +215,17 @@ public class UserApi {
             description = "Profile image uploaded successfully",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
-                example = "{\"message\": \"Profile image uploaded successfully\", \"imageUrl\": \"https://storage.googleapis.com/bucket/profile-image.jpg\"}"
+                schema = @Schema(implementation = ProfileImageUploadResponseDto.class),
+                examples = @ExampleObject(
+                    name = "Upload Success",
+                    summary = "Example of successful upload response",
+                    value = """
+                        {
+                          "message": "Profile image uploaded successfully",
+                          "imageUrl": "https://storage.googleapis.com/bucket/profile-images/john.doe@example.com/1234567890_photo.jpg"
+                        }
+                        """
+                )
             )
         ),
         @APIResponse(
@@ -279,9 +291,11 @@ public class UserApi {
 
             userService.updateProfileImage(email, imageUrl);
 
-            return Response.ok()
-                    .entity("{\"message\": \"Profile image uploaded successfully\", \"imageUrl\": \"" + imageUrl + "\"}")
-                    .build();
+            ProfileImageUploadResponseDto response = new ProfileImageUploadResponseDto(
+                "Profile image uploaded successfully",
+                imageUrl
+            );
+            return Response.ok(response).build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity(e.getMessage())
@@ -306,7 +320,16 @@ public class UserApi {
             description = "Profile image URL retrieved successfully",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
-                example = "{\"imageUrl\": \"https://storage.googleapis.com/bucket/profile-image.jpg\"}"
+                schema = @Schema(implementation = ProfileImageResponseDto.class),
+                examples = @ExampleObject(
+                    name = "Image URL Response",
+                    summary = "Example of profile image URL response",
+                    value = """
+                        {
+                          "imageUrl": "https://storage.googleapis.com/bucket/profile-images/john.doe@example.com/1234567890_photo.jpg"
+                        }
+                        """
+                )
             )
         ),
         @APIResponse(
@@ -338,9 +361,8 @@ public class UserApi {
                         .entity("{\"error\": \"No profile image found for user\"}")
                         .build();
             }
-            return Response.ok()
-                    .entity("{\"imageUrl\": \"" + imageUrl + "\"}")
-                    .build();
+            ProfileImageResponseDto response = new ProfileImageResponseDto(imageUrl);
+            return Response.ok(response).build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity(e.getMessage())

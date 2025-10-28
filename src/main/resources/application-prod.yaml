@@ -1,4 +1,10 @@
 quarkus:
+  # Swagger UI configuration for production
+  swagger-ui:
+    always-include: true
+    path: /q/swagger-ui
+    enable: true
+
   # Datasource configuration for production
   datasource:
     username: ${DB_USER}
@@ -7,9 +13,6 @@ quarkus:
       url: ${DB_URL}
       max-size: 20
       min-size: 5
-  swagger-ui:
-    always-include: true
-    path: /swagger-ui
   # Hibernate ORM configuration for production
   hibernate-orm:
     database:

@@ -1,5 +1,6 @@
 package de.htwg.api.comment;
 
+import de.htwg.api.comment.model.MessageResponseDto;
 import de.htwg.api.itinerary.model.CommentDto;
 import de.htwg.service.firestore.CommentService;
 import jakarta.inject.Inject;
@@ -107,7 +108,16 @@ public class CommentApi {
             description = "Comment deleted successfully",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
-                example = "{\"message\": \"Comment deleted successfully\"}"
+                schema = @Schema(implementation = MessageResponseDto.class),
+                examples = @ExampleObject(
+                    name = "Delete Success",
+                    summary = "Example of successful deletion",
+                    value = """
+                        {
+                          "message": "Comment deleted successfully"
+                        }
+                        """
+                )
             )
         ),
         @APIResponse(
@@ -153,9 +163,8 @@ public class CommentApi {
 
         try {
             commentService.deleteComment(commentId, userEmail);
-            return Response.ok()
-                    .entity("{\"message\": \"Comment deleted successfully\"}")
-                    .build();
+            MessageResponseDto response = new MessageResponseDto("Comment deleted successfully");
+            return Response.ok(response).build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\": \"" + e.getMessage() + "\"}")

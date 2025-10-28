@@ -1,6 +1,8 @@
 package de.htwg.api.location;
 
 import de.htwg.api.itinerary.model.LocationDto;
+import de.htwg.api.location.model.LocationImageUploadResponseDto;
+import de.htwg.api.location.model.MessageResponseDto;
 import de.htwg.api.location.service.LocationService;
 import de.htwg.service.storage.ImageStorageService;
 import jakarta.inject.Inject;
@@ -273,7 +275,16 @@ public class LocationApi {
             description = "Location deleted successfully",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
-                example = "{\"message\": \"Location deleted successfully\"}"
+                schema = @Schema(implementation = MessageResponseDto.class),
+                examples = @ExampleObject(
+                    name = "Delete Success",
+                    summary = "Example of successful deletion",
+                    value = """
+                        {
+                          "message": "Location deleted successfully"
+                        }
+                        """
+                )
             )
         ),
         @APIResponse(
@@ -301,9 +312,8 @@ public class LocationApi {
 
         try {
             locationService.deleteLocation(locationId);
-            return Response.ok()
-                    .entity("{\"message\": \"Location deleted successfully\"}")
-                    .build();
+            MessageResponseDto response = new MessageResponseDto("Location deleted successfully");
+            return Response.ok(response).build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity("{\"error\": \"" + e.getMessage() + "\"}")
@@ -329,8 +339,10 @@ public class LocationApi {
             description = "Images uploaded successfully",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = LocationImageUploadResponseDto.class),
                 examples = @ExampleObject(
                     name = "Upload response",
+                    summary = "Example of successful image upload",
                     value = """
                         {
                           "message": "3 images uploaded successfully",
@@ -406,12 +418,9 @@ public class LocationApi {
             // Add image URLs to location
             locationService.addImagesToLocation(locationId, imageUrls);
 
-            String response = String.format(
-                "{\"message\": \"%d images uploaded successfully\", \"imageUrls\": %s}",
-                imageUrls.size(),
-                imageUrls.stream()
-                    .map(url -> "\"" + url + "\"")
-                    .collect(java.util.stream.Collectors.joining(",", "[", "]"))
+            LocationImageUploadResponseDto response = new LocationImageUploadResponseDto(
+                imageUrls.size() + " images uploaded successfully",
+                imageUrls
             );
 
             return Response.ok(response).build();
@@ -439,7 +448,16 @@ public class LocationApi {
             description = "Image deleted successfully",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
-                example = "{\"message\": \"Image deleted successfully\"}"
+                schema = @Schema(implementation = MessageResponseDto.class),
+                examples = @ExampleObject(
+                    name = "Delete Success",
+                    summary = "Example of successful image deletion",
+                    value = """
+                        {
+                          "message": "Image deleted successfully"
+                        }
+                        """
+                )
             )
         ),
         @APIResponse(
@@ -490,9 +508,8 @@ public class LocationApi {
             // Remove filename from location record
             locationService.removeImageFromLocation(locationId, imageUrl);
 
-            return Response.ok()
-                    .entity("{\"message\": \"Image deleted successfully\"}")
-                    .build();
+            MessageResponseDto response = new MessageResponseDto("Image deleted successfully");
+            return Response.ok(response).build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.NOT_FOUND)
                     .entity("{\"error\": \"" + e.getMessage() + "\"}")

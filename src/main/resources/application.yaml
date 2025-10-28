@@ -11,6 +11,11 @@ quarkus:
     info-contact-name: Travel App Team
     servers: "http://localhost:8080"
 
+  # Swagger UI Configuration (base)
+  swagger-ui:
+    always-include: true
+    path: /q/swagger-ui
+
   # Logging
   log:
     level: INFO

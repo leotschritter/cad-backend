@@ -2,6 +2,7 @@ package de.htwg.api.like;
 
 import de.htwg.api.itinerary.model.LikeDto;
 import de.htwg.api.itinerary.model.LikeResponseDto;
+import de.htwg.api.like.model.MessageResponseDto;
 import de.htwg.service.firestore.LikeService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -106,7 +107,16 @@ public class LikeApi {
             description = "Like removed successfully",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
-                example = "{\"message\": \"Like removed successfully\"}"
+                schema = @Schema(implementation = MessageResponseDto.class),
+                examples = @ExampleObject(
+                    name = "Like Removed",
+                    summary = "Example of successful like removal",
+                    value = """
+                        {
+                          "message": "Like removed successfully"
+                        }
+                        """
+                )
             )
         ),
         @APIResponse(
@@ -144,9 +154,8 @@ public class LikeApi {
 
         try {
             likeService.removeLike(userEmail, itineraryId);
-            return Response.ok()
-                    .entity("{\"message\": \"Like removed successfully\"}")
-                    .build();
+            MessageResponseDto response = new MessageResponseDto("Like removed successfully");
+            return Response.ok(response).build();
         } catch (Exception e) {
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                     .entity("{\"error\": \"An error occurred while removing the like\"}")
