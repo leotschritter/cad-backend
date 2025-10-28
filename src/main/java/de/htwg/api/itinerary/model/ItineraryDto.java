@@ -6,7 +6,8 @@ import java.time.LocalDate;
 
 @Builder
 public record ItineraryDto(
-    String title, 
+    Long id,
+    String title,
     String destination, 
     LocalDate startDate, 
     String shortDescription,

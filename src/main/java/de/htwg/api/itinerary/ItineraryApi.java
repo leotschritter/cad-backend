@@ -219,6 +219,7 @@ public class ItineraryApi {
                     value = """
                         [
                           {
+                            "id": 1,
                             "title": "Family Trip to Norway",
                             "destination": "Norway",
                             "startDate": "2024-06-15",
@@ -226,6 +227,7 @@ public class ItineraryApi {
                             "detailedDescription": "A wonderful family trip to explore the beautiful fjords of southern Norway. We will visit Bergen, Stavanger, and the famous Geirangerfjord."
                           },
                           {
+                            "id": 2,
                             "title": "Business Trip to Tokyo",
                             "destination": "Japan",
                             "startDate": "2024-07-20",
@@ -292,6 +294,7 @@ public class ItineraryApi {
                                     value = """
                         [
                           {
+                            "id": 1,
                             "title": "Family Trip to Norway",
                             "destination": "Norway",
                             "startDate": "2024-06-15",
@@ -299,6 +302,7 @@ public class ItineraryApi {
                             "detailedDescription": "A wonderful family trip to explore the beautiful fjords of southern Norway. We will visit Bergen, Stavanger, and the famous Geirangerfjord."
                           },
                           {
+                            "id": 2,
                             "title": "Business Trip to Tokyo",
                             "destination": "Japan",
                             "startDate": "2024-07-20",
@@ -365,6 +369,7 @@ public class ItineraryApi {
                     value = """
                         [
                           {
+                            "id": 3,
                             "title": "Summer in Paris",
                             "destination": "France",
                             "startDate": "2025-07-01",
@@ -373,6 +378,7 @@ public class ItineraryApi {
                             "userName": "Alice Johnson"
                           },
                           {
+                            "id": 5,
                             "title": "Beach Vacation in Maldives",
                             "destination": "Maldives",
                             "startDate": "2025-08-15",

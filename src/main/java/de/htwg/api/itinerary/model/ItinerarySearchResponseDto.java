@@ -6,6 +6,7 @@ import java.time.LocalDate;
 
 @Builder
 public record ItinerarySearchResponseDto(
+    Long id,
     String title,
     String destination,
     LocalDate startDate,

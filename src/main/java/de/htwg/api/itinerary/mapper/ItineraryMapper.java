@@ -25,6 +25,7 @@ public class ItineraryMapper {
 
     public ItineraryDto toDto(Itinerary entity) {
         return ItineraryDto.builder()
+                .id(entity.getId())
                 .title(entity.getTitle())
                 .destination(entity.getDestination())
                 .startDate(entity.getStartDate())
@@ -35,6 +36,7 @@ public class ItineraryMapper {
 
     public ItinerarySearchResponseDto toSearchResponseDto(Itinerary entity) {
         return ItinerarySearchResponseDto.builder()
+                .id(entity.getId())
                 .title(entity.getTitle())
                 .destination(entity.getDestination())
                 .startDate(entity.getStartDate())
