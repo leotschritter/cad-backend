@@ -843,7 +843,7 @@ paths:
     post:
       summary: Add location to itinerary
       description: Adds a new location to an existing itinerary. Upload images directly
-        as multipart form data. Images will be stored in Google Cloud Storage.
+        as multipart form data (optional). Images will be stored in Google Cloud Storage.
       tags:
         - Location Management
       parameters:
