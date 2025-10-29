@@ -31,15 +31,6 @@ public class LocationMapper {
     }
 
     public LocationDto toDto(Location location) {
-        // Generate fresh signed URLs (or direct URLs in dev) for all images
-        // The location.getImageUrls() contains filename paths, not URLs
-        List<String> signedImageUrls = null;
-        if (location.getImageUrls() != null && !location.getImageUrls().isEmpty()) {
-            signedImageUrls = location.getImageUrls().stream()
-                    .map(imageStorageService::getImageUrl)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-        }
 
         return LocationDto.builder()
                 .id(location.getId())
@@ -47,7 +38,7 @@ public class LocationMapper {
                 .description(location.getDescription())
                 .fromDate(location.getFromDate())
                 .toDate(location.getToDate())
-                .imageUrls(signedImageUrls)
+                .imageUrls(location.getImageUrls())
                 .build();
     }
 
