@@ -2,6 +2,8 @@ package de.htwg.api.itinerary.service;
 
 import de.htwg.api.itinerary.mapper.ItineraryMapper;
 import de.htwg.api.itinerary.model.ItineraryDto;
+import de.htwg.api.itinerary.model.ItinerarySearchDto;
+import de.htwg.api.itinerary.model.ItinerarySearchResponseDto;
 import de.htwg.persistence.entity.Itinerary;
 import de.htwg.persistence.entity.User;
 import de.htwg.persistence.repository.ItineraryRepository;
@@ -22,7 +24,7 @@ public class ItineraryServiceImpl implements ItineraryService {
 
     @Inject
     public ItineraryServiceImpl(ItineraryRepository itineraryRepository, 
-                               UserRepository userRepository, 
+                               UserRepository userRepository,
                                ItineraryMapper itineraryMapper) {
         this.itineraryRepository = itineraryRepository;
         this.userRepository = userRepository;
@@ -67,5 +69,19 @@ public class ItineraryServiceImpl implements ItineraryService {
     public List<ItineraryDto> getItinerariesByEmail(String email) {
         List<Itinerary> itineraries = itineraryRepository.findByUserEmail(email);
         return itineraryMapper.toDtoList(itineraries);
+    }
+
+    @Override
+    public List<ItinerarySearchResponseDto> searchItineraries(ItinerarySearchDto searchDto) {
+        List<Itinerary> itineraries = itineraryRepository.searchItineraries(
+            searchDto.userName(),
+            searchDto.userEmail(),
+            searchDto.title(),
+            searchDto.destination(),
+            searchDto.description(),
+            searchDto.startDateFrom(),
+            searchDto.startDateTo()
+        );
+        return itineraryMapper.toSearchResponseDtoList(itineraries);
     }
 }

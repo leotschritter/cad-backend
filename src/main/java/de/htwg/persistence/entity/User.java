@@ -12,7 +12,8 @@ import java.util.List;
 @AllArgsConstructor
 @Data
 @Builder
-@Entity(name = "travel_user")
+@Entity
+@Table(name = "travel_user")
 public class User {
 
     @Id
@@ -23,9 +24,10 @@ public class User {
 
     private String email;
 
+    private String profileImageUrl;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Itinerary> itineraryList;
-
 
 
 

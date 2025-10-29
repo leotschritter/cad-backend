@@ -1,12 +1,46 @@
 quarkus:
+  # Application Info
+  application:
+    name: travel-app
+
+  # OpenAPI Configuration
+  smallrye-openapi:
+    info-title: Travel App API
+    info-version: 1.0.0
+    info-description: API for managing travel itineraries, locations, and social interactions
+    info-contact-name: Travel App Team
+    servers: "http://localhost:8080"
+
+  # Swagger UI Configuration (base)
+  swagger-ui:
+    always-include: true
+    path: /q/swagger-ui
+
+  # Logging
+  log:
+    level: INFO
+
+  # HTTP Configuration
+  http:
+    port: 8080
+    test-port: 8081
+
+  # Datasource base configuration
   datasource:
     db-kind: postgresql
-    username: myuser
-    password: mypassword
-    jdbc:
-      url: jdbc:postgresql://localhost:5432/mydatabase
+
+  # Hibernate ORM base configuration
   hibernate-orm:
-    database:
-      generation: update
-    log:
-      sql: true
+    packages: de.htwg.persistence.entity
+    metrics:
+      enabled: false
+
+# Google Cloud Configuration (outside quarkus namespace)
+google:
+  cloud:
+    projectId: ${PROJECT_ID:local-project}
+  firestore:
+    use-emulator: ${USE_FIRESTORE_EMULATOR:false}
+  storage:
+    use-emulator: ${USE_STORAGE_EMULATOR:false}
+    bucket-name: ${BUCKET_NAME:tripico-images}

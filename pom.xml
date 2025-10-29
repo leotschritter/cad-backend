@@ -20,6 +20,7 @@
         <commons-lang3.version>3.18.0</commons-lang3.version>
         <org.mapstruct.version>1.6.3</org.mapstruct.version>
         <lombok.version>1.18.38</lombok.version>
+        <cloud-sql.version>1.19.1</cloud-sql.version>
     </properties>
 
     <dependencyManagement>
@@ -36,6 +37,14 @@
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>
                 <version>${commons-lang3.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.google.cloud</groupId>
+                <artifactId>libraries-bom</artifactId>
+                <version>26.48.0</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -64,7 +73,6 @@
             <artifactId>quarkus-smallrye-openapi</artifactId>
         </dependency>
 
-
         <!-- Database -->
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -77,6 +85,12 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-jdbc-postgresql</artifactId>
+        </dependency>
+        <!-- Google Cloud SQL Socket Factory -->
+        <dependency>
+            <groupId>com.google.cloud.sql</groupId>
+            <artifactId>postgres-socket-factory</artifactId>
+            <version>${cloud-sql.version}</version>
         </dependency>
 
         <!-- Testing -->
@@ -119,6 +133,27 @@
             <version>0.4</version>
         </dependency>
 
+        <!-- -->
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-firestore</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-storage</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-census</artifactId>
+            <version>1.65.0</version> <!-- or whatever your grpc-core version is -->
+        </dependency>
+
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${org.mapstruct.version}</version>
+        </dependency>
     </dependencies>
 
     <build>

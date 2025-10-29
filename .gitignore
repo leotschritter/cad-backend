@@ -1,2 +1,7 @@
 .idea
 target
+.venv
+load/.venv
+.env
+*.log
+.DS_Store

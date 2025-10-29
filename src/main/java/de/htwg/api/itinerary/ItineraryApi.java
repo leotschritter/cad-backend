@@ -2,6 +2,8 @@ package de.htwg.api.itinerary;
 
 
 import de.htwg.api.itinerary.model.ItineraryDto;
+import de.htwg.api.itinerary.model.ItinerarySearchDto;
+import de.htwg.api.itinerary.model.ItinerarySearchResponseDto;
 import de.htwg.api.itinerary.service.ItineraryService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -217,6 +219,7 @@ public class ItineraryApi {
                     value = """
                         [
                           {
+                            "id": 1,
                             "title": "Family Trip to Norway",
                             "destination": "Norway",
                             "startDate": "2024-06-15",
@@ -224,6 +227,7 @@ public class ItineraryApi {
                             "detailedDescription": "A wonderful family trip to explore the beautiful fjords of southern Norway. We will visit Bergen, Stavanger, and the famous Geirangerfjord."
                           },
                           {
+                            "id": 2,
                             "title": "Business Trip to Tokyo",
                             "destination": "Japan",
                             "startDate": "2024-07-20",
@@ -290,6 +294,7 @@ public class ItineraryApi {
                                     value = """
                         [
                           {
+                            "id": 1,
                             "title": "Family Trip to Norway",
                             "destination": "Norway",
                             "startDate": "2024-06-15",
@@ -297,6 +302,7 @@ public class ItineraryApi {
                             "detailedDescription": "A wonderful family trip to explore the beautiful fjords of southern Norway. We will visit Bergen, Stavanger, and the famous Geirangerfjord."
                           },
                           {
+                            "id": 2,
                             "title": "Business Trip to Tokyo",
                             "destination": "Japan",
                             "startDate": "2024-07-20",
@@ -342,7 +348,110 @@ public class ItineraryApi {
         return Response.ok(itineraryDtos).build();
     }
 
+    @POST
+    @Path("/search")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Search itineraries",
+        description = "Search for itineraries based on various criteria including user name, user email, title, destination, description, and start date range. All search parameters are optional - empty/null values will be ignored."
+    )
+    @APIResponses(value = {
+        @APIResponse(
+            responseCode = "200",
+            description = "Search completed successfully",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = ItinerarySearchResponseDto[].class),
+                examples = @ExampleObject(
+                    name = "Search Results Example",
+                    summary = "Example of search results",
+                    value = """
+                        [
+                          {
+                            "id": 3,
+                            "title": "Summer in Paris",
+                            "destination": "France",
+                            "startDate": "2025-07-01",
+                            "shortDescription": "Romantic getaway in Paris",
+                            "detailedDescription": "A week-long romantic trip exploring the city of lights, including visits to the Eiffel Tower, Louvre Museum, and Seine river cruises.",
+                            "userName": "Alice Johnson"
+                          },
+                          {
+                            "id": 5,
+                            "title": "Beach Vacation in Maldives",
+                            "destination": "Maldives",
+                            "startDate": "2025-08-15",
+                            "shortDescription": "Tropical paradise retreat",
+                            "detailedDescription": "Relaxing beach vacation in an overwater bungalow with snorkeling, diving, and spa treatments.",
+                            "userName": "Bob Williams"
+                          }
+                        ]
+                        """
+                )
+            )
+        ),
+        @APIResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"An error occurred while searching itineraries\"}"
+            )
+        )
+    })
+    public Response searchItineraries(
+        @RequestBody(
+            description = "Search criteria - all fields are optional",
+            required = true,
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = ItinerarySearchDto.class),
+                examples = {
+                    @ExampleObject(
+                        name = "Search by destination",
+                        summary = "Search for all itineraries to Norway",
+                        value = """
+                            {
+                              "destination": "Norway"
+                            }
+                            """
+                    ),
+                    @ExampleObject(
+                        name = "Search by user and date range",
+                        summary = "Search for user's itineraries in a specific date range",
+                        value = """
+                            {
+                              "userName": "John",
+                              "startDateFrom": "2025-06-01",
+                              "startDateTo": "2025-12-31"
+                            }
+                            """
+                    ),
+                    @ExampleObject(
+                        name = "Complex search",
+                        summary = "Search with multiple criteria",
+                        value = """
+                            {
+                              "userName": "Smith",
+                              "destination": "Japan",
+                              "description": "culture",
+                              "startDateFrom": "2025-01-01"
+                            }
+                            """
+                    ),
+                    @ExampleObject(
+                        name = "Empty search",
+                        summary = "Get all itineraries (up to 100)",
+                        value = "{}"
+                    )
+                }
+            )
+        ) final ItinerarySearchDto searchDto) {
 
+        final List<ItinerarySearchResponseDto> itineraryDtos = itineraryService.searchItineraries(searchDto);
 
+        return Response.ok(itineraryDtos).build();
+    }
 
 }

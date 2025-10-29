@@ -1,15 +1,34 @@
 ---
 openapi: 3.1.0
-tags:
-- name: Itinerary Management
-  description: Operations for managing travel itineraries
-- name: User Management
-  description: Operations for managing user accounts and profiles
 components:
   schemas:
+    CommentDto:
+      type: object
+      properties:
+        id:
+          type: string
+        userEmail:
+          type: string
+        itineraryId:
+          type: integer
+          format: int64
+        comment:
+          type: string
+        createdAt:
+          $ref: "#/components/schemas/LocalDateTime"
+    CommentRequest:
+      type: object
+      properties:
+        userEmail:
+          type: string
+        comment:
+          type: string
     ItineraryDto:
       type: object
       properties:
+        id:
+          type: integer
+          format: int64
         title:
           type: string
         destination:
@@ -20,11 +39,140 @@ components:
           type: string
         detailedDescription:
           type: string
+    ItinerarySearchDto:
+      type: object
+      properties:
+        userName:
+          type: string
+        userEmail:
+          type: string
+        title:
+          type: string
+        destination:
+          type: string
+        description:
+          type: string
+        startDateFrom:
+          $ref: "#/components/schemas/LocalDate"
+        startDateTo:
+          $ref: "#/components/schemas/LocalDate"
+    ItinerarySearchResponseDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        destination:
+          type: string
+        startDate:
+          $ref: "#/components/schemas/LocalDate"
+        shortDescription:
+          type: string
+        detailedDescription:
+          type: string
+        userName:
+          type: string
+    LikeDto:
+      type: object
+      properties:
+        id:
+          type: string
+        userEmail:
+          type: string
+        itineraryId:
+          type: integer
+          format: int64
+        createdAt:
+          $ref: "#/components/schemas/LocalDateTime"
+    LikeResponseDto:
+      type: object
+      properties:
+        itineraryId:
+          type: integer
+          format: int64
+        likeCount:
+          type: integer
+          format: int64
     LocalDate:
       type: string
       format: date
       examples:
-      - 2022-03-10
+        - 2022-03-10
+    LocalDateTime:
+      type: string
+      format: date-time
+      examples:
+        - 2022-03-10T12:15:50
+    LocationDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+        fromDate:
+          $ref: "#/components/schemas/LocalDate"
+        toDate:
+          $ref: "#/components/schemas/LocalDate"
+        imageUrls:
+          type: array
+          items:
+            type: string
+    LocationImageUploadResponseDto:
+      type: object
+      description: Response object for location image upload operations
+      properties:
+        message:
+          type: string
+          description: Success message
+        imageUrls:
+          type: array
+          items:
+            type: string
+          description: List of uploaded image URLs
+    MessageResponseDto:
+      type: object
+      description: Response object for successful operations
+      properties:
+        message:
+          type: string
+          description: Success or info message
+    MessageResponseDto1:
+      type: object
+      description: Response object for successful operations
+      properties:
+        message:
+          type: string
+          description: Success or info message
+    MessageResponseDto2:
+      type: object
+      description: Response object for successful operations
+      properties:
+        message:
+          type: string
+          description: Success or info message
+    ProfileImageResponseDto:
+      type: object
+      description: Response object containing the profile image URL
+      properties:
+        imageUrl:
+          type: string
+          description: URL of the profile image
+    ProfileImageUploadResponseDto:
+      type: object
+      description: Response object for profile image upload operations
+      properties:
+        message:
+          type: string
+          description: Success message
+        imageUrl:
+          type: string
+          description: URL of the uploaded image
     UserDto:
       type: object
       properties:
@@ -35,23 +183,189 @@ components:
           type: string
         email:
           type: string
+        profileImageUrl:
+          type: string
+tags:
+  - name: Comment Management
+    description: Operations for managing comments on itineraries
+  - name: Itinerary Management
+    description: Operations for managing travel itineraries
+  - name: Like Management
+    description: Operations for managing likes and comments on itineraries
+  - name: Location Management
+    description: Operations for managing locations within itineraries
+  - name: User Management
+    description: Operations for managing user accounts and profiles
 paths:
+  /comment/itinerary/{itineraryId}:
+    get:
+      summary: Get comments for itinerary
+      description: "Retrieves all comments for a specific itinerary, ordered by creation\
+        \ date (newest first)."
+      tags:
+        - Comment Management
+      parameters:
+        - description: ID of the itinerary to get comments for
+          example: 1
+          required: true
+          name: itineraryId
+          in: path
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Comments retrieved successfully
+          content:
+            application/json:
+              examples:
+                Comments response:
+                  summary: Example of comments response
+                  value:
+                    - id: abc123
+                      userEmail: john@example.com
+                      itineraryId: 1
+                      comment: Amazing trip! Would love to visit.
+                      createdAt: 2024-06-15T10:30:00
+                    - id: def456
+                      userEmail: jane@example.com
+                      itineraryId: 1
+                      comment: Great photos!
+                      createdAt: 2024-06-14T14:20:00
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CommentDto"
+        "400":
+          description: Bad request - Itinerary ID is required
+          content:
+            application/json:
+              example:
+                error: Itinerary ID is required
+    post:
+      summary: Add comment to itinerary
+      description: Adds a comment to an itinerary. Users can add multiple comments.
+      tags:
+        - Comment Management
+      parameters:
+        - description: ID of the itinerary to comment on
+          example: 1
+          required: true
+          name: itineraryId
+          in: path
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommentRequest"
+        required: true
+      responses:
+        "200":
+          description: Comment added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommentDto"
+        "400":
+          description: Bad request - Missing required fields or empty comment
+          content:
+            application/json:
+              example:
+                error: Comment text cannot be empty
+  /comment/user/{userEmail}:
+    get:
+      summary: Get comments by user
+      description: "Retrieves all comments made by a specific user, ordered by creation\
+        \ date (newest first)."
+      tags:
+        - Comment Management
+      parameters:
+        - description: Email of the user to get comments for
+          example: john.doe@example.com
+          required: true
+          name: userEmail
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User comments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CommentDto"
+        "400":
+          description: Bad request - User email is required
+          content:
+            application/json:
+              example:
+                error: User email is required
+  /comment/{commentId}:
+    delete:
+      summary: Delete comment
+      description: Deletes a comment. Users can only delete their own comments.
+      tags:
+        - Comment Management
+      parameters:
+        - description: ID of the comment to delete
+          example: abc123
+          required: true
+          name: commentId
+          in: path
+          schema:
+            type: string
+        - description: Email of the user deleting the comment
+          example: john.doe@example.com
+          required: true
+          name: userEmail
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Comment deleted successfully
+          content:
+            application/json:
+              examples:
+                Delete Success:
+                  summary: Example of successful deletion
+                  value:
+                    message: Comment deleted successfully
+              schema:
+                $ref: "#/components/schemas/MessageResponseDto"
+        "400":
+          description: Bad request - Missing required fields or unauthorized
+          content:
+            application/json:
+              example:
+                error: You can only delete your own comments
+        "404":
+          description: Comment not found
+          content:
+            application/json:
+              example:
+                error: Comment not found
   /itinerary/create:
     post:
       summary: Create a new itinerary
       description: "Creates a new travel itinerary for a specific user. The itinerary\
         \ must include title, destination, start date, and descriptions."
       tags:
-      - Itinerary Management
+        - Itinerary Management
       parameters:
-      - description: ID of the user creating the itinerary
-        example: 1
-        required: true
-        name: userId
-        in: query
-        schema:
-          type: integer
-          format: int64
+        - description: ID of the user creating the itinerary
+          example: 1
+          required: true
+          name: userId
+          in: query
+          schema:
+            type: integer
+            format: int64
       requestBody:
         description: Itinerary details
         content:
@@ -101,15 +415,15 @@ paths:
       description: "Creates a new travel itinerary for a specific user. The itinerary\
         \ must include title, destination, start date, and descriptions."
       tags:
-      - Itinerary Management
+        - Itinerary Management
       parameters:
-      - description: Email of the user creating the itinerary
-        example: pete.david@gmail.com
-        required: true
-        name: email
-        in: path
-        schema:
-          type: string
+        - description: Email of the user creating the itinerary
+          example: pete.david@gmail.com
+          required: true
+          name: email
+          in: path
+          schema:
+            type: string
       requestBody:
         description: Itinerary details
         content:
@@ -160,16 +474,16 @@ paths:
         \ Returns a list of itinerary details including title, destination, start\
         \ date, and descriptions."
       tags:
-      - Itinerary Management
+        - Itinerary Management
       parameters:
-      - description: ID of the user whose itineraries to retrieve
-        example: 1
-        required: true
-        name: userId
-        in: query
-        schema:
-          type: integer
-          format: int64
+        - description: ID of the user whose itineraries to retrieve
+          example: 1
+          required: true
+          name: userId
+          in: query
+          schema:
+            type: integer
+            format: int64
       responses:
         "200":
           description: Itineraries retrieved successfully
@@ -179,18 +493,20 @@ paths:
                 Itinerary List Example:
                   summary: Example of returned itinerary list
                   value:
-                  - title: Family Trip to Norway
-                    destination: Norway
-                    startDate: 2024-06-15
-                    shortDescription: Explore the fjords of southern Norway
-                    detailedDescription: "A wonderful family trip to explore the beautiful\
+                    - id: 1
+                      title: Family Trip to Norway
+                      destination: Norway
+                      startDate: 2024-06-15
+                      shortDescription: Explore the fjords of southern Norway
+                      detailedDescription: "A wonderful family trip to explore the beautiful\
                       \ fjords of southern Norway. We will visit Bergen, Stavanger,\
                       \ and the famous Geirangerfjord."
-                  - title: Business Trip to Tokyo
-                    destination: Japan
-                    startDate: 2024-07-20
-                    shortDescription: Corporate meetings and cultural exploration
-                    detailedDescription: "A business trip combining work meetings\
+                    - id: 2
+                      title: Business Trip to Tokyo
+                      destination: Japan
+                      startDate: 2024-07-20
+                      shortDescription: Corporate meetings and cultural exploration
+                      detailedDescription: "A business trip combining work meetings\
                       \ with cultural experiences in Tokyo, including visits to traditional\
                       \ temples and modern districts."
               schema:
@@ -216,15 +532,15 @@ paths:
         \ Returns a list of itinerary details including title, destination, start\
         \ date, and descriptions."
       tags:
-      - Itinerary Management
+        - Itinerary Management
       parameters:
-      - description: Email of the user whose itineraries to retrieve
-        example: xyz@gmail.com
-        required: true
-        name: email
-        in: path
-        schema:
-          type: string
+        - description: Email of the user whose itineraries to retrieve
+          example: xyz@gmail.com
+          required: true
+          name: email
+          in: path
+          schema:
+            type: string
       responses:
         "200":
           description: Itineraries retrieved successfully
@@ -234,18 +550,20 @@ paths:
                 Itinerary List Example:
                   summary: Example of returned itinerary list
                   value:
-                  - title: Family Trip to Norway
-                    destination: Norway
-                    startDate: 2024-06-15
-                    shortDescription: Explore the fjords of southern Norway
-                    detailedDescription: "A wonderful family trip to explore the beautiful\
+                    - id: 1
+                      title: Family Trip to Norway
+                      destination: Norway
+                      startDate: 2024-06-15
+                      shortDescription: Explore the fjords of southern Norway
+                      detailedDescription: "A wonderful family trip to explore the beautiful\
                       \ fjords of southern Norway. We will visit Bergen, Stavanger,\
                       \ and the famous Geirangerfjord."
-                  - title: Business Trip to Tokyo
-                    destination: Japan
-                    startDate: 2024-07-20
-                    shortDescription: Corporate meetings and cultural exploration
-                    detailedDescription: "A business trip combining work meetings\
+                    - id: 2
+                      title: Business Trip to Tokyo
+                      destination: Japan
+                      startDate: 2024-07-20
+                      shortDescription: Corporate meetings and cultural exploration
+                      detailedDescription: "A business trip combining work meetings\
                       \ with cultural experiences in Tokyo, including visits to traditional\
                       \ temples and modern districts."
               schema:
@@ -264,21 +582,494 @@ paths:
             application/json:
               example:
                 error: An error occurred while retrieving itineraries
+  /itinerary/search:
+    post:
+      summary: Search itineraries
+      description: "Search for itineraries based on various criteria including user\
+        \ name, user email, title, destination, description, and start date range.\
+        \ All search parameters are optional - empty/null values will be ignored."
+      tags:
+        - Itinerary Management
+      requestBody:
+        description: Search criteria - all fields are optional
+        content:
+          application/json:
+            examples:
+              Search by destination:
+                summary: Search for all itineraries to Norway
+                value:
+                  destination: Norway
+              Search by user and date range:
+                summary: Search for user's itineraries in a specific date range
+                value:
+                  userName: John
+                  startDateFrom: 2025-06-01
+                  startDateTo: 2025-12-31
+              Complex search:
+                summary: Search with multiple criteria
+                value:
+                  userName: Smith
+                  destination: Japan
+                  description: culture
+                  startDateFrom: 2025-01-01
+              Empty search:
+                summary: Get all itineraries (up to 100)
+                value: {}
+            schema:
+              $ref: "#/components/schemas/ItinerarySearchDto"
+        required: true
+      responses:
+        "200":
+          description: Search completed successfully
+          content:
+            application/json:
+              examples:
+                Search Results Example:
+                  summary: Example of search results
+                  value:
+                    - id: 3
+                      title: Summer in Paris
+                      destination: France
+                      startDate: 2025-07-01
+                      shortDescription: Romantic getaway in Paris
+                      detailedDescription: "A week-long romantic trip exploring the\
+                      \ city of lights, including visits to the Eiffel Tower, Louvre\
+                      \ Museum, and Seine river cruises."
+                      userName: Alice Johnson
+                    - id: 5
+                      title: Beach Vacation in Maldives
+                      destination: Maldives
+                      startDate: 2025-08-15
+                      shortDescription: Tropical paradise retreat
+                      detailedDescription: "Relaxing beach vacation in an overwater\
+                      \ bungalow with snorkeling, diving, and spa treatments."
+                      userName: Bob Williams
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ItinerarySearchResponseDto"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              example:
+                error: An error occurred while searching itineraries
+        "400":
+          description: Bad Request
+  /like/itinerary/{itineraryId}:
+    delete:
+      summary: Remove like from itinerary
+      description: Removes a like from an itinerary.
+      tags:
+        - Like Management
+      parameters:
+        - description: ID of the itinerary to remove like from
+          example: 1
+          required: true
+          name: itineraryId
+          in: path
+          schema:
+            type: integer
+            format: int64
+        - description: Email of the user removing the like
+          example: john.doe@example.com
+          required: true
+          name: userEmail
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Like removed successfully
+          content:
+            application/json:
+              examples:
+                Like Removed:
+                  summary: Example of successful like removal
+                  value:
+                    message: Like removed successfully
+              schema:
+                $ref: "#/components/schemas/MessageResponseDto1"
+        "400":
+          description: Bad request - User email is required
+          content:
+            application/json:
+              example:
+                error: User email is required
+    post:
+      summary: Like an itinerary
+      description: Adds a like to an itinerary. Users can only like once per itinerary.
+      tags:
+        - Like Management
+      parameters:
+        - description: ID of the itinerary to like
+          example: 1
+          required: true
+          name: itineraryId
+          in: path
+          schema:
+            type: integer
+            format: int64
+        - description: Email of the user liking the itinerary
+          example: john.doe@example.com
+          required: true
+          name: userEmail
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Itinerary liked successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LikeDto"
+        "400":
+          description: Bad request - User already liked this itinerary or missing
+            user email
+          content:
+            application/json:
+              example:
+                error: User has already liked this itinerary
+    get:
+      summary: Get like count for itinerary
+      description: Retrieves the number of likes for a specific itinerary.
+      tags:
+        - Like Management
+      parameters:
+        - description: ID of the itinerary to get likes for
+          example: 1
+          required: true
+          name: itineraryId
+          in: path
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Like count retrieved successfully
+          content:
+            application/json:
+              examples:
+                Likes response:
+                  summary: Example of likes response
+                  value:
+                    itineraryId: 1
+                    likeCount: 5
+              schema:
+                $ref: "#/components/schemas/LikeResponseDto"
+        "400":
+          description: Bad request - Itinerary ID is required
+          content:
+            application/json:
+              example:
+                error: Itinerary ID is required
+  /like/user/{userEmail}:
+    get:
+      summary: Get likes by user
+      description: Retrieves all likes made by a specific user.
+      tags:
+        - Like Management
+      parameters:
+        - description: Email of the user to get likes for
+          example: john.doe@example.com
+          required: true
+          name: userEmail
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User likes retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LikeDto"
+        "400":
+          description: Bad request - User email is required
+          content:
+            application/json:
+              example:
+                error: User email is required
+  /location/itinerary/{itineraryId}:
+    get:
+      summary: Get locations for itinerary
+      description: Retrieves all locations for a specific itinerary.
+      tags:
+        - Location Management
+      parameters:
+        - description: ID of the itinerary to get locations for
+          example: 1
+          required: true
+          name: itineraryId
+          in: path
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Locations retrieved successfully
+          content:
+            application/json:
+              examples:
+                Locations List:
+                  summary: Example list of locations
+                  value:
+                    - id: 1
+                      name: Bergen
+                      description: Historic coastal city
+                      fromDate: 2024-06-15
+                      toDate: 2024-06-18
+                      imageUrls:
+                        - https://example.com/bergen.jpg
+                    - id: 2
+                      name: Oslo
+                      description: Capital city
+                      fromDate: 2024-06-19
+                      toDate: 2024-06-22
+                      imageUrls: []
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LocationDto"
+        "404":
+          description: Itinerary not found
+          content:
+            application/json:
+              example:
+                error: Itinerary not found
+    post:
+      summary: Add location to itinerary
+      description: Adds a new location to an existing itinerary. Upload images directly
+        as multipart form data (optional). Images will be stored in Google Cloud Storage.
+      tags:
+        - Location Management
+      parameters:
+        - description: ID of the itinerary to add location to
+          example: 1
+          required: true
+          name: itineraryId
+          in: path
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                fromDate:
+                  $ref: "#/components/schemas/LocalDate"
+                toDate:
+                  $ref: "#/components/schemas/LocalDate"
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+        required: true
+      responses:
+        "200":
+          description: Location added successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocationDto"
+        "400":
+          description: Bad request - Invalid data provided
+          content:
+            application/json:
+              example:
+                error: Location name is required
+        "404":
+          description: Itinerary not found
+          content:
+            application/json:
+              example:
+                error: Itinerary not found
+  /location/{locationId}:
+    get:
+      summary: Get location by ID
+      description: Retrieves a specific location by its ID.
+      tags:
+        - Location Management
+      parameters:
+        - description: ID of the location to retrieve
+          example: 1
+          required: true
+          name: locationId
+          in: path
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Location retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LocationDto"
+        "404":
+          description: Location not found
+          content:
+            application/json:
+              example:
+                error: Location not found
+    delete:
+      summary: Delete location
+      description: Deletes a location from an itinerary.
+      tags:
+        - Location Management
+      parameters:
+        - description: ID of the location to delete
+          example: 1
+          required: true
+          name: locationId
+          in: path
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Location deleted successfully
+          content:
+            application/json:
+              examples:
+                Delete Success:
+                  summary: Example of successful deletion
+                  value:
+                    message: Location deleted successfully
+              schema:
+                $ref: "#/components/schemas/MessageResponseDto2"
+        "404":
+          description: Location not found
+          content:
+            application/json:
+              example:
+                error: Location not found
+  /location/{locationId}/images:
+    post:
+      summary: Upload images to location
+      description: Uploads one or more images to a location. Images will be stored
+        in Google Cloud Storage.
+      tags:
+        - Location Management
+      parameters:
+        - description: ID of the location to upload images to
+          example: 1
+          required: true
+          name: locationId
+          in: path
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+        required: true
+      responses:
+        "200":
+          description: Images uploaded successfully
+          content:
+            application/json:
+              examples:
+                Upload response:
+                  summary: Example of successful image upload
+                  value:
+                    message: 3 images uploaded successfully
+                    imageUrls:
+                      - https://storage.googleapis.com/bucket/location-images/1/image1.jpg
+                      - https://storage.googleapis.com/bucket/location-images/1/image2.jpg
+                      - https://storage.googleapis.com/bucket/location-images/1/image3.jpg
+              schema:
+                $ref: "#/components/schemas/LocationImageUploadResponseDto"
+        "400":
+          description: Bad request - No images provided
+          content:
+            application/json:
+              example:
+                error: At least one image file is required
+        "404":
+          description: Location not found
+          content:
+            application/json:
+              example:
+                error: Location not found
+    delete:
+      summary: Delete image from location
+      description: Deletes a specific image from a location by its URL.
+      tags:
+        - Location Management
+      parameters:
+        - description: ID of the location to delete image from
+          example: 1
+          required: true
+          name: locationId
+          in: path
+          schema:
+            type: integer
+            format: int64
+        - description: URL of the image to delete
+          example: https://storage.googleapis.com/bucket/location-images/1/image1.jpg
+          required: true
+          name: imageUrl
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Image deleted successfully
+          content:
+            application/json:
+              examples:
+                Delete Success:
+                  summary: Example of successful image deletion
+                  value:
+                    message: Image deleted successfully
+              schema:
+                $ref: "#/components/schemas/MessageResponseDto2"
+        "400":
+          description: Bad request - Image URL is required
+          content:
+            application/json:
+              example:
+                error: Image URL is required
+        "404":
+          description: Location not found
+          content:
+            application/json:
+              example:
+                error: Location not found
   /user/get:
     get:
       summary: Get user by email
       description: Retrieves user information by email address. Returns user details
         including name and email.
       tags:
-      - User Management
+        - User Management
       parameters:
-      - description: Email address of the user to retrieve
-        example: john.doe@example.com
-        required: true
-        name: email
-        in: query
-        schema:
-          type: string
+        - description: Email address of the user to retrieve
+          example: john.doe@example.com
+          required: true
+          name: email
+          in: query
+          schema:
+            type: string
       responses:
         "200":
           description: User found successfully
@@ -317,7 +1108,7 @@ paths:
       description: Creates a new user account with name and email. No password authentication
         is required. Email must be unique.
       tags:
-      - User Management
+        - User Management
       requestBody:
         description: User registration details
         content:
@@ -365,6 +1156,92 @@ paths:
             application/json:
               example:
                 error: An error occurred while registering the user
+  /user/{email}/profile-image:
+    post:
+      summary: Upload profile image
+      description: Uploads a profile image for a user. The image will be stored in
+        Google Cloud Storage.
+      tags:
+        - User Management
+      parameters:
+        - description: Email of the user to upload profile image for
+          example: john.doe@example.com
+          required: true
+          name: email
+          in: path
+          schema:
+            type: string
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+        required: true
+      responses:
+        "200":
+          description: Profile image uploaded successfully
+          content:
+            application/json:
+              examples:
+                Upload Success:
+                  summary: Example of successful upload response
+                  value:
+                    message: Profile image uploaded successfully
+                    imageUrl: https://storage.googleapis.com/bucket/profile-images/john.doe@example.com/1234567890_photo.jpg
+              schema:
+                $ref: "#/components/schemas/ProfileImageUploadResponseDto"
+        "400":
+          description: Bad request - Invalid file or email
+          content:
+            application/json:
+              example:
+                error: Invalid file format or email parameter
+        "404":
+          description: User not found
+          content:
+            application/json:
+              example:
+                error: User not found
+    get:
+      summary: Get profile image URL
+      description: Retrieves the profile image URL for a user.
+      tags:
+        - User Management
+      parameters:
+        - description: Email of the user to get profile image for
+          example: john.doe@example.com
+          required: true
+          name: email
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Profile image URL retrieved successfully
+          content:
+            application/json:
+              examples:
+                Image URL Response:
+                  summary: Example of profile image URL response
+                  value:
+                    imageUrl: https://storage.googleapis.com/bucket/profile-images/john.doe@example.com/1234567890_photo.jpg
+              schema:
+                $ref: "#/components/schemas/ProfileImageResponseDto"
+        "404":
+          description: User not found or no profile image
+          content:
+            application/json:
+              example:
+                error: User not found or no profile image
 info:
-  title: travel-app API
-  version: 1.0.0-SNAPSHOT
+  title: Travel App API
+  version: 1.0.0
+  description: "API for managing travel itineraries, locations, and social interactions"
+  contact:
+    name: Travel App Team
+servers:
+  - url: http://localhost:8080

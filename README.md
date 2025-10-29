@@ -11,22 +11,45 @@ A Quarkus-based REST API for managing travel itineraries and user accounts. This
 
 ### Local Development Setup
 
-#### 1. Start the Database
-First, start the PostgreSQL database using Docker Compose:
+**The easiest way to get started:**
+
+```bash
+cd local-setup
+./start-local-dev.sh
+```
+
+This will start:
+- PostgreSQL database (port 5432)
+- Firestore emulator (port 8081)
+- Google Cloud Storage emulator (port 4443)
+
+Then run the application:
+
+```bash
+mvn quarkus:dev -Dquarkus.profile=local
+```
+
+**For detailed setup instructions, see:**
+- [Complete Setup Guide](local-setup/README.md) - Detailed documentation
+
+### Manual Setup
+
+#### 1. Start All Services
+First, start all required services using Docker Compose:
 
 ```bash
 cd local-setup
 docker-compose up -d
+./init-gcs-bucket.sh
 ```
 
-This will start a PostgreSQL 16 container with the following configuration:
-- **Host**: localhost:5432
-- **Database**: mydatabase
-- **Username**: myuser
-- **Password**: mypassword
+This will start:
+- PostgreSQL 16 (localhost:5432)
+- Firestore Emulator (localhost:8081)
+- Google Cloud Storage Emulator (localhost:4443)
 
 #### 2. Run the Application
-In the project root directory, start the Quarkus application in development mode:
+In the project root directory, start the Quarkus application:
 
 ```bash
 mvn quarkus:dev

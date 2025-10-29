@@ -1,6 +1,7 @@
 package de.htwg.api.itinerary.mapper;
 
 import de.htwg.api.itinerary.model.ItineraryDto;
+import de.htwg.api.itinerary.model.ItinerarySearchResponseDto;
 import de.htwg.persistence.entity.Itinerary;
 import de.htwg.persistence.entity.User;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -24,6 +25,7 @@ public class ItineraryMapper {
 
     public ItineraryDto toDto(Itinerary entity) {
         return ItineraryDto.builder()
+                .id(entity.getId())
                 .title(entity.getTitle())
                 .destination(entity.getDestination())
                 .startDate(entity.getStartDate())
@@ -32,9 +34,27 @@ public class ItineraryMapper {
                 .build();
     }
 
+    public ItinerarySearchResponseDto toSearchResponseDto(Itinerary entity) {
+        return ItinerarySearchResponseDto.builder()
+                .id(entity.getId())
+                .title(entity.getTitle())
+                .destination(entity.getDestination())
+                .startDate(entity.getStartDate())
+                .shortDescription(entity.getShortDescription())
+                .detailedDescription(entity.getDetailedDescription())
+                .userName(entity.getUser() != null ? entity.getUser().getName() : null)
+                .build();
+    }
+
     public List<ItineraryDto> toDtoList(List<Itinerary> entities) {
         return entities.stream()
                 .map(this::toDto)
+                .collect(Collectors.toList());
+    }
+
+    public List<ItinerarySearchResponseDto> toSearchResponseDtoList(List<Itinerary> entities) {
+        return entities.stream()
+                .map(this::toSearchResponseDto)
                 .collect(Collectors.toList());
     }
 }

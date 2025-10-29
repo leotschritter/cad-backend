@@ -1,0 +1,46 @@
+quarkus:
+  # Swagger UI configuration for production
+  swagger-ui:
+    always-include: true
+    path: /q/swagger-ui
+    enable: true
+
+  smallrye-openapi:
+    servers: ${BACKEND_URL}
+
+  # Datasource configuration for production
+  datasource:
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    jdbc:
+      url: ${DB_URL}
+      max-size: 20
+      min-size: 5
+  # Hibernate ORM configuration for production
+  hibernate-orm:
+    database:
+      generation: update  # Never auto-create schema in production
+    log:
+      sql: false  # Disable SQL logging in production
+      format-sql: false
+
+
+  # Production logging
+  log:
+    level: INFO
+    category:
+      "de.htwg":
+        level: INFO
+      "org.hibernate.SQL":
+        level: WARN
+
+# Google Cloud configuration for production (override base)
+google:
+  cloud:
+    projectId: ${PROJECT_ID}
+  firestore:
+    use-emulator: false
+  storage:
+    use-emulator: false
+    bucket-name: ${BUCKET_NAME}
+    service-account-email: ${SERVICE_ACCOUNT_EMAIL}
