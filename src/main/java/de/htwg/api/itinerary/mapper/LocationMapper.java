@@ -2,23 +2,13 @@ package de.htwg.api.itinerary.mapper;
 
 import de.htwg.api.itinerary.model.LocationDto;
 import de.htwg.persistence.entity.Location;
-import de.htwg.service.storage.ImageStorageService;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class LocationMapper {
-
-    private final ImageStorageService imageStorageService;
-
-    @Inject
-    public LocationMapper(ImageStorageService imageStorageService) {
-        this.imageStorageService = imageStorageService;
-    }
 
     public Location toEntity(LocationDto locationDto) {
         return Location.builder()
