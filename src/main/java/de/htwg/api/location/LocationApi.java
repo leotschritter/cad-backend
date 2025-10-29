@@ -42,7 +42,7 @@ public class LocationApi {
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Add location to itinerary",
-        description = "Adds a new location to an existing itinerary. Upload images directly as multipart form data. Images will be stored in Google Cloud Storage."
+        description = "Adds a new location to an existing itinerary. Upload images directly as multipart form data (optional). Images will be stored in Google Cloud Storage."
     )
     @APIResponses(value = {
         @APIResponse(
@@ -80,7 +80,9 @@ public class LocationApi {
         @FormParam("description") String description,
         @FormParam("fromDate") LocalDate fromDate,
         @FormParam("toDate") LocalDate toDate,
-        @FormParam("files") List<FileUpload> files) {
+        @Parameter(
+            description = "Image files to upload (optional - can be omitted)"
+        ) @FormParam("files") List<FileUpload> files) {
 
         if (itineraryId == null) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -124,9 +126,11 @@ public class LocationApi {
             LocationDto createdLocation = locationService.addLocationToItinerary(itineraryId, locationDto);
 
             // Convert filenames to signed URLs for the response
-            List<String> signedUrls = createdLocation.imageUrls().stream()
-                    .map(imageStorageService::getImageUrl)
-                    .toList();
+            List<String> signedUrls = createdLocation.imageUrls() != null
+                    ? createdLocation.imageUrls().stream()
+                        .map(imageStorageService::getImageUrl)
+                        .toList()
+                    : List.of();
 
             LocationDto responseLocation = LocationDto.builder()
                     .id(createdLocation.id())
