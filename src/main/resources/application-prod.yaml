@@ -1,0 +1,22 @@
+quarkus:
+  profile: prod
+
+  datasource:
+    username: ${QUARKUS_DATASOURCE_USERNAME:myuser}
+    password: ${QUARKUS_DATASOURCE_PASSWORD:mypassword}
+    jdbc:
+      url: ${QUARKUS_DATASOURCE_JDBC_URL:jdbc:postgresql://localhost:5432/mydatabase}
+
+  hibernate-orm:
+    database:
+      generation: update
+    log:
+      sql: false
+
+  http:
+    port: 8080
+    cors:
+      ~: true
+      origins: "*"
+      methods: GET,POST,PUT,DELETE,OPTIONS
+      headers: "*"
