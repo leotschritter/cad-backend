@@ -56,7 +56,7 @@ variable "vm_machine_type" {
 variable "backend_image" {
   description = "Docker Image für das Backend"
   type        = string
-  default     = "ghcr.io/leotschritter/cad-backend:latest"
+  default     = "ghcr.io/leotschritter/cad-backend:iaas-latest"
 }
 
 variable "frontend_image" {
