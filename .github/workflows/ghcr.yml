@@ -2,7 +2,7 @@ name: docker-ghcr
 
 on:
   push:
-    branches: [ main ]
+    branches: [ iaas-deploy ]  # ✅ Nur iaas-deploy Branch
     tags: [ 'v*.*.*' ]
   workflow_dispatch:
 
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write   # needed to push to GHCR
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
@@ -29,5 +29,6 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:iaas-latest
             ghcr.io/${{ github.repository }}:${{ github.sha }}
+

@@ -1,0 +1,159 @@
+# 🚀 IaaS Deployment - Quick Start
+
+## ✅ Voraussetzungen
+
+- Google Cloud Project: `graphite-plane-474510-s9`
+- gcloud CLI installiert
+- Terraform >= 1.5.0
+
+---
+
+## 📋 3-Schritte-Deployment
+
+### 1️⃣ Konfiguration
+
+Erstelle `terraform.tfvars`:
+
+```bash
+cd terraform/
+cat > terraform.tfvars << 'EOF'
+project_id = "graphite-plane-474510-s9"
+region     = "europe-west3"
+zone       = "europe-west3-a"
+EOF
+```
+
+### 2️⃣ Deployment
+
+```bash
+./deploy.sh
+
+ssl setup
+# Manuell installieren
+sudo certbot --nginx \
+    -d tripico.duckdns.org \
+    --non-interactive \
+    --agree-tos \
+    --email <email>@gmail.com \
+    --redirect
+
+# Nginx neu laden
+sudo systemctl reload nginx
+
+duckdns ip manuell updaten
+
+DONE!
+
+```
+
+Das Script:
+- ✅ Prüft GCloud Auth
+- ✅ Aktiviert APIs
+- ✅ Initialisiert Terraform
+- ✅ Erstellt Plan
+- ✅ Deployed Infrastruktur
+
+### 3️⃣ Status prüfen
+
+```bash
+./check-deployment.sh
+```
+
+**Fertig! 🎉**
+
+---
+
+## 🌐 URLs
+
+Nach dem Deployment:
+
+```
+Frontend:  http://VM_IP:5173
+Backend:   http://VM_IP:8080
+API Docs:  http://VM_IP:8080/q/swagger-ui
+```
+
+---
+
+## 🛠️ Wichtige Befehle
+
+```bash
+# Status prüfen
+./check-deployment.sh
+
+# Images aktualisieren
+./update-images.sh
+
+# Logs anzeigen
+gcloud compute ssh cad-travel-app-vm --zone=europe-west3-a \
+  --command='cd /opt/cad-travel && sudo docker-compose logs -f'
+
+# Container neustarten
+gcloud compute ssh cad-travel-app-vm --zone=europe-west3-a \
+  --command='cd /opt/cad-travel && sudo docker-compose restart'
+
+# Deployment löschen
+./destroy.sh
+```
+
+---
+
+## 📊 Was wird deployed?
+
+```
+┌─────────────────────────────────┐
+│  Compute Engine VM              │
+│  ├─ Backend  (Port 8080)        │
+│  └─ Frontend (Port 5173)        │
+└─────────────────────────────────┘
+           │
+           ├──► Cloud SQL (PostgreSQL)
+           ├──► Cloud Storage (Bilder)
+           └──► Firestore (NoSQL)
+```
+
+---
+
+## 💰 Kosten
+
+| Ressource | Kosten/Monat |
+|-----------|--------------|
+| VM (e2-medium) | ~25€ |
+| Cloud SQL (f1-micro) | ~15€ |
+| Storage | ~0.02€/GB |
+| **Total** | **~40-50€** |
+
+---
+
+## 🐛 Troubleshooting
+
+### Authentifizierung fehlt
+```bash
+gcloud auth application-default login
+```
+
+### APIs nicht aktiviert
+```bash
+gcloud services enable compute.googleapis.com sqladmin.googleapis.com storage.googleapis.com
+```
+
+### Container starten nicht
+```bash
+./check-deployment.sh
+# Prüfe Logs für Fehler
+```
+
+---
+
+## 📚 Weitere Infos
+
+Siehe `README_IAAS_DEPLOYMENT.md` für:
+- Detaillierte Architektur
+- Manuelle Deployment-Schritte
+- Security Best Practices
+- Wartung & Updates
+
+---
+
+**Viel Erfolg! 🚀**
+

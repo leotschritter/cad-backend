@@ -1,0 +1,58 @@
+#!/bin/bash
+# ===================================================
+# CAD Travel App - Deployment Status prüfen
+# ===================================================
+
+set -e
+
+echo "╔════════════════════════════════════════════════════════════════╗"
+echo "║           CAD Travel App - Deployment Status                   ║"
+echo "╚════════════════════════════════════════════════════════════════╝"
+echo ""
+
+cd "$(dirname "$0")"
+
+# VM Name und Zone aus Terraform holen
+VM_IP=$(terraform output -raw vm_external_ip 2>/dev/null || echo "")
+ZONE="europe-west3-a"
+PROJECT_ID="iaas-476910"
+
+if [ -z "$VM_IP" ]; then
+    echo "❌ Terraform Output nicht verfügbar. Ist das Deployment abgeschlossen?"
+    exit 1
+fi
+
+echo "🖥️  VM Status:"
+echo "─────────────────────────────────────────────────────────────────"
+gcloud compute instances describe cad-travel-app-vm \
+  --zone=$ZONE \
+  --project=$PROJECT_ID \
+  --format="table(name,status,networkInterfaces[0].accessConfigs[0].natIP)"
+
+echo ""
+echo "🐳 Container Status:"
+echo "─────────────────────────────────────────────────────────────────"
+gcloud compute ssh cad-travel-app-vm \
+  --zone=$ZONE \
+  --project=$PROJECT_ID \
+  --command='cd /opt/cad-travel && sudo docker-compose ps'
+
+echo ""
+echo "📋 Letzte 20 Log-Zeilen:"
+echo "─────────────────────────────────────────────────────────────────"
+gcloud compute ssh cad-travel-app-vm \
+  --zone=$ZONE \
+  --project=$PROJECT_ID \
+  --command='cd /opt/cad-travel && sudo docker-compose logs --tail=20'
+
+echo ""
+echo "🌐 URLs:"
+echo "─────────────────────────────────────────────────────────────────"
+terraform output frontend_url
+terraform output backend_url
+terraform output backend_api_docs
+
+echo ""
+echo "💡 Vollständige Logs anzeigen:"
+echo "   gcloud compute ssh cad-travel-app-vm --zone=$ZONE --command='cd /opt/cad-travel && sudo docker-compose logs -f'"
+
