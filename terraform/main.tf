@@ -236,8 +236,9 @@ resource "google_firestore_database" "database" {
   }
 }
 
+# Indexes are already created! Comment in when needed
 # Comments Indexes
-resource "google_firestore_index" "comments_by_itinerary" {
+/*resource "google_firestore_index" "comments_by_itinerary" {
   project    = var.project_id
   collection = "comments"
 
@@ -281,7 +282,7 @@ resource "google_firestore_index" "likes_by_user" {
     field_path = "createdAt"
     order      = "DESCENDING"
   }
-}
+}*/
 
 # Cloud Run Service
 resource "google_cloud_run_v2_service" "main" {

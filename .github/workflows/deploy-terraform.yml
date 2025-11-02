@@ -58,8 +58,8 @@ jobs:
           terraform output
           echo "::endgroup::"
           
-          echo "::group::Frontend URL"
-          terraform output -raw frontend_url || echo "Not available yet"
+          echo "::group::Backend URL"
+          terraform output -raw backend_url || echo "Not available yet"
           echo "::endgroup::"
 
       - name: Comment PR with results
@@ -69,7 +69,7 @@ jobs:
           script: |
             const output = `#### Terraform Deployment Results 🚀
             
-            **Frontend URL:** \`${{ steps.tf-output.outputs.frontend_url || 'Pending...' }}\`
+            **Backend URL:** \`${{ steps.tf-output.outputs.backend_url || 'Pending...' }}\`
             
             Infrastructure has been deployed successfully!`;
             
