@@ -1,3 +1,17 @@
+# Generate random suffix for unique resource names
+resource "random_id" "suffix" {
+  byte_length = 4
+}
+
+# Local variables for resource naming
+locals {
+  suffix = var.resource_suffix != "" ? var.resource_suffix : (var.use_random_suffix ? random_id.suffix.hex : "")
+  db_instance_name = var.resource_suffix != "" || var.use_random_suffix ? "${var.db_instance_name}-${local.suffix}" : var.db_instance_name
+  service_account_name = var.use_random_suffix ? "${var.app_name}-sa-${local.suffix}" : "${var.app_name}-sa"
+  secret_name = var.use_random_suffix ? "${var.app_name}-db-password-${local.suffix}" : "${var.app_name}-db-password"
+  bucket_name = var.use_random_suffix ? "${var.project_id}-${var.bucket_name}-${local.suffix}" : "${var.project_id}-${var.bucket_name}"
+}
+
 # Enable required Google Cloud APIs
 resource "google_project_service" "required_apis" {
   for_each = toset([
@@ -18,11 +32,17 @@ resource "google_project_service" "required_apis" {
 
 # Service Account for Cloud Run
 resource "google_service_account" "cloud_run_sa" {
-  account_id   = "${var.app_name}-sa"
+  account_id   = local.service_account_name
   display_name = "Cloud Run SA for ${var.app_name}"
   description  = "Service account for Cloud Run service to access Cloud SQL, Firestore, and Cloud Storage"
 
   depends_on = [google_project_service.required_apis]
+
+  lifecycle {
+    prevent_destroy = false
+    # If resource exists, import it instead of failing
+    # Run: terraform import google_service_account.cloud_run_sa projects/PROJECT_ID/serviceAccounts/SERVICE_ACCOUNT_EMAIL
+  }
 }
 
 # IAM Binding - Cloud SQL Client
@@ -46,26 +66,26 @@ resource "google_service_account_iam_member" "cloud_run_token_creator" {
   member             = "serviceAccount:${google_service_account.cloud_run_sa.email}"
 }
 
-# Generate random password for database
-resource "random_password" "db_password" {
-  length  = 32
-  special = true
-}
-
 # Store database password in Secret Manager
 resource "google_secret_manager_secret" "db_password" {
-  secret_id = "${var.app_name}-db-password"
+  secret_id = local.secret_name
 
   replication {
     auto {}
   }
 
   depends_on = [google_project_service.required_apis]
+
+  lifecycle {
+    prevent_destroy = false
+    # If resource exists, import it instead of failing
+    # Run: terraform import google_secret_manager_secret.db_password projects/PROJECT_ID/secrets/SECRET_NAME
+  }
 }
 
 resource "google_secret_manager_secret_version" "db_password" {
   secret      = google_secret_manager_secret.db_password.id
-  secret_data = random_password.db_password.result
+  secret_data = var.db_password
 }
 
 # IAM Binding - Secret Manager Secret Accessor
@@ -77,7 +97,7 @@ resource "google_secret_manager_secret_iam_member" "cloud_run_secret_accessor" {
 
 # Cloud SQL Instance
 resource "google_sql_database_instance" "main" {
-  name             = var.db_instance_name
+  name             = local.db_instance_name
   database_version = "POSTGRES_16"
   region           = var.region
 
@@ -94,7 +114,7 @@ resource "google_sql_database_instance" "main" {
     }
 
     ip_configuration {
-      ipv4_enabled    = false
+      ipv4_enabled    = true
       private_network = null
     }
 
@@ -111,22 +131,40 @@ resource "google_sql_database_instance" "main" {
     }
   }
 
-  deletion_protection = true
+  deletion_protection = false  # Set to true for production!
 
   depends_on = [google_project_service.required_apis]
+
+  lifecycle {
+    prevent_destroy = false
+    # If resource exists, import it instead of failing
+    # Run: terraform import google_sql_database_instance.main PROJECT_ID/INSTANCE_NAME
+  }
 }
 
 # Cloud SQL Database
 resource "google_sql_database" "database" {
   name     = var.db_name
   instance = google_sql_database_instance.main.name
+
+  lifecycle {
+    prevent_destroy = false
+    # If resource exists, import it instead of failing
+    # Run: terraform import google_sql_database.database projects/PROJECT_ID/instances/INSTANCE_NAME/databases/DB_NAME
+  }
 }
 
 # Cloud SQL User
 resource "google_sql_user" "user" {
   name     = var.db_user
   instance = google_sql_database_instance.main.name
-  password = random_password.db_password.result
+  password = var.db_password
+
+  depends_on = [google_secret_manager_secret_version.db_password]
+
+  lifecycle {
+    prevent_destroy = false
+  }
 }
 
 # Artifact Registry Repository (optional - only if not using external registry)
@@ -141,11 +179,17 @@ resource "google_artifact_registry_repository" "docker_repo" {
   labels = var.labels
 
   depends_on = [google_project_service.required_apis]
+
+  lifecycle {
+    prevent_destroy = false
+    # If resource exists, import it instead of failing
+    # Run: terraform import 'google_artifact_registry_repository.docker_repo[0]' projects/PROJECT_ID/locations/REGION/repositories/REPO_NAME
+  }
 }
 
 # Cloud Storage Bucket
 resource "google_storage_bucket" "app_bucket" {
-  name          = "${var.project_id}-${var.bucket_name}"
+  name          = local.bucket_name
   location      = var.bucket_location
   force_destroy = false
 
@@ -161,6 +205,12 @@ resource "google_storage_bucket" "app_bucket" {
   labels = var.labels
 
   depends_on = [google_project_service.required_apis]
+
+  lifecycle {
+    prevent_destroy = false
+    # If resource exists, import it instead of failing
+    # Run: terraform import google_storage_bucket.app_bucket BUCKET_NAME
+  }
 }
 
 # IAM Binding - Storage Object Admin
@@ -178,6 +228,12 @@ resource "google_firestore_database" "database" {
   type        = "FIRESTORE_NATIVE"
 
   depends_on = [google_project_service.required_apis]
+
+  lifecycle {
+    prevent_destroy = false  # Set to true for production
+    # If resource exists, import it instead of failing
+    # Run: terraform import google_firestore_database.database "(default)"
+  }
 }
 
 # Cloud Run Service
@@ -194,21 +250,46 @@ resource "google_cloud_run_v2_service" "main" {
       max_instance_count = var.cloud_run_max_instances
     }
 
-    timeout = "${var.cloud_run_timeout}s"
-      image = var.docker_image_url != "" ? var.docker_image_url : "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_name}/${var.app_name}:${var.app_version}"
+    timeout = "600s"  # Increased to 10 minutes for Quarkus startup
+
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_name}/${var.app_name}:${var.app_version}"
+      image = var.docker_image_url != "" ? var.docker_image_url : "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_name}/${var.app_name}:${var.app_version}"
 
       resources {
         limits = {
-          cpu    = var.cloud_run_cpu
-          memory = var.cloud_run_memory
+          cpu    = "2"      # 2 CPUs for faster startup
+          memory = "1Gi"    # 1GB for Java heap
         }
-        cpu_idle = true
+        cpu_idle          = false  # Always-on CPU during request processing
+        startup_cpu_boost = true   # Boost CPU during startup
       }
 
       ports {
         container_port = 8080
+        name          = "http1"
+      }
+
+      startup_probe {
+        initial_delay_seconds = 0
+        timeout_seconds       = 240
+        period_seconds        = 10
+        failure_threshold     = 30
+        tcp_socket {
+          port = 8080
+        }
+      }
+
+      # Note: Liveness probe removed - Cloud Run doesn't support TCP in liveness probes
+      # Startup probe is sufficient for Quarkus health checking
+
+      env {
+        name  = "QUARKUS_HTTP_PORT"
+        value = "8080"
+      }
+
+      env {
+        name  = "QUARKUS_HTTP_HOST"
+        value = "0.0.0.0"
       }
 
       env {
@@ -217,7 +298,7 @@ resource "google_cloud_run_v2_service" "main" {
       }
 
       env {
-        name = "DB_PASSWORD"
+        name  = "DB_PASS"
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.db_password.secret_id
@@ -256,24 +337,14 @@ resource "google_cloud_run_v2_service" "main" {
         value = "prod"
       }
     }
-
-    # Add Cloud SQL connection
-    vpc_access {
-      egress = "PRIVATE_RANGES_ONLY"
-    }
   }
 
-  depends_on = concat(
-    [
-      google_project_service.required_apis,
-      google_sql_database.database,
-      google_sql_user.user,
-      google_firestore_database.database,
-      google_storage_bucket.app_bucket,
-    ],
-    var.create_artifact_registry ? [google_artifact_registry_repository.docker_repo[0]] : []
-  )
-    google_artifact_registry_repository.docker_repo,
+  depends_on = [
+    google_project_service.required_apis,
+    google_sql_database.database,
+    google_sql_user.user,
+    google_firestore_database.database,
+    google_storage_bucket.app_bucket,
   ]
 
   lifecycle {
@@ -314,4 +385,3 @@ data "google_project" "project" {
 #     route_name = google_cloud_run_v2_service.main.name
 #   }
 # }
-

@@ -12,11 +12,17 @@ app_version             = "latest"
 environment             = "prod"
 
 # Cloud SQL Configuration
-db_name                 = "traveldb"
-db_user                 = "traveluser"
-db_instance_name        = "cad-travel-db"
+db_name                 = "travel-db"
+db_user                 = "cad_db_user"
+db_password             = <password>
+db_instance_name        = "cad-travel-db"    # Will get random suffix like: cad-travel-db-a1b2c3d4
 db_tier                 = "db-f1-micro"      # Options: db-f1-micro, db-g1-small, db-n1-standard-1, etc.
 db_availability_type    = "ZONAL"            # Options: ZONAL, REGIONAL
+
+# Resource Management Strategy
+use_random_suffix       = false              # Set to true for unique names, false to use existing
+resource_suffix         = ""                 # Or provide custom suffix (e.g., "dev", "prod")
+import_existing_resources = true             # Use existing resources if they exist (recommended)
 
 # Cloud Storage Configuration
 bucket_name             = "tripico-images"

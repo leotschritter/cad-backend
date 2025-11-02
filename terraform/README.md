@@ -65,7 +65,15 @@ project_id = "your-gcp-project-id"
 region     = "europe-west1"
 ```
 
-### 3. Review the Plan
+### 3. Validate Configuration
+
+Validate your Terraform configuration:
+
+```bash
+terraform validate
+```
+
+### 4. Review the Plan
 
 Preview the changes Terraform will make:
 

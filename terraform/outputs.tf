@@ -96,6 +96,32 @@ output "firestore_location" {
   value       = google_firestore_database.database.location_id
 }
 
+# Resource naming outputs
+output "resource_suffix" {
+  description = "The suffix used for resource names"
+  value       = local.suffix
+}
+
+output "actual_db_instance_name" {
+  description = "The actual Cloud SQL instance name with suffix"
+  value       = local.db_instance_name
+}
+
+output "service_account_id" {
+  description = "The service account ID with suffix"
+  value       = local.service_account_name
+}
+
+output "secret_name" {
+  description = "The secret name with suffix"
+  value       = local.secret_name
+}
+
+output "actual_bucket_name" {
+  description = "The actual bucket name with suffix"
+  value       = local.bucket_name
+}
+
 # Deployment Information
 output "deployment_commands" {
   description = "Commands to build and deploy the application"

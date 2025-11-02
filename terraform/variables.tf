@@ -39,13 +39,13 @@ variable "environment" {
 variable "db_name" {
   description = "The name of the database"
   type        = string
-  default     = "traveldb"
+  default     = "travel-db"
 }
 
 variable "db_user" {
   description = "The database user name"
   type        = string
-  default     = "traveluser"
+  default     = "cad_db_user"
 }
 
 variable "db_instance_name" {
@@ -64,6 +64,12 @@ variable "db_availability_type" {
   description = "Availability type for Cloud SQL (ZONAL or REGIONAL)"
   type        = string
   default     = "ZONAL" # Use REGIONAL for high availability
+}
+
+variable "db_password" {
+  description = "Fixed database password to use for the Cloud SQL user and Secret Manager (provide via terraform.tfvars)."
+  type        = string
+  sensitive   = true
 }
 
 # Cloud Storage Configuration
@@ -124,7 +130,7 @@ variable "artifact_registry_name" {
 }
 
 variable "create_artifact_registry" {
-  description = "Whether to create GCP Artifact Registry (set false if using external registry like GitHub)"
+  description = "Whether to create GCP Artifact Registry (required for Cloud Run v2)"
   type        = bool
   default     = true
 }
@@ -168,3 +174,21 @@ variable "labels" {
   }
 }
 
+# Resource Naming
+variable "use_random_suffix" {
+  description = "Add random suffix to resource names for uniqueness (useful for fresh deployments)"
+  type        = bool
+  default     = false  # Changed to false - prefer using existing resources
+}
+
+variable "resource_suffix" {
+  description = "Optional suffix for resource names (leave empty to use random)"
+  type        = string
+  default     = ""
+}
+
+variable "import_existing_resources" {
+  description = "Whether to use existing resources if they exist (true) or always create fresh (false)"
+  type        = bool
+  default     = true  # Prefer using existing resources
+}

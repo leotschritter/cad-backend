@@ -29,7 +29,18 @@ project_id = "your-gcp-project-id"
 region     = "europe-west1"
 ```
 
-### 2. Initialize Terraform
+### 2. Authenticate with Google Cloud
+
+**Important:** Authenticate before running Terraform commands:
+
+```bash
+gcloud auth application-default login
+gcloud config set project graphite-plane-474510-s9
+```
+
+This will open your browser to sign in with Google.
+
+### 3. Initialize Terraform
 
 ```bash
 terraform init
@@ -37,11 +48,11 @@ terraform init
 
 This downloads the required provider plugins.
 
-### 3. Review the Plan
+### 4. Review the Plan
 
 ```bash
 terraform plan
-```
+### 5. Apply the Configuration
 
 Review the resources that will be created:
 - ✅ Cloud SQL PostgreSQL instance
@@ -49,7 +60,7 @@ Review the resources that will be created:
 - ✅ Firestore database
 - ✅ Cloud Storage bucket
 - ✅ Artifact Registry
-- ✅ Service accounts and IAM bindings
+### 6. Build and Deploy Your Application
 - ✅ Secret Manager for credentials
 
 ### 4. Apply the Configuration
@@ -70,7 +81,7 @@ terraform output docker_image_url
 
 # Authenticate with Artifact Registry
 gcloud auth configure-docker europe-west1-docker.pkg.dev
-
+### 7. Access Your Application
 # Build the Docker image (from project root)
 cd ..
 docker build -t europe-west1-docker.pkg.dev/YOUR_PROJECT/docker-repo/travel-backend:latest .
