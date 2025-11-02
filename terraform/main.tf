@@ -245,6 +245,10 @@ resource "google_cloud_run_v2_service" "main" {
   template {
     service_account = google_service_account.cloud_run_sa.email
 
+    annotations = {
+      "run.googleapis.com/cloudsql-instances" = google_sql_database_instance.main.connection_name
+    }
+
     scaling {
       min_instance_count = var.cloud_run_min_instances
       max_instance_count = var.cloud_run_max_instances
@@ -298,7 +302,7 @@ resource "google_cloud_run_v2_service" "main" {
       }
 
       env {
-        name  = "DB_PASS"
+        name  = "DB_PASSWORD"
         value_source {
           secret_key_ref {
             secret  = google_secret_manager_secret.db_password.secret_id
