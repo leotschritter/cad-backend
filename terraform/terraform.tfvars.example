@@ -1,0 +1,73 @@
+# Example Terraform Variables File
+# Copy this file to terraform.tfvars and fill in your values
+
+# Required Variables
+project_id = "graphite-plane-474510-s9"
+
+# Optional Variables (defaults are provided)
+region                  = "europe-west1"
+zone                    = "europe-west1-b"
+app_name                = "travel-backend"
+app_version             = "latest"
+environment             = "prod"
+
+# Cloud SQL Configuration
+db_name                 = "travel-db"
+db_user                 = "cad_db_user"
+db_password             = <password>
+db_instance_name        = "cad-travel-db"    # Will get random suffix like: cad-travel-db-a1b2c3d4
+db_tier                 = "db-f1-micro"      # Options: db-f1-micro, db-g1-small, db-n1-standard-1, etc.
+db_availability_type    = "ZONAL"            # Options: ZONAL, REGIONAL
+
+# Resource Management Strategy
+use_random_suffix       = false              # Set to true for unique names, false to use existing
+resource_suffix         = ""                 # Or provide custom suffix (e.g., "dev", "prod")
+import_existing_resources = true             # Use existing resources if they exist (recommended)
+
+# Cloud Storage Configuration
+bucket_name             = "tripico-images"
+bucket_location         = "EU"
+
+# Cloud Run Configuration
+cloud_run_service_name  = "travel-backend"
+cloud_run_cpu           = "1"
+cloud_run_memory        = "512Mi"
+cloud_run_max_instances = 10
+cloud_run_min_instances = 0
+cloud_run_timeout       = 300
+
+# Artifact Registry Configuration
+artifact_registry_name  = "docker-repo"
+
+# Docker Image Configuration
+# Option 1: Use GitHub Container Registry (ghcr.io)
+# Uncomment these lines and set your GitHub image URL:
+# create_artifact_registry = false
+# docker_image_url = "ghcr.io/YOUR-GITHUB-USERNAME/travel-backend:latest"
+# docker_image_url = "ghcr.io/YOUR-GITHUB-USERNAME/travel-backend:v1.0.0"
+
+# Option 2: Use Docker Hub
+# create_artifact_registry = false
+# docker_image_url = "docker.io/YOUR-USERNAME/travel-backend:latest"
+
+# Option 3: Use GCP Artifact Registry (default - Terraform will create it)
+create_artifact_registry = true
+docker_image_url = ""
+
+# Domain Configuration (optional)
+domain_name             = ""                 # e.g., "api.tripico.fun"
+
+# Firestore Configuration
+firestore_location      = "europe-west1"
+
+# Networking Configuration
+allow_unauthenticated   = true
+
+# Labels
+labels = {
+  app         = "travel-backend"
+  managed-by  = "terraform"
+  environment = "prod"
+  team        = "cad-team"
+}
+
