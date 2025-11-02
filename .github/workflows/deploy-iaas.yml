@@ -1,0 +1,39 @@
+name: Deploy to GCP
+
+# Nur manuell triggern
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          service_account_key: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY_2 }}
+          project_id: ${{ secrets.GCP_PROJECT_ID_2 }}
+          export_default_credentials: true
+
+      - name: Verify gcloud authentication
+        run: |
+          gcloud --version
+          gcloud auth list --quiet
+
+      - name: Make deploy script executable
+        run: chmod +x ./terraform/deploy.sh
+
+      - name: Run deployment script (non-interactive in CI)
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_2 }}
+          GCP_ZONE: europe-west3-a
+          VM_NAME: cad-travel-app-vm
+          CI: 'true' # signalisiert non-interactive Modus im Script
+        run: ./terraform/deploy.sh
