@@ -1,0 +1,82 @@
+name: Deploy Backend Infrastructure
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/deploy-terraform.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy-infrastructure:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Authenticate to Google Cloud (same method as ghcr-and-gcp.yml)
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.0"
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Run Smart Import Script
+        run: |
+          chmod +x smart-import.sh
+          bash smart-import.sh
+
+      - name: Terraform Plan
+        run: terraform plan
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+
+      - name: Output Results
+        if: always()
+        run: |
+          echo "::group::Terraform Outputs"
+          terraform output
+          echo "::endgroup::"
+          
+          echo "::group::Frontend URL"
+          terraform output -raw frontend_url || echo "Not available yet"
+          echo "::endgroup::"
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### Terraform Deployment Results 🚀
+            
+            **Frontend URL:** \`${{ steps.tf-output.outputs.frontend_url || 'Pending...' }}\`
+            
+            Infrastructure has been deployed successfully!`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
