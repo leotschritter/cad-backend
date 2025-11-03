@@ -1,7 +1,11 @@
 package de.htwg.api.itinerary.mapper;
 
+import de.htwg.api.location.model.AccommodationDto;
 import de.htwg.api.itinerary.model.LocationDto;
+import de.htwg.api.location.model.TransportDto;
+import de.htwg.persistence.entity.Accommodation;
 import de.htwg.persistence.entity.Location;
+import de.htwg.persistence.entity.Transport;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.util.List;
@@ -42,5 +46,45 @@ public class LocationMapper {
         return locationDtos.stream()
                 .map(this::toEntity)
                 .collect(Collectors.toList());
+    }
+
+    public Transport toEntity(TransportDto transportDto, Location location) {
+        return Transport.builder()
+                .transportType(transportDto.transportType())
+                .duration(transportDto.duration())
+                .distance(transportDto.distance())
+                .location(location)
+                .build();
+    }
+
+    public TransportDto toDto(Transport transport) {
+        return TransportDto.builder()
+                .id(transport.getId())
+                .transportType(transport.getTransportType())
+                .duration(transport.getDuration())
+                .distance(transport.getDistance())
+                .build();
+    }
+
+    public Accommodation toEntity(AccommodationDto accommodationDto, Location location) {
+        return Accommodation.builder()
+                .name(accommodationDto.name())
+                .pricePerNight(accommodationDto.pricePerNight())
+                .rating(accommodationDto.rating())
+                .notes(accommodationDto.notes())
+                .accommodationImageUrl(accommodationDto.accommodationImageUrl())
+                .location(location)
+                .build();
+    }
+
+    public AccommodationDto toDto(Accommodation accommodation) {
+        return AccommodationDto.builder()
+                .id(accommodation.getId())
+                .name(accommodation.getName())
+                .pricePerNight(accommodation.getPricePerNight())
+                .rating(accommodation.getRating())
+                .notes(accommodation.getNotes())
+                .accommodationImageUrl(accommodation.getAccommodationImageUrl())
+                .build();
     }
 }

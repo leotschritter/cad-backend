@@ -36,4 +36,12 @@ public class Location {
     @CollectionTable(name = "location_images", joinColumns = @JoinColumn(name = "location_id"))
     @Column(name = "image_url")
     private List<String> imageUrls;
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "transport_id", nullable = true)
+    private Transport transport;
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "accommodation_id", nullable = true)
+    private Accommodation accommodation;
 }
