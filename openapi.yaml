@@ -20,6 +20,8 @@ components:
           type: string
         accommodationImageUrl:
           type: string
+        bookingPageUrl:
+          type: string
     CommentDto:
       type: object
       properties:
@@ -847,7 +849,8 @@ paths:
             format: int64
       responses:
         "200":
-          description: Locations retrieved successfully with transport and accommodation details
+          description: Locations retrieved successfully with transport and accommodation
+            details
           content:
             application/json:
               examples:
@@ -873,6 +876,7 @@ paths:
                         rating: 4.5
                         notes: Great location near the harbor
                         accommodationImageUrl: https://example.com/hotel.jpg
+                        bookingPageUrl: https://example.com/hotel.html
                     - id: 2
                       name: Oslo
                       description: Capital city
@@ -944,6 +948,8 @@ paths:
                 accommodationNotes:
                   type: string
                 accommodationImageUrl:
+                  type: string
+                bookingPageUrl:
                   type: string
         required: true
       responses:
