@@ -97,22 +97,5 @@ CONN_NAME=graphite-plane-474510-s9:europe-west1:cad-travel-db
 # Enable Identity Platform API (required)
 gcloud services enable identitytoolkit.googleapis.com --project=${PROJECT_ID}
 
-# Option 1: Configure via Cloud Console (Enterprise UI)
-# Visit: https://console.cloud.google.com/customer-identity/providers?project=${PROJECT_ID}
-
-# Option 2: Configure via Firebase Console (Developer-friendly UI) 
-# Visit: https://console.firebase.google.com/project/${PROJECT_ID}/authentication/providers
-
-# Option 3: Configure via gcloud CLI (only needed once)
-# gcloud identity platforms config create --project=${PROJECT_ID}
-
-# Enable email/password sign-in provider (only needed once if using CLI)
-# For production, you may want to enable additional providers:
-# - Google Sign-In
-# - SAML (for enterprise SSO)
-# - OAuth providers (GitHub, Microsoft, etc.)
-
-echo "Identity Platform API enabled for project: ${PROJECT_ID}"
-echo "Configure authentication providers at:"
-echo "  Cloud Console: https://console.cloud.google.com/customer-identity/providers?project=${PROJECT_ID}"
-echo "  Firebase Console: https://console.firebase.google.com/project/${PROJECT_ID}/authentication/providers"
+# Enable Email/Password authentication provider
+gcloud identity providers update email-password --enable --project=${PROJECT_ID}
