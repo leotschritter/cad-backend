@@ -8,6 +8,12 @@ quarkus:
   smallrye-openapi:
     servers: ${BACKEND_URL}
 
+  # CORS Configuration for production
+  # All production domains
+  http:
+    cors:
+      origins: ${CORS_ORIGINS:http://travel-app-bm.duckdns.org,https://travel-app-bm.duckdns.org,https://tripico.fun,https://frontend.tripico.fun,https://api.tripico.fun}
+
   # Datasource configuration for production
   datasource:
     username: ${DB_USER}
@@ -44,3 +50,9 @@ google:
     use-emulator: false
     bucket-name: ${BUCKET_NAME}
     service-account-email: ${SERVICE_ACCOUNT_EMAIL}
+
+# Google Cloud Identity Platform Configuration for production
+# Note: Firebase Authentication = Identity Platform (same service)
+identity-platform:
+  auth:
+    enabled: true  # Enable Identity Platform authentication in production

@@ -2,6 +2,17 @@
 openapi: 3.1.0
 components:
   schemas:
+    AuthenticatedUser:
+      type: object
+      properties:
+        uid:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        emailVerified:
+          type: boolean
     CommentDto:
       type: object
       properties:
@@ -185,7 +196,36 @@ components:
           type: string
         profileImageUrl:
           type: string
+  securitySchemes:
+    BearerAuth:
+      type: http
+      description: |
+        Firebase ID Token authentication (Google Cloud Identity Platform).
+
+        **Production:** Include your Firebase ID token in the Authorization header.
+
+        **Local Development:** Either:
+        - Omit the header (uses default test user: test.user@example.com)
+        - Add `X-Test-User-Email` header to simulate different users
+
+        Example:
+        ```
+        Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjFlM...
+        ```
+      in: header
+      scheme: bearer
+      bearerFormat: JWT
+info:
+  contact:
+    name: Travel App Team
+  description: "API for managing travel itineraries, locations, and social interactions"
+  title: Travel App API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
 tags:
+  - name: Authentication
+    description: Authentication-related endpoints
   - name: Comment Management
     description: Operations for managing comments on itineraries
   - name: Itinerary Management
@@ -197,11 +237,42 @@ tags:
   - name: User Management
     description: Operations for managing user accounts and profiles
 paths:
+  /auth/health:
+    get:
+      summary: Health check endpoint
+      description: Public endpoint to check if authentication system is working. Does
+        not require authentication.
+      tags:
+        - Authentication
+      responses:
+        "200":
+          description: Authentication system is healthy
+  /auth/me:
+    get:
+      summary: Get current user information
+      description: Returns the authenticated user's information from the Identity
+        Platform token. Requires valid Identity Platform ID token in Authorization
+        header.
+      tags:
+        - Authentication
+      responses:
+        "200":
+          description: User information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthenticatedUser"
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json: {}
+      security:
+        - BearerAuth: []
   /comment/itinerary/{itineraryId}:
     get:
       summary: Get comments for itinerary
       description: "Retrieves all comments for a specific itinerary, ordered by creation\
-        \ date (newest first)."
+        \ date (newest first). Requires authentication."
       tags:
         - Comment Management
       parameters:
@@ -242,9 +313,18 @@ paths:
             application/json:
               example:
                 error: Itinerary ID is required
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
+      security:
+        - BearerAuth: []
     post:
       summary: Add comment to itinerary
-      description: Adds a comment to an itinerary. Users can add multiple comments.
+      description: Adds a comment to an itinerary. Requires authentication. Users
+        can add multiple comments.
       tags:
         - Comment Management
       parameters:
@@ -275,11 +355,19 @@ paths:
             application/json:
               example:
                 error: Comment text cannot be empty
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
+      security:
+        - BearerAuth: []
   /comment/user/{userEmail}:
     get:
       summary: Get comments by user
       description: "Retrieves all comments made by a specific user, ordered by creation\
-        \ date (newest first)."
+        \ date (newest first). Requires authentication."
       tags:
         - Comment Management
       parameters:
@@ -305,10 +393,19 @@ paths:
             application/json:
               example:
                 error: User email is required
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
+      security:
+        - BearerAuth: []
   /comment/{commentId}:
     delete:
       summary: Delete comment
-      description: Deletes a comment. Users can only delete their own comments.
+      description: Deletes a comment. Requires authentication. Users can only delete
+        their own comments.
       tags:
         - Comment Management
       parameters:
@@ -317,13 +414,6 @@ paths:
           required: true
           name: commentId
           in: path
-          schema:
-            type: string
-        - description: Email of the user deleting the comment
-          example: john.doe@example.com
-          required: true
-          name: userEmail
-          in: query
           schema:
             type: string
       responses:
@@ -344,28 +434,28 @@ paths:
             application/json:
               example:
                 error: You can only delete your own comments
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
         "404":
           description: Comment not found
           content:
             application/json:
               example:
                 error: Comment not found
+      security:
+        - BearerAuth: []
   /itinerary/create:
     post:
       summary: Create a new itinerary
-      description: "Creates a new travel itinerary for a specific user. The itinerary\
-        \ must include title, destination, start date, and descriptions."
+      description: "Creates a new travel itinerary for the authenticated user. Requires\
+        \ authentication. The itinerary must include title, destination, start date,\
+        \ and descriptions."
       tags:
         - Itinerary Management
-      parameters:
-        - description: ID of the user creating the itinerary
-          example: 1
-          required: true
-          name: userId
-          in: query
-          schema:
-            type: integer
-            format: int64
       requestBody:
         description: Itinerary details
         content:
@@ -392,98 +482,39 @@ paths:
               example:
                 message: Itinerary created successfully
         "400":
-          description: Bad request - User ID is required or invalid data provided
+          description: Bad request - Invalid data provided
           content:
             application/json:
               example:
-                error: User ID is required
+                error: Invalid itinerary data
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
         "404":
           description: User not found
           content:
             application/json:
               example:
-                error: User with id 123 not found
+                error: User with email not found
         "500":
           description: Internal server error
           content:
             application/json:
               example:
                 error: An error occurred while creating the itinerary
-  /itinerary/create/{email}:
-    post:
-      summary: Create a new itinerary
-      description: "Creates a new travel itinerary for a specific user. The itinerary\
-        \ must include title, destination, start date, and descriptions."
-      tags:
-        - Itinerary Management
-      parameters:
-        - description: Email of the user creating the itinerary
-          example: pete.david@gmail.com
-          required: true
-          name: email
-          in: path
-          schema:
-            type: string
-      requestBody:
-        description: Itinerary details
-        content:
-          application/json:
-            examples:
-              Family Trip Example:
-                summary: Example of a family trip itinerary
-                value:
-                  title: Family Trip to Norway
-                  destination: Norway
-                  startDate: 2024-06-15
-                  shortDescription: Explore the fjords of southern Norway
-                  detailedDescription: "A wonderful family trip to explore the beautiful\
-                    \ fjords of southern Norway. We will visit Bergen, Stavanger,\
-                    \ and the famous Geirangerfjord."
-            schema:
-              $ref: "#/components/schemas/ItineraryDto"
-        required: true
-      responses:
-        "200":
-          description: Itinerary created successfully
-          content:
-            application/json:
-              example:
-                message: Itinerary created successfully
-        "400":
-          description: Bad request - User Email is required or invalid data provided
-          content:
-            application/json:
-              example:
-                error: User Email is required
-        "404":
-          description: User not found
-          content:
-            application/json:
-              example:
-                error: User with Email not found
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              example:
-                error: An error occurred while creating the itinerary
+      security:
+        - BearerAuth: []
   /itinerary/get:
     get:
-      summary: Get itineraries for a user
-      description: "Retrieves all itineraries associated with a specific user ID.\
-        \ Returns a list of itinerary details including title, destination, start\
-        \ date, and descriptions."
+      summary: Get itineraries for authenticated user
+      description: "Retrieves all itineraries associated with the authenticated user.\
+        \ Requires authentication. Returns a list of itinerary details including title,\
+        \ destination, start date, and descriptions."
       tags:
         - Itinerary Management
-      parameters:
-        - description: ID of the user whose itineraries to retrieve
-          example: 1
-          required: true
-          name: userId
-          in: query
-          schema:
-            type: integer
-            format: int64
       responses:
         "200":
           description: Itineraries retrieved successfully
@@ -513,81 +544,27 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ItineraryDto"
-        "400":
-          description: Bad request - User ID is required
+        "401":
+          description: Unauthorized - Missing or invalid token
           content:
             application/json:
               example:
-                error: User ID is required
+                error: Missing or invalid Authorization header
         "500":
           description: Internal server error
           content:
             application/json:
               example:
                 error: An error occurred while retrieving itineraries
-  /itinerary/get/{email}:
-    get:
-      summary: Get itineraries for a user
-      description: "Retrieves all itineraries associated with a specific user Email.\
-        \ Returns a list of itinerary details including title, destination, start\
-        \ date, and descriptions."
-      tags:
-        - Itinerary Management
-      parameters:
-        - description: Email of the user whose itineraries to retrieve
-          example: xyz@gmail.com
-          required: true
-          name: email
-          in: path
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Itineraries retrieved successfully
-          content:
-            application/json:
-              examples:
-                Itinerary List Example:
-                  summary: Example of returned itinerary list
-                  value:
-                    - id: 1
-                      title: Family Trip to Norway
-                      destination: Norway
-                      startDate: 2024-06-15
-                      shortDescription: Explore the fjords of southern Norway
-                      detailedDescription: "A wonderful family trip to explore the beautiful\
-                      \ fjords of southern Norway. We will visit Bergen, Stavanger,\
-                      \ and the famous Geirangerfjord."
-                    - id: 2
-                      title: Business Trip to Tokyo
-                      destination: Japan
-                      startDate: 2024-07-20
-                      shortDescription: Corporate meetings and cultural exploration
-                      detailedDescription: "A business trip combining work meetings\
-                      \ with cultural experiences in Tokyo, including visits to traditional\
-                      \ temples and modern districts."
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/ItineraryDto"
-        "400":
-          description: Bad request - User ID is required
-          content:
-            application/json:
-              example:
-                error: User ID is required
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              example:
-                error: An error occurred while retrieving itineraries
+      security:
+        - BearerAuth: []
   /itinerary/search:
     post:
       summary: Search itineraries
       description: "Search for itineraries based on various criteria including user\
         \ name, user email, title, destination, description, and start date range.\
-        \ All search parameters are optional - empty/null values will be ignored."
+        \ All search parameters are optional - empty/null values will be ignored.\
+        \ Requires authentication."
       tags:
         - Itinerary Management
       requestBody:
@@ -648,6 +625,12 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ItinerarySearchResponseDto"
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
         "500":
           description: Internal server error
           content:
@@ -656,10 +639,12 @@ paths:
                 error: An error occurred while searching itineraries
         "400":
           description: Bad Request
+      security:
+        - BearerAuth: []
   /like/itinerary/{itineraryId}:
     delete:
       summary: Remove like from itinerary
-      description: Removes a like from an itinerary.
+      description: Removes a like from an itinerary. Requires authentication.
       tags:
         - Like Management
       parameters:
@@ -671,13 +656,6 @@ paths:
           schema:
             type: integer
             format: int64
-        - description: Email of the user removing the like
-          example: john.doe@example.com
-          required: true
-          name: userEmail
-          in: query
-          schema:
-            type: string
       responses:
         "200":
           description: Like removed successfully
@@ -690,15 +668,18 @@ paths:
                     message: Like removed successfully
               schema:
                 $ref: "#/components/schemas/MessageResponseDto1"
-        "400":
-          description: Bad request - User email is required
+        "401":
+          description: Unauthorized - Missing or invalid token
           content:
             application/json:
               example:
-                error: User email is required
+                error: Missing or invalid Authorization header
+      security:
+        - BearerAuth: []
     post:
       summary: Like an itinerary
-      description: Adds a like to an itinerary. Users can only like once per itinerary.
+      description: Adds a like to an itinerary. Requires authentication. Users can
+        only like once per itinerary.
       tags:
         - Like Management
       parameters:
@@ -710,13 +691,6 @@ paths:
           schema:
             type: integer
             format: int64
-        - description: Email of the user liking the itinerary
-          example: john.doe@example.com
-          required: true
-          name: userEmail
-          in: query
-          schema:
-            type: string
       responses:
         "200":
           description: Itinerary liked successfully
@@ -725,15 +699,23 @@ paths:
               schema:
                 $ref: "#/components/schemas/LikeDto"
         "400":
-          description: Bad request - User already liked this itinerary or missing
-            user email
+          description: Bad request - User already liked this itinerary
           content:
             application/json:
               example:
                 error: User has already liked this itinerary
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
+      security:
+        - BearerAuth: []
     get:
       summary: Get like count for itinerary
-      description: Retrieves the number of likes for a specific itinerary.
+      description: Retrieves the number of likes for a specific itinerary. Requires
+        authentication.
       tags:
         - Like Management
       parameters:
@@ -764,20 +746,20 @@ paths:
             application/json:
               example:
                 error: Itinerary ID is required
-  /like/user/{userEmail}:
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
+      security:
+        - BearerAuth: []
+  /like/user:
     get:
       summary: Get likes by user
-      description: Retrieves all likes made by a specific user.
+      description: Retrieves all likes made by the authenticated user. Requires authentication.
       tags:
         - Like Management
-      parameters:
-        - description: Email of the user to get likes for
-          example: john.doe@example.com
-          required: true
-          name: userEmail
-          in: path
-          schema:
-            type: string
       responses:
         "200":
           description: User likes retrieved successfully
@@ -793,10 +775,18 @@ paths:
             application/json:
               example:
                 error: User email is required
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
+      security:
+        - BearerAuth: []
   /location/itinerary/{itineraryId}:
     get:
       summary: Get locations for itinerary
-      description: Retrieves all locations for a specific itinerary.
+      description: Retrieves all locations for a specific itinerary. Requires authentication.
       tags:
         - Location Management
       parameters:
@@ -834,16 +824,25 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/LocationDto"
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
         "404":
           description: Itinerary not found
           content:
             application/json:
               example:
                 error: Itinerary not found
+      security:
+        - BearerAuth: []
     post:
       summary: Add location to itinerary
       description: Adds a new location to an existing itinerary. Upload images directly
         as multipart form data (optional). Images will be stored in Google Cloud Storage.
+        Requires authentication.
       tags:
         - Location Management
       parameters:
@@ -888,16 +887,24 @@ paths:
             application/json:
               example:
                 error: Location name is required
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
         "404":
           description: Itinerary not found
           content:
             application/json:
               example:
                 error: Itinerary not found
+      security:
+        - BearerAuth: []
   /location/{locationId}:
     get:
       summary: Get location by ID
-      description: Retrieves a specific location by its ID.
+      description: Retrieves a specific location by its ID. Requires authentication.
       tags:
         - Location Management
       parameters:
@@ -916,15 +923,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LocationDto"
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
         "404":
           description: Location not found
           content:
             application/json:
               example:
                 error: Location not found
+      security:
+        - BearerAuth: []
     delete:
       summary: Delete location
-      description: Deletes a location from an itinerary.
+      description: Deletes a location from an itinerary. Requires authentication.
       tags:
         - Location Management
       parameters:
@@ -948,17 +963,25 @@ paths:
                     message: Location deleted successfully
               schema:
                 $ref: "#/components/schemas/MessageResponseDto2"
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
         "404":
           description: Location not found
           content:
             application/json:
               example:
                 error: Location not found
+      security:
+        - BearerAuth: []
   /location/{locationId}/images:
     post:
       summary: Upload images to location
       description: Uploads one or more images to a location. Images will be stored
-        in Google Cloud Storage.
+        in Google Cloud Storage. Requires authentication.
       tags:
         - Location Management
       parameters:
@@ -1004,15 +1027,23 @@ paths:
             application/json:
               example:
                 error: At least one image file is required
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
         "404":
           description: Location not found
           content:
             application/json:
               example:
                 error: Location not found
+      security:
+        - BearerAuth: []
     delete:
       summary: Delete image from location
-      description: Deletes a specific image from a location by its URL.
+      description: Deletes a specific image from a location by its URL. Requires authentication.
       tags:
         - Location Management
       parameters:
@@ -1049,17 +1080,25 @@ paths:
             application/json:
               example:
                 error: Image URL is required
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
         "404":
           description: Location not found
           content:
             application/json:
               example:
                 error: Location not found
+      security:
+        - BearerAuth: []
   /user/get:
     get:
       summary: Get user by email
       description: Retrieves user information by email address. Returns user details
-        including name and email.
+        including name and email. Requires authentication.
       tags:
         - User Management
       parameters:
@@ -1090,6 +1129,12 @@ paths:
             application/json:
               example:
                 error: Email parameter is required
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
         "404":
           description: User not found
           content:
@@ -1102,6 +1147,90 @@ paths:
             application/json:
               example:
                 error: An error occurred while retrieving the user
+      security:
+        - BearerAuth: []
+  /user/profile-image:
+    post:
+      summary: Upload profile image
+      description: Uploads a profile image for the authenticated user. Requires authentication.
+        The image will be stored in Google Cloud Storage.
+      tags:
+        - User Management
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+        required: true
+      responses:
+        "200":
+          description: Profile image uploaded successfully
+          content:
+            application/json:
+              examples:
+                Upload Success:
+                  summary: Example of successful upload response
+                  value:
+                    message: Profile image uploaded successfully
+                    imageUrl: https://storage.googleapis.com/bucket/profile-images/john.doe@example.com/1234567890_photo.jpg
+              schema:
+                $ref: "#/components/schemas/ProfileImageUploadResponseDto"
+        "400":
+          description: Bad request - Invalid file
+          content:
+            application/json:
+              example:
+                error: Invalid file format
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
+        "404":
+          description: User not found
+          content:
+            application/json:
+              example:
+                error: User not found
+      security:
+        - BearerAuth: []
+    get:
+      summary: Get profile image URL
+      description: Retrieves the profile image URL for the authenticated user. Requires
+        authentication.
+      tags:
+        - User Management
+      responses:
+        "200":
+          description: Profile image URL retrieved successfully
+          content:
+            application/json:
+              examples:
+                Image URL Response:
+                  summary: Example of profile image URL response
+                  value:
+                    imageUrl: https://storage.googleapis.com/bucket/profile-images/john.doe@example.com/1234567890_photo.jpg
+              schema:
+                $ref: "#/components/schemas/ProfileImageResponseDto"
+        "401":
+          description: Unauthorized - Missing or invalid token
+          content:
+            application/json:
+              example:
+                error: Missing or invalid Authorization header
+        "404":
+          description: User not found or no profile image
+          content:
+            application/json:
+              example:
+                error: User not found or no profile image
+      security:
+        - BearerAuth: []
   /user/register:
     post:
       summary: Register a new user
@@ -1156,92 +1285,3 @@ paths:
             application/json:
               example:
                 error: An error occurred while registering the user
-  /user/{email}/profile-image:
-    post:
-      summary: Upload profile image
-      description: Uploads a profile image for a user. The image will be stored in
-        Google Cloud Storage.
-      tags:
-        - User Management
-      parameters:
-        - description: Email of the user to upload profile image for
-          example: john.doe@example.com
-          required: true
-          name: email
-          in: path
-          schema:
-            type: string
-      requestBody:
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                file:
-                  type: string
-                  format: binary
-        required: true
-      responses:
-        "200":
-          description: Profile image uploaded successfully
-          content:
-            application/json:
-              examples:
-                Upload Success:
-                  summary: Example of successful upload response
-                  value:
-                    message: Profile image uploaded successfully
-                    imageUrl: https://storage.googleapis.com/bucket/profile-images/john.doe@example.com/1234567890_photo.jpg
-              schema:
-                $ref: "#/components/schemas/ProfileImageUploadResponseDto"
-        "400":
-          description: Bad request - Invalid file or email
-          content:
-            application/json:
-              example:
-                error: Invalid file format or email parameter
-        "404":
-          description: User not found
-          content:
-            application/json:
-              example:
-                error: User not found
-    get:
-      summary: Get profile image URL
-      description: Retrieves the profile image URL for a user.
-      tags:
-        - User Management
-      parameters:
-        - description: Email of the user to get profile image for
-          example: john.doe@example.com
-          required: true
-          name: email
-          in: path
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Profile image URL retrieved successfully
-          content:
-            application/json:
-              examples:
-                Image URL Response:
-                  summary: Example of profile image URL response
-                  value:
-                    imageUrl: https://storage.googleapis.com/bucket/profile-images/john.doe@example.com/1234567890_photo.jpg
-              schema:
-                $ref: "#/components/schemas/ProfileImageResponseDto"
-        "404":
-          description: User not found or no profile image
-          content:
-            application/json:
-              example:
-                error: User not found or no profile image
-info:
-  title: Travel App API
-  version: 1.0.0
-  description: "API for managing travel itineraries, locations, and social interactions"
-  contact:
-    name: Travel App Team
-servers:
-  - url: http://localhost:8080
