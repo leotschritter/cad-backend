@@ -22,7 +22,6 @@ public class Transport {
 
     private Long distance;
 
-    @OneToOne
-    @JoinColumn(name = "location_id", nullable = false)
+    @OneToOne(mappedBy = "transport")
     private Location location;
 }

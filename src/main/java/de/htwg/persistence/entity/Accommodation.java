@@ -28,7 +28,6 @@ public class Accommodation {
 
     private String bookingPageUrl;
 
-    @OneToOne
-    @JoinColumn(name = "location_id", nullable = false)
+    @OneToOne(mappedBy = "accommodation")
     private Location location;
 }

@@ -38,10 +38,10 @@ public class Location {
     private List<String> imageUrls;
 
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "transport_id", nullable = true)
+    @JoinColumn(name = "transport_id")
     private Transport transport;
 
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "accommodation_id", nullable = true)
+    @JoinColumn(name = "accommodation_id")
     private Accommodation accommodation;
 }
