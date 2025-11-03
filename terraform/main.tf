@@ -322,10 +322,10 @@ resource "google_cloud_run_v2_service" "main" {
       }
 
       startup_probe {
-        initial_delay_seconds = 0
-        timeout_seconds       = 240
+        initial_delay_seconds = 5
+        timeout_seconds       = 5
         period_seconds        = 10
-        failure_threshold     = 30
+        failure_threshold     = 60
         tcp_socket {
           port = 8080
         }
