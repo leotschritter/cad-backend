@@ -54,6 +54,7 @@ jobs:
             europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-backend:${{ github.sha }}
   deploy-infrastructure:
     runs-on: ubuntu-latest
+    needs: build-and-push
     permissions:
       contents: read
       id-token: write
