@@ -8,6 +8,7 @@ A Quarkus-based REST API for managing travel itineraries and user accounts. This
 - Java 21+
 - Maven 3.8+
 - Docker & Docker Compose
+- gcloud CLI
 
 ### Local Development Setup
 
@@ -23,7 +24,13 @@ This will start:
 - Firestore emulator (port 8081)
 - Google Cloud Storage emulator (port 4443)
 
+Then login to Google Cloud for Identity usage:
+
+```bash
+gcloud auth application-default login
+```
 Then run the application:
+
 
 ```bash
 mvn quarkus:dev -Dquarkus.profile=local
