@@ -8,12 +8,6 @@ quarkus:
   smallrye-openapi:
     servers: ${BACKEND_URL}
 
-  # CORS Configuration for production
-  # All production domains
-  http:
-    cors:
-      origins: ${CORS_ORIGINS:http://travel-app-bm.duckdns.org,https://travel-app-bm.duckdns.org,https://tripico.fun,https://frontend.tripico.fun,https://api.tripico.fun}
-
   # Datasource configuration for production
   datasource:
     username: ${DB_USER}
