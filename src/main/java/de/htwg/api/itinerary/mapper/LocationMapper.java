@@ -73,6 +73,7 @@ public class LocationMapper {
                 .rating(accommodationDto.rating())
                 .notes(accommodationDto.notes())
                 .accommodationImageUrl(accommodationDto.accommodationImageUrl())
+                .bookingPageUrl(accommodationDto.bookingPageUrl())
                 .location(location)
                 .build();
     }
@@ -85,6 +86,7 @@ public class LocationMapper {
                 .rating(accommodation.getRating())
                 .notes(accommodation.getNotes())
                 .accommodationImageUrl(accommodation.getAccommodationImageUrl())
+                .bookingPageUrl(accommodation.getBookingPageUrl())
                 .build();
     }
 }

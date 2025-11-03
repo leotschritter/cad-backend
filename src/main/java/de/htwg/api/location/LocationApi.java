@@ -110,7 +110,10 @@ public class LocationApi {
         ) @FormParam("accommodationNotes") String accommodationNotes,
         @Parameter(
             description = "Accommodation image URL (optional)"
-        ) @FormParam("accommodationImageUrl") String accommodationImageUrl) {
+        ) @FormParam("accommodationImageUrl") String accommodationImageUrl,
+        @Parameter(
+            description = "Booking page URL (optional)"
+        ) @FormParam("bookingPageUrl") String bookingPageUrl) {
 
         if (itineraryId == null) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -164,13 +167,14 @@ public class LocationApi {
             }
 
             // Add accommodation if provided
-            if (!(accommodationName == null && accommodationPricePerNight == null && accommodationRating == null && accommodationNotes == null && accommodationImageUrl == null)) {
+            if (!(accommodationName == null && accommodationPricePerNight == null && accommodationRating == null && accommodationNotes == null && accommodationImageUrl == null && bookingPageUrl == null)) {
                 AccommodationDto accommodationDto = AccommodationDto.builder()
                         .name(accommodationName)
                         .pricePerNight(accommodationPricePerNight)
                         .rating(accommodationRating)
                         .notes(accommodationNotes)
                         .accommodationImageUrl(accommodationImageUrl)
+                        .bookingPageUrl(bookingPageUrl)
                         .build();
                 locationService.addAccommodationToLocation(createdLocation.id(), accommodationDto);
             }
@@ -241,7 +245,8 @@ public class LocationApi {
                               "pricePerNight": 150.0,
                               "rating": 4.5,
                               "notes": "Great location near the harbor",
-                              "accommodationImageUrl": "https://example.com/hotel.jpg"
+                              "accommodationImageUrl": "https://example.com/hotel.jpg",
+                              "bookingPageUrl": "https://example.com/hotel.html"
                             }
                           },
                           {

@@ -9,6 +9,7 @@ public record AccommodationDto(
         Double pricePerNight,
         Float rating,
         String notes,
-        String accommodationImageUrl
+        String accommodationImageUrl,
+        String bookingPageUrl
 ) {
 }

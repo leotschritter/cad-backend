@@ -26,6 +26,8 @@ public class Accommodation {
 
     private String accommodationImageUrl;
 
+    private String bookingPageUrl;
+
     @OneToOne
     @JoinColumn(name = "location_id", nullable = false)
     private Location location;
