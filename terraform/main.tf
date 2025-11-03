@@ -310,7 +310,7 @@ resource "google_cloud_run_v2_service" "main" {
       resources {
         limits = {
           cpu    = "2"      # 2 CPUs for faster startup
-          memory = "1Gi"    # 1GB for Java heap
+          memory = "2Gi"    # 2GB for Java heap
         }
         cpu_idle          = false  # Always-on CPU during request processing
         startup_cpu_boost = true   # Boost CPU during startup
@@ -398,12 +398,6 @@ resource "google_cloud_run_v2_service" "main" {
     google_firestore_database.database,
     google_storage_bucket.app_bucket,
   ]
-
-  lifecycle {
-    ignore_changes = [
-      template[0].containers[0].image,
-    ]
-  }
 }
 
 # Data source for project information
