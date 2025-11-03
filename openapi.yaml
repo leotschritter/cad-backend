@@ -2,6 +2,24 @@
 openapi: 3.1.0
 components:
   schemas:
+    AccommodationDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        pricePerNight:
+          type: number
+          format: double
+        rating:
+          type: number
+          format: float
+        notes:
+          type: string
+        accommodationImageUrl:
+          type: string
     CommentDto:
       type: object
       properties:
@@ -123,6 +141,10 @@ components:
           type: array
           items:
             type: string
+        transportDto:
+          $ref: "#/components/schemas/TransportDto"
+        accommodationDto:
+          $ref: "#/components/schemas/AccommodationDto"
     LocationImageUploadResponseDto:
       type: object
       description: Response object for location image upload operations
@@ -173,6 +195,20 @@ components:
         imageUrl:
           type: string
           description: URL of the uploaded image
+    TransportDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        transportType:
+          type: string
+        duration:
+          type: integer
+          format: int64
+        distance:
+          type: integer
+          format: int64
     UserDto:
       type: object
       properties:
@@ -614,7 +650,7 @@ paths:
                   startDateFrom: 2025-01-01
               Empty search:
                 summary: Get all itineraries (up to 100)
-                value: {}
+                value: { }
             schema:
               $ref: "#/components/schemas/ItinerarySearchDto"
         required: true
@@ -796,7 +832,8 @@ paths:
   /location/itinerary/{itineraryId}:
     get:
       summary: Get locations for itinerary
-      description: Retrieves all locations for a specific itinerary.
+      description: "Retrieves all locations for a specific itinerary, including associated\
+        \ transport and accommodation information."
       tags:
         - Location Management
       parameters:
@@ -810,12 +847,12 @@ paths:
             format: int64
       responses:
         "200":
-          description: Locations retrieved successfully
+          description: Locations retrieved successfully with transport and accommodation details
           content:
             application/json:
               examples:
                 Locations List:
-                  summary: Example list of locations
+                  summary: Example list of locations with transport and accommodation
                   value:
                     - id: 1
                       name: Bergen
@@ -824,12 +861,26 @@ paths:
                       toDate: 2024-06-18
                       imageUrls:
                         - https://example.com/bergen.jpg
+                      transportDto:
+                        id: 1
+                        transportType: Flight
+                        duration: 120
+                        distance: 450
+                      accommodationDto:
+                        id: 1
+                        name: Bergen Boutique Hotel
+                        pricePerNight: 150.0
+                        rating: 4.5
+                        notes: Great location near the harbor
+                        accommodationImageUrl: https://example.com/hotel.jpg
                     - id: 2
                       name: Oslo
                       description: Capital city
                       fromDate: 2024-06-19
                       toDate: 2024-06-22
-                      imageUrls: []
+                      imageUrls: [ ]
+                      transportDto: null
+                      accommodationDto: null
               schema:
                 type: array
                 items:
@@ -874,6 +925,26 @@ paths:
                   items:
                     type: string
                     format: binary
+                transportType:
+                  type: string
+                transportDuration:
+                  type: integer
+                  format: int64
+                transportDistance:
+                  type: integer
+                  format: int64
+                accommodationName:
+                  type: string
+                accommodationPricePerNight:
+                  type: number
+                  format: double
+                accommodationRating:
+                  type: number
+                  format: float
+                accommodationNotes:
+                  type: string
+                accommodationImageUrl:
+                  type: string
         required: true
       responses:
         "200":
