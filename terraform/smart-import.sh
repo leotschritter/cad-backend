@@ -130,8 +130,23 @@ fi
 # Note: Skipping Artifact Registry check - create_artifact_registry=false in tfvars
 # The resource is conditional and not in the config when disabled
 
+# Check Identity Platform
+echo "[8/9] Checking Identity Platform..."
+if gcloud identity platform describe --project=${PROJECT_ID} >/dev/null 2>&1; then
+    echo "  ✅ Exists - Will import"
+    cat >> imports.tf << EOF
+import {
+  to = google_identity_platform_config.default
+  id = "${PROJECT_ID}"
+}
+
+EOF
+else
+    echo "  ℹ️  Doesn't exist - Will create"
+fi
+
 # Check Cloud Run Service
-echo "[8/8] Checking Cloud Run Service..."
+echo "[9/9] Checking Cloud Run Service..."
 if gcloud run services describe travel-backend --region=${REGION} --project=${PROJECT_ID} >/dev/null 2>&1; then
     echo "  ✅ Exists - Will import"
     cat >> imports.tf << EOF
