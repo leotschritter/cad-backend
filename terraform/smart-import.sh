@@ -22,7 +22,7 @@ cat > imports.tf << 'EOF'
 EOF
 
 # Check Service Account
-echo "[1/8] Checking Service Account..."
+echo "[1/9] Checking Service Account..."
 if gcloud iam service-accounts describe travel-backend-sa@${PROJECT_ID}.iam.gserviceaccount.com >/dev/null 2>&1; then
     echo "  ✅ Exists - Will import"
     cat >> imports.tf << EOF
@@ -37,7 +37,7 @@ else
 fi
 
 # Check Secret
-echo "[2/8] Checking Secret Manager..."
+echo "[2/9] Checking Secret Manager..."
 if gcloud secrets describe travel-backend-db-password --project=${PROJECT_ID} >/dev/null 2>&1; then
     echo "  ✅ Exists - Will import"
     cat >> imports.tf << EOF
@@ -52,7 +52,7 @@ else
 fi
 
 # Check Firestore
-echo "[3/8] Checking Firestore..."
+echo "[3/9] Checking Firestore..."
 if gcloud firestore databases describe --database="(default)" --project=${PROJECT_ID} >/dev/null 2>&1; then
     echo "  ✅ Exists - Will import"
     cat >> imports.tf << EOF
@@ -67,7 +67,7 @@ else
 fi
 
 # Check Storage Bucket
-echo "[4/8] Checking Storage Bucket..."
+echo "[4/9] Checking Storage Bucket..."
 if gcloud storage buckets describe gs://${PROJECT_ID}-tripico-images >/dev/null 2>&1; then
     echo "  ✅ Exists - Will import"
     cat >> imports.tf << EOF
@@ -82,7 +82,7 @@ else
 fi
 
 # Check Cloud SQL Instance
-echo "[5/8] Checking Cloud SQL Instance..."
+echo "[5/9] Checking Cloud SQL Instance..."
 if gcloud sql instances describe cad-travel-db --project=${PROJECT_ID} >/dev/null 2>&1; then
     echo "  ✅ Exists - Will import"
     cat >> imports.tf << EOF
@@ -97,7 +97,7 @@ else
 fi
 
 # Check Cloud SQL Database
-echo "[6/8] Checking Cloud SQL Database..."
+echo "[6/9] Checking Cloud SQL Database..."
 if gcloud sql databases describe travel-db --instance=cad-travel-db --project=${PROJECT_ID} >/dev/null 2>&1; then
     echo "  ✅ Exists - Will import"
     cat >> imports.tf << EOF
@@ -112,7 +112,7 @@ else
 fi
 
 # Check Cloud SQL User
-echo "[7/8] Checking Cloud SQL User..."
+echo "[7/9] Checking Cloud SQL User..."
 if gcloud sql users list --instance=cad-travel-db --project=${PROJECT_ID} 2>/dev/null | grep -q "cad_db_user"; then
     echo "  ✅ Exists - Will import"
     cat >> imports.tf << EOF
