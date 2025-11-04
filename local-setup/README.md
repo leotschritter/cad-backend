@@ -51,8 +51,15 @@ curl -X POST http://localhost:4443/storage/v1/b \
   -H "Content-Type: application/json" \
   -d '{"name":"tripico-images"}'
 ```
+### 4. Login to Google Cloud for Goodle Identity usage
 
-### 4. Run the application
+````bash
+gcloud auth application-default login
+````
+
+
+
+### 5. Run the application
 
 From the project root:
 

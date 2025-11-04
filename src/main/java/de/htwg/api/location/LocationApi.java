@@ -6,6 +6,8 @@ import de.htwg.api.location.model.LocationImageUploadResponseDto;
 import de.htwg.api.location.model.MessageResponseDto;
 import de.htwg.api.location.model.TransportDto;
 import de.htwg.api.location.service.LocationService;
+import de.htwg.security.Authenticated;
+import de.htwg.security.SecurityContext;
 import de.htwg.service.storage.ImageStorageService;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -20,6 +22,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.time.LocalDate;
@@ -34,6 +37,9 @@ public class LocationApi {
     private final ImageStorageService imageStorageService;
 
     @Inject
+    SecurityContext securityContext;
+
+    @Inject
     public LocationApi(LocationService locationService, ImageStorageService imageStorageService) {
         this.locationService = locationService;
         this.imageStorageService = imageStorageService;
@@ -41,13 +47,15 @@ public class LocationApi {
 
     @POST
     @Path("/itinerary/{itineraryId}")
+    @Authenticated
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
     @Transactional
     @Operation(
         summary = "Add location to itinerary",
-        description = "Adds a new location to an existing itinerary. Upload images directly as multipart form data (optional). Images will be stored in Google Cloud Storage."
+        description = "Adds a new location to an existing itinerary. Upload images directly as multipart form data (optional). Images will be stored in Google Cloud Storage. Requires authentication."
     )
+    @SecurityRequirement(name = "BearerAuth")
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
@@ -63,6 +71,14 @@ public class LocationApi {
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
                 example = "{\"error\": \"Location name is required\"}"
+            )
+        ),
+        @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized - Missing or invalid token",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Missing or invalid Authorization header\"}"
             )
         ),
         @APIResponse(
@@ -209,11 +225,13 @@ public class LocationApi {
 
     @GET
     @Path("/itinerary/{itineraryId}")
+    @Authenticated
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Get locations for itinerary",
-        description = "Retrieves all locations for a specific itinerary, including associated transport and accommodation information."
+        description = "Retrieves all locations for a specific itinerary, including associated transport and accommodation information. Requires authentication."
     )
+    @SecurityRequirement(name = "BearerAuth")
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
@@ -262,6 +280,14 @@ public class LocationApi {
                         ]
                         """
                 )
+            )
+        ),
+        @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized - Missing or invalid token",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Missing or invalid Authorization header\"}"
             )
         ),
         @APIResponse(
@@ -328,11 +354,13 @@ public class LocationApi {
 
     @GET
     @Path("/{locationId}")
+    @Authenticated
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Get location by ID",
-        description = "Retrieves a specific location by its ID."
+        description = "Retrieves a specific location by its ID. Requires authentication."
     )
+    @SecurityRequirement(name = "BearerAuth")
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
@@ -340,6 +368,14 @@ public class LocationApi {
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
                 schema = @Schema(implementation = LocationDto.class)
+            )
+        ),
+        @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized - Missing or invalid token",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Missing or invalid Authorization header\"}"
             )
         ),
         @APIResponse(
@@ -397,11 +433,13 @@ public class LocationApi {
 
     @DELETE
     @Path("/{locationId}")
+    @Authenticated
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Delete location",
-        description = "Deletes a location from an itinerary."
+        description = "Deletes a location from an itinerary. Requires authentication."
     )
+    @SecurityRequirement(name = "BearerAuth")
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
@@ -421,6 +459,14 @@ public class LocationApi {
             )
         ),
         @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized - Missing or invalid token",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Missing or invalid Authorization header\"}"
+            )
+        ),
+        @APIResponse(
             responseCode = "404",
             description = "Location not found",
             content = @Content(
@@ -429,7 +475,6 @@ public class LocationApi {
             )
         )
     })
-
     public Response deleteLocation(
         @Parameter(
             description = "ID of the location to delete",
@@ -460,12 +505,14 @@ public class LocationApi {
 
     @POST
     @Path("/{locationId}/images")
+    @Authenticated
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Upload images to location",
-        description = "Uploads one or more images to a location. Images will be stored in Google Cloud Storage."
+        description = "Uploads one or more images to a location. Images will be stored in Google Cloud Storage. Requires authentication."
     )
+    @SecurityRequirement(name = "BearerAuth")
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
@@ -495,6 +542,14 @@ public class LocationApi {
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
                 example = "{\"error\": \"At least one image file is required\"}"
+            )
+        ),
+        @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized - Missing or invalid token",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Missing or invalid Authorization header\"}"
             )
         ),
         @APIResponse(
@@ -575,11 +630,13 @@ public class LocationApi {
 
     @DELETE
     @Path("/{locationId}/images")
+    @Authenticated
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Delete image from location",
-        description = "Deletes a specific image from a location by its URL."
+        description = "Deletes a specific image from a location by its URL. Requires authentication."
     )
+    @SecurityRequirement(name = "BearerAuth")
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
@@ -604,6 +661,14 @@ public class LocationApi {
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
                 example = "{\"error\": \"Image URL is required\"}"
+            )
+        ),
+        @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized - Missing or invalid token",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Missing or invalid Authorization header\"}"
             )
         ),
         @APIResponse(
