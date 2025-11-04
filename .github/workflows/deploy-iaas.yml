@@ -38,16 +38,16 @@ jobs:
           CI: 'true'
         run: ./terraform/deploy.sh
 
-      - name: Update Docker Images on VM
-        env:
-          GCP_ZONE: europe-west3-a
-          VM_NAME: cad-travel-app-vm
-        continue-on-error: false
-        run: |
-          echo "🔄 Updating containers..."
-          gcloud compute ssh $VM_NAME \
-            --zone=$GCP_ZONE \
-            --tunnel-through-iap \
-            --command="cd /opt/cad-travel && docker-compose pull && docker-compose up -d --force-recreate" \
-            || { echo "❌ Failed to update images"; exit 1; }
-          echo "✅ Images updated"
+#      - name: Update Docker Images on VM
+#        env:
+#          GCP_ZONE: europe-west3-a
+#          VM_NAME: cad-travel-app-vm
+#        continue-on-error: false
+#        run: |
+#          echo "🔄 Updating containers..."
+#          gcloud compute ssh $VM_NAME \
+#            --zone=$GCP_ZONE \
+#            --tunnel-through-iap \
+#            --command="cd /opt/cad-travel && docker-compose pull && docker-compose up -d --force-recreate" \
+#            || { echo "❌ Failed to update images"; exit 1; }
+#          echo "✅ Images updated"

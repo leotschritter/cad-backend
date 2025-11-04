@@ -169,15 +169,15 @@ echo "Waiting for containers to start..."
 sleep 30
 
 # SSL-Zertifikat installieren
-echo "Installing SSL certificate..."
-certbot --nginx \
-    -d tripico.duckdns.org \
-    --non-interactive \
-    --agree-tos \
-    --email dennishoang199@gmail.com \
-    --redirect || echo "⚠️  SSL installation failed - run manually later"
+#echo "Installing SSL certificate..."
+#certbot --nginx \
+#    -d tripico.duckdns.org \
+#    --non-interactive \
+#    --agree-tos \
+#    --email dennishoang199@gmail.com \
+#    --redirect || echo "⚠️  SSL installation failed - run manually later"
 
-systemctl enable certbot.timer
+#systemctl enable certbot.timer
 
 # Status prüfen
 echo ""
