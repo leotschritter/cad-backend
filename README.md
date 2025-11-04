@@ -144,6 +144,37 @@ docker-compose up -d
 docker-compose down
 ```
 
+## ☁️ Cloud Deployment
+
+### Terraform Infrastructure as Code
+
+The project includes comprehensive Terraform configuration for automated deployment to Google Cloud Platform.
+
+**Quick Start:**
+
+```bash
+cd terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+The Terraform setup creates:
+- Cloud Run service
+- Cloud SQL (PostgreSQL 16)
+- Firestore database
+- Cloud Storage bucket
+- Artifact Registry
+- Service accounts with IAM bindings
+- Secret Manager for credentials
+
+**For detailed instructions, see:**
+- [Terraform Deployment Guide](terraform/README.md) - Complete Terraform documentation
+
+### Manual Deployment (gcloud)
+
+For manual deployment using gcloud commands, see `gcloud_deployment.sh`.
+
 ## 📖 Documentation
 
 - **Quarkus Documentation**: [https://quarkus.io/](https://quarkus.io/)

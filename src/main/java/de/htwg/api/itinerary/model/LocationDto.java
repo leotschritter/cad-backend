@@ -1,5 +1,7 @@
 package de.htwg.api.itinerary.model;
 
+import de.htwg.api.location.model.AccommodationDto;
+import de.htwg.api.location.model.TransportDto;
 import lombok.Builder;
 
 import java.time.LocalDate;
@@ -12,6 +14,8 @@ public record LocationDto(
     String description,
     LocalDate fromDate,
     LocalDate toDate,
-    List<String> imageUrls
+    List<String> imageUrls,
+    TransportDto transportDto,
+    AccommodationDto accommodationDto
 ) {
 }

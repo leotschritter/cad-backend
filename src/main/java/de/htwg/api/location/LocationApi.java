@@ -1,11 +1,14 @@
 package de.htwg.api.location;
 
 import de.htwg.api.itinerary.model.LocationDto;
+import de.htwg.api.location.model.AccommodationDto;
 import de.htwg.api.location.model.LocationImageUploadResponseDto;
 import de.htwg.api.location.model.MessageResponseDto;
+import de.htwg.api.location.model.TransportDto;
 import de.htwg.api.location.service.LocationService;
 import de.htwg.service.storage.ImageStorageService;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
@@ -40,6 +43,7 @@ public class LocationApi {
     @Path("/itinerary/{itineraryId}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
+    @Transactional
     @Operation(
         summary = "Add location to itinerary",
         description = "Adds a new location to an existing itinerary. Upload images directly as multipart form data (optional). Images will be stored in Google Cloud Storage."
@@ -82,7 +86,34 @@ public class LocationApi {
         @FormParam("toDate") LocalDate toDate,
         @Parameter(
             description = "Image files to upload (optional - can be omitted)"
-        ) @FormParam("files") List<FileUpload> files) {
+        ) @FormParam("files") List<FileUpload> files,
+        @Parameter(
+            description = "Transport type (optional)"
+        ) @FormParam("transportType") String transportType,
+        @Parameter(
+            description = "Transport duration in minutes (optional)"
+        ) @FormParam("transportDuration") Long transportDuration,
+        @Parameter(
+            description = "Transport distance in kilometers (optional)"
+        ) @FormParam("transportDistance") Long transportDistance,
+        @Parameter(
+            description = "Accommodation name (optional)"
+        ) @FormParam("accommodationName") String accommodationName,
+        @Parameter(
+            description = "Accommodation price per night (optional)"
+        ) @FormParam("accommodationPricePerNight") Double accommodationPricePerNight,
+        @Parameter(
+            description = "Accommodation rating (optional)"
+        ) @FormParam("accommodationRating") Float accommodationRating,
+        @Parameter(
+            description = "Accommodation notes (optional)"
+        ) @FormParam("accommodationNotes") String accommodationNotes,
+        @Parameter(
+            description = "Accommodation image URL (optional)"
+        ) @FormParam("accommodationImageUrl") String accommodationImageUrl,
+        @Parameter(
+            description = "Booking page URL (optional)"
+        ) @FormParam("bookingPageUrl") String bookingPageUrl) {
 
         if (itineraryId == null) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -125,6 +156,29 @@ public class LocationApi {
 
             LocationDto createdLocation = locationService.addLocationToItinerary(itineraryId, locationDto);
 
+            // Add transport if provided
+            if (!(transportType == null && transportDuration == null && transportDistance == null)) {
+                TransportDto transportDto = TransportDto.builder()
+                        .transportType(transportType)
+                        .duration(transportDuration)
+                        .distance(transportDistance)
+                        .build();
+                locationService.addTransportToLocation(createdLocation.id(), transportDto);
+            }
+
+            // Add accommodation if provided
+            if (!(accommodationName == null && accommodationPricePerNight == null && accommodationRating == null && accommodationNotes == null && accommodationImageUrl == null && bookingPageUrl == null)) {
+                AccommodationDto accommodationDto = AccommodationDto.builder()
+                        .name(accommodationName)
+                        .pricePerNight(accommodationPricePerNight)
+                        .rating(accommodationRating)
+                        .notes(accommodationNotes)
+                        .accommodationImageUrl(accommodationImageUrl)
+                        .bookingPageUrl(bookingPageUrl)
+                        .build();
+                locationService.addAccommodationToLocation(createdLocation.id(), accommodationDto);
+            }
+
             // Convert filenames to signed URLs for the response
             List<String> signedUrls = createdLocation.imageUrls() != null
                     ? createdLocation.imageUrls().stream()
@@ -158,18 +212,18 @@ public class LocationApi {
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Get locations for itinerary",
-        description = "Retrieves all locations for a specific itinerary."
+        description = "Retrieves all locations for a specific itinerary, including associated transport and accommodation information."
     )
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
-            description = "Locations retrieved successfully",
+            description = "Locations retrieved successfully with transport and accommodation details",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
                 schema = @Schema(implementation = LocationDto[].class),
                 examples = @ExampleObject(
                     name = "Locations List",
-                    summary = "Example list of locations",
+                    summary = "Example list of locations with transport and accommodation",
                     value = """
                         [
                           {
@@ -178,7 +232,22 @@ public class LocationApi {
                             "description": "Historic coastal city",
                             "fromDate": "2024-06-15",
                             "toDate": "2024-06-18",
-                            "imageUrls": ["https://example.com/bergen.jpg"]
+                            "imageUrls": ["https://example.com/bergen.jpg"],
+                            "transportDto": {
+                              "id": 1,
+                              "transportType": "Flight",
+                              "duration": 120,
+                              "distance": 450
+                            },
+                            "accommodationDto": {
+                              "id": 1,
+                              "name": "Bergen Boutique Hotel",
+                              "pricePerNight": 150.0,
+                              "rating": 4.5,
+                              "notes": "Great location near the harbor",
+                              "accommodationImageUrl": "https://example.com/hotel.jpg",
+                              "bookingPageUrl": "https://example.com/hotel.html"
+                            }
                           },
                           {
                             "id": 2,
@@ -186,7 +255,9 @@ public class LocationApi {
                             "description": "Capital city",
                             "fromDate": "2024-06-19",
                             "toDate": "2024-06-22",
-                            "imageUrls": []
+                            "imageUrls": [],
+                            "transportDto": null,
+                            "accommodationDto": null
                           }
                         ]
                         """
@@ -227,6 +298,9 @@ public class LocationApi {
                                 .toList()
                             : List.of();
 
+                        AccommodationDto accommodationDto = locationService.getAccommodationByLocationId(location.id());
+                        TransportDto transportDto = locationService.getTransportByLocationId(location.id());
+
                         return LocationDto.builder()
                                 .id(location.id())
                                 .name(location.name())
@@ -234,6 +308,8 @@ public class LocationApi {
                                 .fromDate(location.fromDate())
                                 .toDate(location.toDate())
                                 .imageUrls(signedUrls)
+                                .accommodationDto(accommodationDto)
+                                .transportDto(transportDto)
                                 .build();
                     })
                     .toList();
