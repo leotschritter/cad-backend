@@ -59,6 +59,13 @@ resource "google_project_iam_member" "cloud_run_firestore_user" {
   member  = "serviceAccount:${google_service_account.cloud_run_sa.email}"
 }
 
+# IAM Binding - Identity Platform Token Verifier
+resource "google_project_iam_member" "cloud_run_identity_platform_viewer" {
+  project = var.project_id
+  role    = "roles/identityplatform.viewer"
+  member  = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+}
+
 # IAM Binding - Service Account Token Creator
 resource "google_service_account_iam_member" "cloud_run_token_creator" {
   service_account_id = google_service_account.cloud_run_sa.name
