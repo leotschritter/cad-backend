@@ -42,3 +42,7 @@ import {
   id = "projects/graphite-plane-474510-s9/locations/europe-west1/services/travel-backend"
 }
 
+import {
+  to = google_identity_platform_config.default
+  id = "graphite-plane-474510-s9"
+}
