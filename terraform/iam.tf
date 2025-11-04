@@ -40,6 +40,7 @@ resource "google_service_account_iam_member" "service_account_token_creator" {
   member             = "serviceAccount:${google_service_account.app_sa.email}"
 }
 
+
 # Service Account Key
 resource "google_service_account_key" "app_sa_key" {
   service_account_id = google_service_account.app_sa.name

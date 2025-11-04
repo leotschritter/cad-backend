@@ -4,6 +4,8 @@ import de.htwg.api.user.model.ProfileImageResponseDto;
 import de.htwg.api.user.model.ProfileImageUploadResponseDto;
 import de.htwg.api.user.model.UserDto;
 import de.htwg.api.user.service.UserService;
+import de.htwg.security.Authenticated;
+import de.htwg.security.SecurityContext;
 import de.htwg.service.storage.ImageStorageService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -19,6 +21,7 @@ import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 @Path("/user")
@@ -27,6 +30,9 @@ public class UserApi {
 
     private final UserService userService;
     private final ImageStorageService imageStorageService;
+
+    @Inject
+    SecurityContext securityContext;
 
     @Inject
     public UserApi(UserService userService, ImageStorageService imageStorageService) {
@@ -125,11 +131,13 @@ public class UserApi {
 
     @GET
     @Path("/get")
+    @Authenticated
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Get user by email",
-        description = "Retrieves user information by email address. Returns user details including name and email."
+        description = "Retrieves user information by email address. Returns user details including name and email. Requires authentication."
     )
+    @SecurityRequirement(name = "BearerAuth")
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
@@ -156,6 +164,14 @@ public class UserApi {
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
                 example = "{\"error\": \"Email parameter is required\"}"
+            )
+        ),
+        @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized - Missing or invalid token",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Missing or invalid Authorization header\"}"
             )
         ),
         @APIResponse(
@@ -202,13 +218,15 @@ public class UserApi {
     }
 
     @POST
-    @Path("/{email}/profile-image")
+    @Path("/profile-image")
+    @Authenticated
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Upload profile image",
-        description = "Uploads a profile image for a user. The image will be stored in Google Cloud Storage."
+        description = "Uploads a profile image for the authenticated user. Requires authentication. The image will be stored in Google Cloud Storage."
     )
+    @SecurityRequirement(name = "BearerAuth")
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
@@ -230,10 +248,18 @@ public class UserApi {
         ),
         @APIResponse(
             responseCode = "400",
-            description = "Bad request - Invalid file or email",
+            description = "Bad request - Invalid file",
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
-                example = "{\"error\": \"Invalid file format or email parameter\"}"
+                example = "{\"error\": \"Invalid file format\"}"
+            )
+        ),
+        @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized - Missing or invalid token",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Missing or invalid Authorization header\"}"
             )
         ),
         @APIResponse(
@@ -247,20 +273,9 @@ public class UserApi {
     })
     public Response uploadProfileImage(
         @Parameter(
-            description = "Email of the user to upload profile image for",
-            required = true,
-            example = "john.doe@example.com"
-        ) @PathParam("email") String email,
-        @Parameter(
             description = "Image file to upload",
             required = true
         ) @FormParam("file") FileUpload file) {
-
-        if (email == null || email.trim().isEmpty()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("Email parameter is required")
-                    .build();
-        }
 
         if (file == null || file.fileName() == null) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -269,6 +284,8 @@ public class UserApi {
         }
 
         try {
+            String email = securityContext.getCurrentUserEmail();
+            
             // Check if user already has a profile image and delete it
             try {
                 String oldImageUrl = userService.getProfileImageUrl(email);
@@ -312,12 +329,14 @@ public class UserApi {
     }
 
     @GET
-    @Path("/{email}/profile-image")
+    @Path("/profile-image")
+    @Authenticated
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Get profile image URL",
-        description = "Retrieves the profile image URL for a user."
+        description = "Retrieves the profile image URL for the authenticated user. Requires authentication."
     )
+    @SecurityRequirement(name = "BearerAuth")
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
@@ -337,6 +356,14 @@ public class UserApi {
             )
         ),
         @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized - Missing or invalid token",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Missing or invalid Authorization header\"}"
+            )
+        ),
+        @APIResponse(
             responseCode = "404",
             description = "User not found or no profile image",
             content = @Content(
@@ -345,20 +372,9 @@ public class UserApi {
             )
         )
     })
-    public Response getProfileImageUrl(
-        @Parameter(
-            description = "Email of the user to get profile image for",
-            required = true,
-            example = "john.doe@example.com"
-        ) @PathParam("email") String email) {
-
-        if (email == null || email.trim().isEmpty()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("Email parameter is required")
-                    .build();
-        }
-
+    public Response getProfileImageUrl() {
         try {
+            String email = securityContext.getCurrentUserEmail();
             String imageUrl = userService.getProfileImageUrl(email);
             if (imageUrl == null) {
                 return Response.status(Response.Status.NOT_FOUND)

@@ -38,9 +38,16 @@ quarkus:
 # Google Cloud Configuration (outside quarkus namespace)
 google:
   cloud:
-    projectId: ${PROJECT_ID:local-project}
+    projectId: ${PROJECT_ID}
   firestore:
     use-emulator: ${USE_FIRESTORE_EMULATOR:false}
   storage:
     use-emulator: ${USE_STORAGE_EMULATOR:false}
     bucket-name: ${BUCKET_NAME:tripico-images}
+
+# Google Cloud Identity Platform Configuration
+# Note: Firebase Authentication = Identity Platform (same service)
+# Using Firebase Admin SDK as it's the official SDK for Identity Platform
+identity-platform:
+  auth:
+    enabled: ${IDENTITY_PLATFORM_AUTH_ENABLED:true}  # Enabled by default - use ADC for local development
