@@ -2,6 +2,8 @@ package de.htwg.api.comment;
 
 import de.htwg.api.comment.model.MessageResponseDto;
 import de.htwg.api.itinerary.model.CommentDto;
+import de.htwg.security.Authenticated;
+import de.htwg.security.SecurityContext;
 import de.htwg.service.firestore.CommentService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -14,6 +16,7 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
 import java.util.List;
@@ -25,18 +28,23 @@ public class CommentApi {
     private final CommentService commentService;
 
     @Inject
+    SecurityContext securityContext;
+
+    @Inject
     public CommentApi(CommentService commentService) {
         this.commentService = commentService;
     }
 
     @POST
     @Path("/itinerary/{itineraryId}")
+    @Authenticated
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Add comment to itinerary",
-        description = "Adds a comment to an itinerary. Users can add multiple comments."
+        description = "Adds a comment to an itinerary. Requires authentication. Users can add multiple comments."
     )
+    @SecurityRequirement(name = "BearerAuth")
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
@@ -52,6 +60,14 @@ public class CommentApi {
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
                 example = "{\"error\": \"Comment text cannot be empty\"}"
+            )
+        ),
+        @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized - Missing or invalid token",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Missing or invalid Authorization header\"}"
             )
         )
     })
@@ -69,20 +85,15 @@ public class CommentApi {
                     .build();
         }
 
-        if (request == null || request.userEmail == null || request.userEmail.trim().isEmpty()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("{\"error\": \"User email is required\"}")
-                    .build();
-        }
-
-        if (request.comment == null || request.comment.trim().isEmpty()) {
+        if (request == null || request.comment == null || request.comment.trim().isEmpty()) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\": \"Comment text cannot be empty\"}")
                     .build();
         }
 
         try {
-            CommentDto createdComment = commentService.addComment(request.userEmail, itineraryId, request.comment);
+            String userEmail = securityContext.getCurrentUserEmail();
+            CommentDto createdComment = commentService.addComment(userEmail, itineraryId, request.comment);
             return Response.ok(createdComment).build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -97,11 +108,13 @@ public class CommentApi {
 
     @DELETE
     @Path("/{commentId}")
+    @Authenticated
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Delete comment",
-        description = "Deletes a comment. Users can only delete their own comments."
+        description = "Deletes a comment. Requires authentication. Users can only delete their own comments."
     )
+    @SecurityRequirement(name = "BearerAuth")
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
@@ -129,6 +142,14 @@ public class CommentApi {
             )
         ),
         @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized - Missing or invalid token",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Missing or invalid Authorization header\"}"
+            )
+        ),
+        @APIResponse(
             responseCode = "404",
             description = "Comment not found",
             content = @Content(
@@ -142,12 +163,7 @@ public class CommentApi {
             description = "ID of the comment to delete",
             required = true,
             example = "abc123"
-        ) @PathParam("commentId") String commentId,
-        @Parameter(
-            description = "Email of the user deleting the comment",
-            required = true,
-            example = "john.doe@example.com"
-        ) @QueryParam("userEmail") String userEmail) {
+        ) @PathParam("commentId") String commentId) {
 
         if (commentId == null || commentId.trim().isEmpty()) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -155,13 +171,8 @@ public class CommentApi {
                     .build();
         }
 
-        if (userEmail == null || userEmail.trim().isEmpty()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("{\"error\": \"User email is required\"}")
-                    .build();
-        }
-
         try {
+            String userEmail = securityContext.getCurrentUserEmail();
             commentService.deleteComment(commentId, userEmail);
             MessageResponseDto response = new MessageResponseDto("Comment deleted successfully");
             return Response.ok(response).build();
@@ -178,11 +189,13 @@ public class CommentApi {
 
     @GET
     @Path("/itinerary/{itineraryId}")
+    @Authenticated
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Get comments for itinerary",
-        description = "Retrieves all comments for a specific itinerary, ordered by creation date (newest first)."
+        description = "Retrieves all comments for a specific itinerary, ordered by creation date (newest first). Requires authentication."
     )
+    @SecurityRequirement(name = "BearerAuth")
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
@@ -221,6 +234,14 @@ public class CommentApi {
                 mediaType = MediaType.APPLICATION_JSON,
                 example = "{\"error\": \"Itinerary ID is required\"}"
             )
+        ),
+        @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized - Missing or invalid token",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Missing or invalid Authorization header\"}"
+            )
         )
     })
     public Response getCommentsForItinerary(
@@ -248,11 +269,13 @@ public class CommentApi {
 
     @GET
     @Path("/user/{userEmail}")
+    @Authenticated
     @Produces(MediaType.APPLICATION_JSON)
     @Operation(
         summary = "Get comments by user",
-        description = "Retrieves all comments made by a specific user, ordered by creation date (newest first)."
+        description = "Retrieves all comments made by a specific user, ordered by creation date (newest first). Requires authentication."
     )
+    @SecurityRequirement(name = "BearerAuth")
     @APIResponses(value = {
         @APIResponse(
             responseCode = "200",
@@ -268,6 +291,14 @@ public class CommentApi {
             content = @Content(
                 mediaType = MediaType.APPLICATION_JSON,
                 example = "{\"error\": \"User email is required\"}"
+            )
+        ),
+        @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized - Missing or invalid token",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Missing or invalid Authorization header\"}"
             )
         )
     })

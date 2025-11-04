@@ -431,3 +431,27 @@ data "google_project" "project" {
 #     route_name = google_cloud_run_v2_service.main.name
 #   }
 # }
+
+resource "google_project_service" "identitytoolkit" {
+  project = var.project_id
+  service = "identitytoolkit.googleapis.com"
+}
+
+resource "google_identity_platform_config" "default" {
+  project = var.project_id
+  
+  sign_in {
+    email {
+      enabled = true
+      password_required = true
+    }
+  }
+  
+  authorized_domains = [
+    "graphite-plane-474510-s9.firebaseapp.com",
+    "graphite-plane-474510-s9.web.app",
+    "tripico.fun",
+    "frontend.tripico.fun",
+    "api.tripico.fun",
+  ]
+}
