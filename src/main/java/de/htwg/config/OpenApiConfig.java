@@ -11,7 +11,6 @@ import org.eclipse.microprofile.openapi.annotations.servers.Server;
 
 /**
  * OpenAPI configuration for the Travel App API.
- * 
  * Defines the Bearer token authentication scheme for Google Cloud Identity Platform.
  * This ensures that generated API clients (from openapi-generator) will properly
  * handle authentication tokens.
@@ -35,16 +34,8 @@ import org.eclipse.microprofile.openapi.annotations.servers.Server;
                Authorization: Bearer <your-firebase-id-token>
                ```
             
-            ### Local Development (Auth Disabled):
             
-            When running locally with `identity-platform.auth.enabled=false`, you can:
-            - Make requests without the Authorization header (uses default test user)
-            - OR use custom test users with the `X-Test-User-Email` header:
-              ```
-              X-Test-User-Email: alice@example.com
-              ```
             
-            See LOCAL_DEVELOPMENT_GUIDE.md for complete local testing documentation.
             """,
         contact = @Contact(
             name = "Travel App Team"
@@ -65,11 +56,9 @@ import org.eclipse.microprofile.openapi.annotations.servers.Server;
         
         **Production:** Include your Firebase ID token in the Authorization header.
         
-        **Local Development:** Either:
-        - Omit the header (uses default test user: test.user@example.com)
-        - Add `X-Test-User-Email` header to simulate different users
+        **Local Development:** Include your Firebase ID token in the Authorization header.
         
-        Example:
+        **Example:**
         ```
         Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjFlM...
         ```
