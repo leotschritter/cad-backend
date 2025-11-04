@@ -132,7 +132,8 @@ fi
 
 # Check Identity Platform
 echo "[8/9] Checking Identity Platform..."
-if gcloud identity platform describe --project=${PROJECT_ID} >/dev/null 2>&1; then
+# Check if Identity Platform API is enabled (indicates it's been set up)
+if gcloud services list --enabled --project=${PROJECT_ID} --format="value(config.name)" 2>/dev/null | grep -q "identitytoolkit.googleapis.com"; then
     echo "  ✅ Exists - Will import"
     cat >> imports.tf << EOF
 import {
