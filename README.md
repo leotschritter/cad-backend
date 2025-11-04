@@ -169,7 +169,7 @@ The Terraform setup creates:
 - Secret Manager for credentials
 
 **For detailed instructions, see:**
-- [Terraform Deployment Guide](terraform/README.md) - Complete Terraform documentation
+- [Terraform Deployment Guide](terraform22/README.md) - Complete Terraform documentation
 
 ### Manual Deployment (gcloud)
 
