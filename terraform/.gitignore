@@ -1,0 +1,8 @@
+.terraform/**
+.terraform.lock.hcl
+terraform.tfstate.backup
+tfplan
+
+# Windows-specific scripts (not recommended - use bash scripts instead)
+*.bat
+*.ps1

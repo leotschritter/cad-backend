@@ -27,9 +27,37 @@ EOF
 
 ```bash
 ./deploy.sh
+```
 
-ssl setup
-# Manuell installieren
+Das Script:
+- ✅ Prüft GCloud Auth
+- ✅ Aktiviert APIs
+- ✅ Initialisiert Terraform
+- ✅ Erstellt Plan
+- ✅ Deployed Infrastruktur
+- ✅ **Führt automatisch Post-Deploy aus** (installiert Docker, startet Container)
+
+**Hinweis:** Das Deployment dauert ~10-15 Minuten.
+
+#### Optional: Post-Deploy überspringen
+```bash
+SKIP_POST_DEPLOY=true ./deploy.sh
+# Später manuell ausführen:
+./post-deploy.sh
+```
+
+#### Manuelles Post-Deploy (falls nötig)
+```bash
+# Linux/Mac/Windows (Git Bash/WSL)
+./post-deploy.sh
+```
+
+#### SSL Setup (nach Deployment)
+```bash
+# SSH zur VM
+gcloud compute ssh cad-travel-app-vm --zone=europe-west3-a
+
+# SSL manuell installieren
 sudo certbot --nginx \
     -d tripico.duckdns.org \
     --non-interactive \
@@ -40,18 +68,10 @@ sudo certbot --nginx \
 # Nginx neu laden
 sudo systemctl reload nginx
 
-duckdns ip manuell updaten
-
-DONE!
-
+# DuckDNS IP manuell updaten
 ```
 
-Das Script:
-- ✅ Prüft GCloud Auth
-- ✅ Aktiviert APIs
-- ✅ Initialisiert Terraform
-- ✅ Erstellt Plan
-- ✅ Deployed Infrastruktur
+**DONE!** ✅
 
 ### 3️⃣ Status prüfen
 
@@ -137,10 +157,39 @@ gcloud auth application-default login
 gcloud services enable compute.googleapis.com sqladmin.googleapis.com storage.googleapis.com
 ```
 
+### `$'\r': command not found` Fehler
+**Problem:** Windows line endings im startup-script.sh
+
+**Lösung:**
+```bash
+# VS Code: Klicke unten rechts auf CRLF → Wähle LF → Speichern
+# Oder in Git Bash:
+sed -i 's/\r$//' startup-script.sh
+terraform apply
+```
+
+### Post-Deploy SSH Timeout (Windows)
+**Problem:** PuTTY plink Host Key Prompt
+
+**Lösung:** Script erkennt Windows automatisch. Falls Probleme:
+```bash
+echo "y" | gcloud compute ssh cad-travel-app-vm --zone=europe-west3-a --command="echo test"
+```
+
 ### Container starten nicht
 ```bash
 ./check-deployment.sh
 # Prüfe Logs für Fehler
+
+# Startup Script Logs anzeigen
+gcloud compute ssh cad-travel-app-vm --zone=europe-west3-a \
+  --command='sudo cat /var/log/startup-script.log'
+```
+
+### Post-Deploy manuell ausführen
+```bash
+# Falls das automatische Post-Deploy fehlschlägt
+./post-deploy.sh
 ```
 
 ---
