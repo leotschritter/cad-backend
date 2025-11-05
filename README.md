@@ -1,6 +1,50 @@
 # Travel App Backend
 
 A Quarkus-based REST API for managing travel itineraries and user accounts. This application provides endpoints for user registration and itinerary management with PostgreSQL database integration.
+## Load Test Results Summary
+
+This suite has been tested against the deployed Cloud Run backend (`https://api.tripico.fun`) with the following configurations:
+
+### Periodic Workload Test (Normal Traffic)
+- **Users**: 20 concurrent users
+- **Duration**: 10 minutes
+- **Ramp-up**: 2 users/second (10 seconds to full load)
+- **Result**: **Stable** - The application handled normal daily traffic smoothly with minimal failed requests (<1% failure rate). Average response times remained consistent throughout the test.
+
+### Once-in-a-Lifetime Workload Test (Traffic Spike)
+- **Users**: 5,000 concurrent users
+- **Duration**: 10 minutes  
+- **Ramp-up**: 50 users/second (100 seconds to full load)
+- **Result**: **Struggled under peak load** - The application experienced significant performance degradation under extreme traffic. With Cloud Run's limit of 10 instances, the service was overwhelmed by the burst of requests, resulting in increased response times, timeouts, and failed requests. This test successfully identified the system's breaking point at approximately 2,000-3,000 concurrent users.
+
+### Key Findings
+- **Normal operations**: The application performs well under typical load conditions
+- **Scaling limits**: Current infrastructure caps at ~10 instances (20GB total memory), which limits capacity during traffic spikes
+- **Recommendation**: For handling viral traffic scenarios, consider increasing `cloud_run_max_instances` or implementing request throttling/queuing mechanisms
+
+### Potential Bottlenecks
+Based on the architecture and observed behavior, the following components may contribute to performance degradation under high load:
+
+- **Firebase Authentication**: Each request requires token verification against Firebase Auth. Under heavy load, the authentication layer may introduce latency, especially when thousands of users authenticate simultaneously. Token caching could mitigate this.
+
+- **PostgreSQL Database**: The shared `db-f1-micro` instance has limited CPU and memory resources. Complex queries (itinerary searches, joins with locations) may slow down under concurrent load. Connection pool exhaustion could also occur if many Cloud Run instances compete for database connections.
+
+- **Firestore Operations**: Likes and comments are stored in Firestore. While Firestore scales well, the overhead of network calls to Firestore from each Cloud Run instance adds latency. Batch operations or caching frequently accessed data could improve performance.
+
+- **Cloud Run Instance Limits**: The hard cap of 10 instances creates a ceiling for concurrent request handling. Each instance handles ~200-500 requests depending on endpoint complexity and response time.
+
+### Next Steps for Deeper Analysis
+
+To identify the exact bottleneck and determine capacity thresholds, consider the following approaches:
+
+#### 1. Fine-Tune Ramp-Up Testing
+Adjust the load test configuration in `load/.env.onceinlifetime` to find the breaking point
+
+Run multiple tests with incremental user counts (1000 → 2000 → 3000 → 4000) to identify at which point:
+- Response times start degrading (>500ms)
+- Error rates increase (>5%)
+- Instances hit the maximum limit
+---
 
 ## 🚀 Quick Start
 
