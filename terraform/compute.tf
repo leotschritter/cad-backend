@@ -58,18 +58,22 @@ resource "google_compute_instance" "app_vm" {
   # Metadaten - startup-script runs on EVERY boot (not just first)
   metadata = {
     enable-oslogin = "TRUE"
-    startup-script = templatefile("${path.module}/startup-script.sh", {
-      project_id            = var.project_id
-      db_instance_ip        = google_sql_database_instance.main.public_ip_address
-      db_name               = var.db_name
-      db_user               = var.db_user
-      db_password           = random_password.db_password.result
-      service_account_key   = google_service_account_key.app_sa_key.private_key
-      service_account_email = google_service_account.app_sa.email
-      backend_image         = var.backend_image
-      frontend_image        = var.frontend_image
-      storage_bucket        = google_storage_bucket.images.name
-    })
+    startup-script = replace(
+      templatefile("${path.module}/startup-script.sh", {
+        project_id            = var.project_id
+        db_instance_ip        = google_sql_database_instance.main.public_ip_address
+        db_name               = var.db_name
+        db_user               = var.db_user
+        db_password           = random_password.db_password.result
+        service_account_key   = google_service_account_key.app_sa_key.private_key
+        service_account_email = google_service_account.app_sa.email
+        backend_image         = var.backend_image
+        frontend_image        = var.frontend_image
+        storage_bucket        = google_storage_bucket.images.name
+      }),
+      "\r",
+      ""
+    )
   }
 
   tags = ["http-server", "https-server"]

@@ -38,15 +38,31 @@ echo ""
 
 # Wait for SSH to be available
 echo "[2/4] Waiting for SSH to be available..."
-MAX_RETRIES=12
+MAX_RETRIES=20
 RETRY_COUNT=0
 
+# Detect if we're on Windows (Git Bash, MinGW, etc.)
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" || "$OSTYPE" == "cygwin" ]]; then
+  # Windows: gcloud uses plink which prompts for host key on first connection
+  # We need to accept it once, then subsequent connections work
+  echo "   Detected Windows environment, accepting host key..."
+
+  # First connection will prompt - pipe 'y' to accept the key
+  echo "y" | gcloud compute ssh "$VM_NAME" \
+    --zone="$ZONE" \
+    --project="$PROJECT_ID" \
+    --command="echo 'SSH ready'" 2>/dev/null || true
+
+  # Wait a moment for the key to be cached
+  sleep 2
+fi
+export CLOUDSDK_SSH_ARGS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5"
+
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-  if gcloud compute ssh "x" \
+  if gcloud compute ssh "$VM_NAME" \
     --zone="$ZONE" \
     --project="$PROJECT_ID" \
     --command="echo 'SSH ready'" \
-    --ssh-flag="-o ConnectTimeout=5" \
     --quiet 2>/dev/null; then
     echo "✓ SSH connection established"
     break
@@ -55,6 +71,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
   RETRY_COUNT=$((RETRY_COUNT + 1))
   if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     echo "❌ Error: Could not establish SSH connection after $MAX_RETRIES attempts"
+    echo "   Try manually: gcloud compute ssh $VM_NAME --zone=$ZONE --project=$PROJECT_ID"
     exit 1
   fi
 
@@ -69,11 +86,12 @@ echo "[3/4] Executing startup script on VM..."
 echo "   This may take 5-10 minutes (installing packages, pulling images, etc.)"
 echo ""
 
-# The startup script is already in the VM metadata, so we execute it
+# Get the startup script from VM metadata and execute it
+echo "   Fetching startup script from VM metadata..."
 gcloud compute ssh "$VM_NAME" \
   --zone="$ZONE" \
   --project="$PROJECT_ID" \
-  --command="sudo bash /var/lib/google/scripts/startup-script" 2>&1 | tee /tmp/startup-execution.log
+  --command="curl -s -H 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/attributes/startup-script | tr -d '\r' | sudo bash -s 2>&1 | sudo tee /var/log/startup-script.log" 2>&1 | tee /tmp/startup-execution.log
 
 if [ ${PIPESTATUS[0]} -ne 0 ]; then
   echo ""
