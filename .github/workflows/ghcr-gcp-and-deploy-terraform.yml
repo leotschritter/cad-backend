@@ -8,6 +8,7 @@ on:
       - 'terraform/**'
       - 'Dockerfile'
       - '.github/workflows/ghcr-gcp-and-deploy-terraform.yml'
+      - 'src/**'
   workflow_dispatch:
 
 jobs:

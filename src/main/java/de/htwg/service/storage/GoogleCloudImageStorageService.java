@@ -82,7 +82,7 @@ public class GoogleCloudImageStorageService implements ImageStorageService {
         }
 
         log.info("Blob found: {} (exists: {})", blob.getName(), blob.exists());
-        return generateSignedUrl(fileName, 15);
+        return generateSignedUrl(fileName, 1440);  // 24 hours
     }
 
     @Override
@@ -110,7 +110,7 @@ public class GoogleCloudImageStorageService implements ImageStorageService {
                         saEmail,
                         null,  // delegates
                         List.of("https://www.googleapis.com/auth/devstorage.read_write"),
-                        300  // lifetime in seconds
+                        86400  // lifetime in seconds (24 hours - match signed URL duration)
                 );
                 
                 // Create a new Storage client with impersonated credentials for signing
