@@ -40,6 +40,12 @@ resource "google_service_account_iam_member" "service_account_token_creator" {
   member             = "serviceAccount:${google_service_account.app_sa.email}"
 }
 
+# IAM Binding - Identity Platform Token Verifier
+resource "google_project_iam_member" "cloud_run_identity_platform_viewer" {
+  project = var.project_id
+  role    = "roles/identityplatform.viewer"
+  member  = "serviceAccount:${google_service_account.app_sa.email}"
+}
 
 # Service Account Key
 resource "google_service_account_key" "app_sa_key" {

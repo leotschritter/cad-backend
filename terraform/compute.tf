@@ -34,7 +34,7 @@ resource "google_compute_instance" "app_vm" {
   network_interface {
     network = "default"
     access_config {
-        nat_ip = google_compute_address.app_vm_static_ip.address
+      nat_ip = google_compute_address.app_vm_static_ip.address
     }
   }
 
@@ -46,16 +46,16 @@ resource "google_compute_instance" "app_vm" {
 
   # Startup Script mit Template-Variablen
   metadata_startup_script = templatefile("${path.module}/startup-script.sh", {
-    project_id          = var.project_id
-    db_instance_ip      = google_sql_database_instance.main.public_ip_address
-    db_name             = var.db_name
-    db_user             = var.db_user
-    db_password         = random_password.db_password.result
-    service_account_key = google_service_account_key.app_sa_key.private_key
+    project_id            = var.project_id
+    db_instance_ip        = google_sql_database_instance.main.public_ip_address
+    db_name               = var.db_name
+    db_user               = var.db_user
+    db_password           = random_password.db_password.result
+    service_account_key   = google_service_account_key.app_sa_key.private_key
     service_account_email = google_service_account.app_sa.email
-    backend_image       = var.backend_image
-    frontend_image      = var.frontend_image
-    storage_bucket      = google_storage_bucket.images.name
+    backend_image         = var.backend_image
+    frontend_image        = var.frontend_image
+    storage_bucket        = google_storage_bucket.images.name
 
   })
 
@@ -108,7 +108,7 @@ resource "google_compute_firewall" "allow_https" {
 
   allow {
     protocol = "tcp"
-    ports    = ["80", "443"]  # ← HTTP + HTTPS
+    ports    = ["80", "443"] # ← HTTP + HTTPS
   }
 
   source_ranges = ["0.0.0.0/0"]
