@@ -170,8 +170,30 @@ else
 fi
 
 echo ""
+
+# Schritt 7: Execute startup script on VM
+echo "╔════════════════════════════════════════════════════════════════╗"
+echo "║         Executing Startup Script on VM...                      ║"
+echo "╚════════════════════════════════════════════════════════════════╝"
+echo ""
+
+# Check if we should skip post-deploy
+if [ "${SKIP_POST_DEPLOY:-}" = "true" ]; then
+  echo "⚠️  SKIP_POST_DEPLOY is set - skipping startup script execution"
+  echo "   Run manually with: ./post-deploy.sh"
+else
+  # Execute post-deployment script
+  if [ -f "./post-deploy.sh" ]; then
+    bash ./post-deploy.sh
+  else
+    echo "⚠️  post-deploy.sh not found, skipping startup script execution"
+    echo "   The VM startup script will run on next boot"
+  fi
+fi
+
+echo ""
 echo "💡 Tipps:"
-echo "  - Warte 2-3 Minuten bis die Container gestartet sind"
 echo "  - Prüfe Logs mit: ./check-deployment.sh"
 echo "  - Aktualisiere Images mit: ./update-images.sh"
+echo "  - Führe Startup Script erneut aus: ./post-deploy.sh"
 

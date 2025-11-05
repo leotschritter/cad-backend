@@ -1,4 +1,15 @@
 # ===================================================
+# Startup Script Trigger
+# ===================================================
+
+# Trigger VM recreation when startup script changes
+resource "null_resource" "startup_script_trigger" {
+  triggers = {
+    startup_script_hash = filemd5("${path.module}/startup-script.sh")
+  }
+}
+
+# ===================================================
 # Statische externe IP
 # ===================================================
 
@@ -44,24 +55,21 @@ resource "google_compute_instance" "app_vm" {
     scopes = ["cloud-platform"]
   }
 
-  # Startup Script mit Template-Variablen
-  metadata_startup_script = templatefile("${path.module}/startup-script.sh", {
-    project_id            = var.project_id
-    db_instance_ip        = google_sql_database_instance.main.public_ip_address
-    db_name               = var.db_name
-    db_user               = var.db_user
-    db_password           = random_password.db_password.result
-    service_account_key   = google_service_account_key.app_sa_key.private_key
-    service_account_email = google_service_account.app_sa.email
-    backend_image         = var.backend_image
-    frontend_image        = var.frontend_image
-    storage_bucket        = google_storage_bucket.images.name
-
-  })
-
-  # Metadaten
+  # Metadaten - startup-script runs on EVERY boot (not just first)
   metadata = {
     enable-oslogin = "TRUE"
+    startup-script = templatefile("${path.module}/startup-script.sh", {
+      project_id            = var.project_id
+      db_instance_ip        = google_sql_database_instance.main.public_ip_address
+      db_name               = var.db_name
+      db_user               = var.db_user
+      db_password           = random_password.db_password.result
+      service_account_key   = google_service_account_key.app_sa_key.private_key
+      service_account_email = google_service_account.app_sa.email
+      backend_image         = var.backend_image
+      frontend_image        = var.frontend_image
+      storage_bucket        = google_storage_bucket.images.name
+    })
   }
 
   tags = ["http-server", "https-server"]
@@ -74,7 +82,11 @@ resource "google_compute_instance" "app_vm" {
 
   # VM sollte bei Änderungen neu erstellt werden (außer Metadaten)
   lifecycle {
-    create_before_destroy = true
+    prevent_destroy = false
+    # Force recreation if startup script changes
+    replace_triggered_by = [
+      null_resource.startup_script_trigger
+    ]
   }
 
   depends_on = [
