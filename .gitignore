@@ -2,6 +2,7 @@
 target
 .venv
 load/.venv
+load/venv
 .env
 *.log
 .DS_Store
