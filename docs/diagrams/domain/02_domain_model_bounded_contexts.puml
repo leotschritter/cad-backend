@@ -1,0 +1,107 @@
+@startuml BoundedContexts
+!pragma layout smetana
+
+title Bounded Contexts\nTravel SaaS Platform
+caption Last updated: 2025-11-10
+
+' Define bounded contexts as packages with responsibilities
+package "Identity & Access\nContext" as IdentityContext #LightBlue {
+  rectangle "User" #White
+  rectangle "Authentication" #White
+  rectangle "Authorization" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • User registration & profile
+    • Authentication & tokens
+    • Role & permission management
+    • Tenant configuration
+  end note
+}
+
+package "Itinerary Management\nContext" as ItineraryContext #LightGreen {
+  rectangle "Itinerary" #White
+  rectangle "Location" #White
+  rectangle "Trip Planning" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • Create & manage itineraries
+    • Manage locations & visits
+    • Trip scheduling & planning
+    • Visibility settings
+  end note
+}
+
+package "Social Interaction\nContext" as SocialContext #LightCoral {
+  rectangle "Like" #White
+  rectangle "Comment" #White
+  rectangle "Engagement" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • Like/unlike itineraries
+    • Comment on itineraries
+    • Track user engagement
+  end note
+}
+
+package "Personalized Feed\nContext" as FeedContext #LightYellow {
+  rectangle "Feed Generation" #White
+  rectangle "Recommendation\nEngine" #White
+  rectangle "Ranking" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • Generate personalized feed
+    • Analyze user preferences
+    • Rank & score content
+    • Handle recommendation signals
+  end note
+}
+
+' Context relationships with integration patterns
+IdentityContext -down-> ItineraryContext : <<Shared Kernel>>\nUser ID
+IdentityContext -down-> SocialContext : <<Shared Kernel>>\nUser ID
+IdentityContext -down-> FeedContext : <<Shared Kernel>>\nUser ID
+
+ItineraryContext -right-> SocialContext : <<Customer/Supplier>>\nItinerary ID
+ItineraryContext ..> FeedContext : <<Published Events>>\nItinerary Created/Updated
+
+SocialContext ..> FeedContext : <<Published Events>>\nLike/Comment Events
+
+note right of FeedContext
+  **Event Subscriptions:**
+  • ItineraryCreated
+  • ItineraryUpdated
+  • ItineraryLiked
+  • CommentAdded
+  • LocationVisited
+end note
+
+legend right
+  |= Pattern |= Description |
+  | <<Shared Kernel>> | Shared concept (User ID) |
+  | <<Customer/Supplier>> | Direct reference by ID |
+  | <<Published Events>> | Async event-driven |
+
+  |= Color |= Context |
+  | <#LightBlue> | Identity & Access |
+  | <#LightGreen> | Itinerary Management |
+  | <#LightCoral> | Social Interaction |
+  | <#LightYellow> | Personalized Feed |
+endlegend
+
+note as ContextNote
+  **Context Integration Strategy:**
+
+  • Each bounded context is an independent microservice
+  • Contexts communicate via events (Pub/Sub)
+  • No shared databases between contexts
+  • User ID is the only shared kernel concept
+  • Itinerary ID & Location ID referenced by value
+  • Feed context is eventual consistency model
+end note
+
+@enduml
+

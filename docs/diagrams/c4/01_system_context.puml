@@ -1,0 +1,22 @@
+@startuml SystemContext
+!include <C4/C4_Context>
+
+' Use SMETANA layout engine instead of Graphviz
+!pragma layout smetana
+
+' Title and purpose
+LAYOUT_WITH_LEGEND()
+
+Person(traveller, "Traveller", "Signed-in user who plans trips, interacts with other travelers, and browses personalized feed")
+Person(admin, "Admin", "Platform administrator")
+
+System(travelSaaS, "Travel SaaS Platform", "Social travel management platform with itinerary planning, social interactions (likes/comments), and personalized live feed recommendations")
+
+System_Ext(identity, "Identity Provider", "OAuth2/Firebase - user authentication and authorization")
+
+Rel(traveller, travelSaaS, "Plans itineraries, likes/comments on content, browses personalized feed", "HTTPS")
+Rel(admin, travelSaaS, "Administers platform and manages users", "HTTPS")
+
+Rel(travelSaaS, identity, "Authenticates users and validates tokens", "OIDC / JWT")
+
+@enduml
