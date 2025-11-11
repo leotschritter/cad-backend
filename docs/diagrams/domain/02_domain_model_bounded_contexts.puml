@@ -4,8 +4,11 @@
 title Bounded Contexts\nTravel SaaS Platform
 caption Last updated: 2025-11-10
 
-' Define bounded contexts as packages with responsibilities
-package "Identity & Access\nContext" as IdentityContext #LightBlue {
+' ----------------------------------------------------------
+' Existing bounded contexts
+' ----------------------------------------------------------
+
+/'package "Identity & Access\nContext" as IdentityContext #LightBlue {
   rectangle "User" #White
   rectangle "Authentication" #White
   rectangle "Authorization" #White
@@ -17,7 +20,7 @@ package "Identity & Access\nContext" as IdentityContext #LightBlue {
     • Role & permission management
     • Tenant configuration
   end note
-}
+}'/
 
 package "Itinerary Management\nContext" as ItineraryContext #LightGreen {
   rectangle "Itinerary" #White
@@ -60,15 +63,45 @@ package "Personalized Feed\nContext" as FeedContext #LightYellow {
   end note
 }
 
-' Context relationships with integration patterns
-IdentityContext -down-> ItineraryContext : <<Shared Kernel>>\nUser ID
+' ----------------------------------------------------------
+' NEW Bounded Context: Travel Warnings
+' ----------------------------------------------------------
+
+package "Travel Warnings\nContext" as WarningContext #LightSkyBlue {
+  rectangle "WarningFetcher\n(Service)" #White
+  rectangle "WarningNormalizer\n(Service)" #White
+  rectangle "RiskMatching\n(Service)" #White
+  rectangle "WarningNotification\n(Service)" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • Fetch official travel warnings (AA OpenData)
+    • Normalize & categorize HTML content
+    • Detect updates & match against trips
+    • Notify travellers proactively
+  end note
+}
+
+' ----------------------------------------------------------
+' Relationships
+' ----------------------------------------------------------
+
+' Identity is shared kernel for user identity
+/'IdentityContext -down-> ItineraryContext : <<Shared Kernel>>\nUser ID
 IdentityContext -down-> SocialContext : <<Shared Kernel>>\nUser ID
-IdentityContext -down-> FeedContext : <<Shared Kernel>>\nUser ID
+IdentityContext -down-> FeedContext : <<Shared Kernel>>\nUser ID'/
 
-ItineraryContext -right-> SocialContext : <<Customer/Supplier>>\nItinerary ID
-ItineraryContext ..> FeedContext : <<Published Events>>\nItinerary Created/Updated
+' Travel warnings need user ID for notifications
+' IdentityContext -right-> WarningContext : <<Shared Kernel>>\nUser ID
 
-SocialContext ..> FeedContext : <<Published Events>>\nLike/Comment Events
+' Itinerary is consumer of warnings (destination matching)
+ItineraryContext -right-> WarningContext : <<Customer/Supplier>>\nTrip Country Codes
+
+' Warning Context publishes events (updates, matches)
+WarningContext ..> FeedContext : <<Published Events>>\nRiskNotificationIssued
+
+' Warning Context subscribes to itinerary events
+ItineraryContext ..> WarningContext : <<Published Events>>\nItineraryCreated/Updated
 
 note right of FeedContext
   **Event Subscriptions:**
@@ -77,7 +110,22 @@ note right of FeedContext
   • ItineraryLiked
   • CommentAdded
   • LocationVisited
+  • RiskNotificationIssued
 end note
+
+note right of WarningContext
+  **Event Subscriptions:**
+  • ItineraryCreated
+  • ItineraryUpdated
+
+  **Events Published:**
+  • WarningUpdated
+  • RiskNotificationIssued
+end note
+
+' ----------------------------------------------------------
+' Legend
+' ----------------------------------------------------------
 
 legend right
   |= Pattern |= Description |
@@ -90,9 +138,10 @@ legend right
   | <#LightGreen> | Itinerary Management |
   | <#LightCoral> | Social Interaction |
   | <#LightYellow> | Personalized Feed |
+  | <#LightSkyBlue> | Travel Warnings |
 endlegend
 
-note as ContextNote
+/'note as ContextNote
   **Context Integration Strategy:**
 
   • Each bounded context is an independent microservice
@@ -100,8 +149,9 @@ note as ContextNote
   • No shared databases between contexts
   • User ID is the only shared kernel concept
   • Itinerary ID & Location ID referenced by value
-  • Feed context is eventual consistency model
-end note
+  • Travel Warnings context reacts to itinerary events
+  • Feed context receives notification events for ranking
+  • Eventual consistency for risk alerts
+end note'/
 
 @enduml
-
