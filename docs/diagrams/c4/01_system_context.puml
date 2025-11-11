@@ -1,22 +1,24 @@
 @startuml SystemContext
 !include <C4/C4_Context>
 
-' Use SMETANA layout engine instead of Graphviz
 !pragma layout smetana
-
-' Title and purpose
 LAYOUT_WITH_LEGEND()
 
-Person(traveller, "Traveller", "Signed-in user who plans trips, interacts with other travelers, and browses personalized feed")
-Person(admin, "Admin", "Platform administrator")
+' Persons
+Person(traveller, "Traveller", "Signed-in user who plans trips, interacts socially, and receives safety notifications")
 
-System(travelSaaS, "Travel SaaS Platform", "Social travel management platform with itinerary planning, social interactions (likes/comments), and personalized live feed recommendations")
+' Systems
+System(travelSaaS, "Travel SaaS Platform", "Social travel management platform with itinerary planning, social interactions, and personalized recommendations")
 
-System_Ext(identity, "Identity Provider", "OAuth2/Firebase - user authentication and authorization")
+' External Systems
+System_Ext(identity, "Identity Provider", "OAuth2 / Firebase - User authentication and token validation")
+System_Ext(auswaertigesAmt, "Auswärtiges Amt", "REST API providing official travel warnings and country safety information")
+System_Ext(emailApi, "SendGrid Email API", "RESTful Email Delivery Platform used to send safety alerts and notifications")
 
-Rel(traveller, travelSaaS, "Plans itineraries, likes/comments on content, browses personalized feed", "HTTPS")
-Rel(admin, travelSaaS, "Administers platform and manages users", "HTTPS")
-
-Rel(travelSaaS, identity, "Authenticates users and validates tokens", "OIDC / JWT")
+' Relationships
+Rel(traveller, travelSaaS, "Plans trips, receives alerts, browses personalised feed", "HTTPS (REST API)")
+Rel(travelSaaS, identity, "Authenticates users, validates identity", "OIDC / JWT")
+Rel(travelSaaS, auswaertigesAmt, "Fetches travel warnings and safety data", "HTTPS (REST API)")
+Rel(travelSaaS, emailApi, "Sends safety alerts and travel warning notifications via REST API", "HTTPS (SendGrid v3 API)")
 
 @enduml
