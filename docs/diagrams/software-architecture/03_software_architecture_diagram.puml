@@ -1,0 +1,32 @@
+@startuml
+!include <C4/C4_Container>
+
+LAYOUT_WITH_LEGEND()
+!pragma layout smetana
+
+System_Boundary(tripico, "Tripico [Application]") {
+
+    Container(frontend, "Frontend", "Node.js / Vue / TypeScript", "Provides the user interface")
+
+    Container(api, "RESTful API", "Quarkus (Java)", "Provides CRUD operations for the frontend")
+
+    Container(dataAccess, "Data Access Layer", "Quarkus ORM", "Object-relational mapping and database access logic between entities and PostgreSQL")
+
+    ContainerDb(db, "Datenbank", "PostgreSQL", "Stores the basic data structure")
+}
+
+' External Systems
+System_Ext(firestore, "Firestore", "Google Cloud Firestore", "Stores comments, likes and image URLs from Google Cloud Storage")
+
+System_Ext(firebaseAuth, "Firebase Authentication", "Google Firebase", "Manages authentication and delivers auth tokens")
+
+' Relationships
+Rel(frontend, firebaseAuth, "User authentication (Login/Signup)", "Firebase JS SDK")
+Rel(frontend, api, "Sends requests", "HTTP")
+
+Rel(api, dataAccess, "Calls database operations", "Java")
+Rel(dataAccess, db, "Create, Read, Update, Delete", "PostgreSQL driver")
+
+Rel(api, firestore, "Reads image URLs", "Google Cloud SDK")
+
+@enduml
