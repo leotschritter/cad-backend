@@ -24,30 +24,34 @@ interest me, and be able to view their details to learn more.
 
 ---
 
-### Story 2 — Interact with Itineraries from the Feed
+### Story 2 — Discover Itineraries from Travellers Who Visited the Same Places
 
-**As a traveller**, I want to like and comment itineraries from the feed so I can express interest and improve future
-recommendations.
-
-**Acceptance Criteria:**
-
-1. The user can like or unlike any itinerary directly from the feed card or the detail view.
-2. The user can add comments to itineraries from the detail view.
-3. The UI reflects the change immediately (like counter updates, icon toggles).
-4. Liked itineraries are used as a relevance signal for future recommendations.
-5. Feedback on likes is persisted across sessions.
-
----
-
-### Story 3 — Discover Itineraries from Travellers Who Visited the Same Places
-
-**As a traveller**, I want to see itineraries from travellers who visited destinations I’ve been to or plan to visit, so
+**As a traveller**, I want to see itineraries from travellers who visited destinations I've been to or plan to visit, so
 I can find relevant inspiration.
 
 **Acceptance Criteria:**
 
 1. The feed surfaces itineraries tagged with destinations that match my visited or planned locations.
-2. When applicable, the card includes a short label explaining the match (e.g., “From travellers who
-   visited: [Destination]”).
+2. When applicable, the card includes a short label explaining the match (e.g., "From travellers who
+   visited: [Destination]").
 3. These itineraries are prioritized alongside other relevance signals.
 4. The feature only uses destinations the user has explicitly marked as visited or planned.
+
+---
+
+### Story 3 — Refine Recommendation Algorithm with Social Signals and Basic Feed
+
+**As a traveller**, I want the feed to prioritize popular itineraries with more likes and automatically fall back to a
+basic feed with the most recommended content when I'm new and have no personalization data yet, so I can always
+discover high-quality travel inspiration.
+
+**Acceptance Criteria:**
+
+1. The recommendation algorithm prioritizes itineraries with higher like counts as a key relevance signal.
+2. Itineraries with more likes appear higher in the personalized feed when other relevance factors are equal.
+3. When a new traveller has no personalization data (no visited/planned destinations), the feed automatically shows a
+   "basic feed" with the most liked and recommended itineraries across all travellers.
+4. The basic feed serves as a fallback for users without sufficient personalization data, not as a separate view.
+5. As users add visited/planned destinations, the feed gradually transitions from basic to personalized recommendations.
+6. The algorithm balances popularity (likes) with personalization (shared destinations) to avoid showing only viral
+   content once personalization data is available.
