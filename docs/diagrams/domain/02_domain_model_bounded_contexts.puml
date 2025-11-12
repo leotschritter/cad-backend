@@ -68,17 +68,34 @@ package "Personalized Feed\nContext" as FeedContext #LightYellow {
 ' ----------------------------------------------------------
 
 package "Travel Warnings\nContext" as WarningContext #LightSkyBlue {
-  rectangle "WarningFetcher\n(Service)" #White
-  rectangle "WarningNormalizer\n(Service)" #White
-  rectangle "RiskMatching\n(Service)" #White
-  rectangle "WarningNotification\n(Service)" #White
+  rectangle "Warning Fetcher" #White
+  rectangle "Warning Matcher" #White
+  rectangle "Alert Dispatcher" #White
 
   note bottom
     **Core Responsibilities:**
-    • Fetch official travel warnings (AA OpenData)
-    • Normalize & categorize HTML content
-    • Detect updates & match against trips
-    • Notify travellers proactively
+    • Fetch official travel warnings
+    • Match warnings with destinations
+    • Trigger email notifications
+    • Manage alert subscriptions
+  end note
+}
+
+' ----------------------------------------------------------
+' NEW Bounded Context: Weaher Informations
+' ----------------------------------------------------------
+
+package "Weaher Informations\nContext" as WeatherContext #LightPink {
+  rectangle "Weather Monitor" #White
+  rectangle "Severe Weather\nDetector" #White
+  rectangle "Weather Alert\nDispatcher" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • Monitor weather data
+    • Detect severe weather events
+    • Match alerts with trip dates/locations
+    • Send weather notifications
   end note
 }
 
@@ -86,41 +103,43 @@ package "Travel Warnings\nContext" as WarningContext #LightSkyBlue {
 ' Relationships
 ' ----------------------------------------------------------
 
-' Identity is shared kernel for user identity
-/'IdentityContext -down-> ItineraryContext : <<Shared Kernel>>\nUser ID
-IdentityContext -down-> SocialContext : <<Shared Kernel>>\nUser ID
-IdentityContext -down-> FeedContext : <<Shared Kernel>>\nUser ID'/
+' Social context interacts with Itinerary
+SocialContext -up-> ItineraryContext : <<Customer>>\nReferences Itinerary ID
 
-' Travel warnings need user ID for notifications
-' IdentityContext -right-> WarningContext : <<Shared Kernel>>\nUser ID
+' Feed context consumes data from Social and Itinerary
+FeedContext -up-> SocialContext : <<Customer>>\nConsumes Likes & Comments
+FeedContext -up-> ItineraryContext : <<Customer>>\nConsumes Itinerary & Location Data
 
-' Itinerary is consumer of warnings (destination matching)
-ItineraryContext -right-> WarningContext : <<Customer/Supplier>>\nTrip Country Codes
+' Warning contexts depend on Itinerary for matching
+ItineraryContext -right-> WarningContext : <<Supplier>>\nProvides Destinations
+ItineraryContext -down-> WeatherContext : <<Supplier>>\nProvides Trip Dates & Locations
 
-' Warning Context publishes events (updates, matches)
-WarningContext ..> FeedContext : <<Published Events>>\nRiskNotificationIssued
-
-' Warning Context subscribes to itinerary events
-ItineraryContext ..> WarningContext : <<Published Events>>\nItineraryCreated/Updated
+' Contexts publish events
+SocialContext ..> FeedContext : <<Published Events>>\nItineraryLiked, CommentAdded
+ItineraryContext ..> FeedContext : <<Published Events>>\nItineraryCreated, LocationAdded
 
 note right of FeedContext
   **Event Subscriptions:**
   • ItineraryCreated
-  • ItineraryUpdated
   • ItineraryLiked
   • CommentAdded
   • LocationVisited
-  • RiskNotificationIssued
 end note
 
-note right of WarningContext
-  **Event Subscriptions:**
-  • ItineraryCreated
-  • ItineraryUpdated
 
-  **Events Published:**
-  • WarningUpdated
-  • RiskNotificationIssued
+note right of WarningContext
+  **Responsibilities:**
+  • Polls Auswärtiges Amt API
+  • Matches warnings with destinations
+  • Sends email alerts
+end note
+
+note right of WeatherContext
+  **Responsibilities:**
+  • Polls Weather API
+  • Detects severe weather
+  • Matches with trip dates/locations
+  • Sends weather alerts
 end note
 
 ' ----------------------------------------------------------
@@ -129,29 +148,24 @@ end note
 
 legend right
   |= Pattern |= Description |
-  | <<Shared Kernel>> | Shared concept (User ID) |
   | <<Customer/Supplier>> | Direct reference by ID |
   | <<Published Events>> | Async event-driven |
 
   |= Color |= Context |
-  | <#LightBlue> | Identity & Access |
   | <#LightGreen> | Itinerary Management |
   | <#LightCoral> | Social Interaction |
   | <#LightYellow> | Personalized Feed |
   | <#LightSkyBlue> | Travel Warnings |
+  | <#LightPink> | Weaher Informations |
 endlegend
 
-/'note as ContextNote
+note as ContextNote
   **Context Integration Strategy:**
 
-  • Each bounded context is an independent microservice
-  • Contexts communicate via events (Pub/Sub)
+  • Each bounded context = independent microservice
+  • Contexts communicate via REST APIs and events
   • No shared databases between contexts
-  • User ID is the only shared kernel concept
-  • Itinerary ID & Location ID referenced by value
-  • Travel Warnings context reacts to itinerary events
-  • Feed context receives notification events for ranking
-  • Eventual consistency for risk alerts
-end note'/
+  • User authentication handled by external Identity Provider
+end note
 
 @enduml
