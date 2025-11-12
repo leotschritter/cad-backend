@@ -48,13 +48,12 @@ Rel(itineraryService, itineraryDb, "CRUD operations", "JDBC / SQL")
 Rel(itineraryService, objectStorage, "Upload/retrieve media", "GCS SDK")
 Rel(socialService, socialDb, "Read/Write likes, comments", "Firestore SDK")
 Rel(recommendationService, recommendationDb, "Graph queries for recommendations", "Spanner SDK")
-Rel(weatherWarningService, itineraryDb, "Caches weather forecast data", "JDBC / SQL")
 
 ' Service-to-Service Communication
 Rel(recommendationService, socialService, "Fetches user likes & comments", "REST / Async Message Queue")
 Rel(recommendationService, itineraryService, "Fetches itinerary & location data", "REST / Async Message Queue")
 Rel(travelWarningService, itineraryService, "Reads user trips and destinations", "REST")
-Rel(weatherWarningService, itineraryService, "Reads user trip locations and dates", "REST")
+Rel(weatherWarningService, itineraryService, "Reads trip locations/dates, writes weather data", "REST")
 
 ' External Service Relationships
 Rel(apiGateway, identity, "Validates JWT tokens (basic checks)", "OIDC / JWT")
