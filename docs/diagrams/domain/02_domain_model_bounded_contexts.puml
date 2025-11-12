@@ -105,21 +105,21 @@ package "Weather Forecast\nContext" as WeatherContext #LightPink {
 ' ----------------------------------------------------------
 
 ' Social context interacts with Itinerary
-SocialContext -up-> ItineraryContext : <<Customer>>\nReferences Itinerary ID
+SocialContext -up-> ItineraryContext : References Itinerary ID
 
 ' Feed context consumes data from Social and Itinerary
-FeedContext -up-> SocialContext : <<Customer>>\nConsumes Likes & Comments
-FeedContext -up-> ItineraryContext : <<Customer>>\nConsumes Itinerary & Location Data
+FeedContext -up-> SocialContext : Fetches Likes & Comments
+FeedContext -up-> ItineraryContext : Fetches Itinerary & Location Data
 
 ' Warning contexts depend on Itinerary for matching
-ItineraryContext -right-> WarningContext : <<Supplier>>\nProvides Destinations
+ItineraryContext -right-> WarningContext : Provides Destinations
 
 ' Contexts publish events
-SocialContext ..> FeedContext : <<Published Events>>\nItineraryLiked, CommentAdded
-ItineraryContext ..> FeedContext : <<Published Events>>\nItineraryCreated, LocationAdded
+SocialContext ..> FeedContext : ItineraryLiked, CommentAdded
+ItineraryContext ..> FeedContext : ItineraryCreated, LocationAdded
 
 ' Weather Context subscribes to itinerary events for forecast caching
-ItineraryContext ..> WeatherContext : <<Published Events>>\nItineraryCreated/Updated
+ItineraryContext ..> WeatherContext : ItineraryCreated/Updated
 
 
 ' ----------------------------------------------------------
