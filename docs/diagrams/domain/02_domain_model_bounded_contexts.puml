@@ -82,20 +82,21 @@ package "Travel Warnings\nContext" as WarningContext #LightSkyBlue {
 }
 
 ' ----------------------------------------------------------
-' NEW Bounded Context: Weaher Informations
+' NEW Bounded Context: Weather Forecast
 ' ----------------------------------------------------------
 
-package "Weaher Informations\nContext" as WeatherContext #LightPink {
-  rectangle "Weather Monitor" #White
-  rectangle "Severe Weather\nDetector" #White
-  rectangle "Weather Alert\nDispatcher" #White
+package "Weather Forecast\nContext" as WeatherContext #LightPink {
+  rectangle "WeatherFetcher\n(Service)" #White
+  rectangle "ForecastCache\n(Service)" #White
+  rectangle "LocationWeather\n(Service)" #White
+  rectangle "WeatherAggregator\n(Service)" #White
 
   note bottom
     **Core Responsibilities:**
-    • Monitor weather data
-    • Detect severe weather events
-    • Match alerts with trip dates/locations
-    • Send weather notifications
+    • Fetch weather forecasts (Meteosource API)
+    • Cache forecast data per location
+    • Provide weather info for destinations
+    • Aggregate multi-day forecasts
   end note
 }
 
@@ -112,11 +113,13 @@ FeedContext -up-> ItineraryContext : <<Customer>>\nConsumes Itinerary & Location
 
 ' Warning contexts depend on Itinerary for matching
 ItineraryContext -right-> WarningContext : <<Supplier>>\nProvides Destinations
-ItineraryContext -down-> WeatherContext : <<Supplier>>\nProvides Trip Dates & Locations
 
 ' Contexts publish events
 SocialContext ..> FeedContext : <<Published Events>>\nItineraryLiked, CommentAdded
 ItineraryContext ..> FeedContext : <<Published Events>>\nItineraryCreated, LocationAdded
+
+' Weather Context subscribes to itinerary events for forecast caching
+ItineraryContext ..> WeatherContext : <<Published Events>>\nItineraryCreated/Updated
 
 note right of FeedContext
   **Event Subscriptions:**
@@ -124,6 +127,7 @@ note right of FeedContext
   • ItineraryLiked
   • CommentAdded
   • LocationVisited
+  • RiskNotificationIssued
 end note
 
 
@@ -134,12 +138,11 @@ note right of WarningContext
   • Sends email alerts
 end note
 
+
 note right of WeatherContext
-  **Responsibilities:**
-  • Polls Weather API
-  • Detects severe weather
-  • Matches with trip dates/locations
-  • Sends weather alerts
+  **Event Subscriptions:**
+  • ItineraryCreated
+  • ItineraryUpdated
 end note
 
 ' ----------------------------------------------------------
@@ -156,7 +159,7 @@ legend right
   | <#LightCoral> | Social Interaction |
   | <#LightYellow> | Personalized Feed |
   | <#LightSkyBlue> | Travel Warnings |
-  | <#LightPink> | Weaher Informations |
+  | <#LightPink> | Weather Forecast |
 endlegend
 
 note as ContextNote

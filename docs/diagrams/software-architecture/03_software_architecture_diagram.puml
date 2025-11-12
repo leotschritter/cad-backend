@@ -1,7 +1,7 @@
 @startuml
 !include <C4/C4_Container>
 
-LAYOUT_WITH_LEGEND()
+
 !pragma layout smetana
 
 System_Boundary(travelSaaS, "Travel SaaS Platform") {
@@ -20,7 +20,7 @@ System_Boundary(travelSaaS, "Travel SaaS Platform") {
     Container(weatherWarningService, "Weather Information Service", "Quarkus (Java)", "Monitors weather data, alerts travelers about severe weather")
 
     ' Datastores
-    ContainerDb(itineraryDb, "Itinerary Database", "PostgreSQL", "Stores itineraries, locations, activities, travel dates")
+    ContainerDb(itineraryDb, "Itinerary Database", "PostgreSQL", "Stores itineraries, locations, activities, travel dates, weather information")
     ContainerDb(objectStorage, "Object Storage", "Google Cloud Storage", "Stores images, documents, media files")
     ContainerDb(socialDb, "Social Interaction Store", "Google Firestore", "NoSQL store for likes, comments, user interactions")
     ContainerDb(recommendationDb, "Graph Database", "Google Cloud Spanner (Graph)", "Stores user-itinerary-location relationships, social graph for recommendations")
@@ -30,7 +30,7 @@ System_Boundary(travelSaaS, "Travel SaaS Platform") {
 System_Ext(identity, "Identity Provider", "Firebase Authentication / OAuth2", "User authentication and token validation")
 System_Ext(auswaertigesAmt, "Auswärtiges Amt API", "REST API", "Official travel warnings and safety information")
 System_Ext(emailApi, "Email Service", "SendGrid API", "SMTP / Email delivery platform for notifications")
-System_Ext(weatherApi, "Weather Service API", "External REST API", "Weather data and alerts")
+System_Ext(weatherApi, "Weather Service API", "Meteo Source API", "Weather data and alerts")
 
 ' Frontend Relationships
 Rel(frontend, identity, "User authentication", "OIDC / JWT")
@@ -48,6 +48,7 @@ Rel(itineraryService, itineraryDb, "CRUD operations", "JDBC / SQL")
 Rel(itineraryService, objectStorage, "Upload/retrieve media", "GCS SDK")
 Rel(socialService, socialDb, "Read/Write likes, comments", "Firestore SDK")
 Rel(recommendationService, recommendationDb, "Graph queries for recommendations", "Spanner SDK")
+Rel(weatherWarningService, itineraryDb, "Caches weather forecast data", "JDBC / SQL")
 
 ' Service-to-Service Communication
 Rel(recommendationService, socialService, "Fetches user likes & comments", "REST / Async Message Queue")
