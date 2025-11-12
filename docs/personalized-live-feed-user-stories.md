@@ -1,4 +1,4 @@
-## Epic  Personalized Live Feed
+## Epic - Personalized Live Feed
 
 **Epic:** Personalized Live Feed
 
