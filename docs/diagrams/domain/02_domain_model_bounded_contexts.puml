@@ -121,38 +121,12 @@ ItineraryContext ..> FeedContext : <<Published Events>>\nItineraryCreated, Locat
 ' Weather Context subscribes to itinerary events for forecast caching
 ItineraryContext ..> WeatherContext : <<Published Events>>\nItineraryCreated/Updated
 
-note right of FeedContext
-  **Event Subscriptions:**
-  • ItineraryCreated
-  • ItineraryLiked
-  • CommentAdded
-  • LocationVisited
-  • RiskNotificationIssued
-end note
-
-
-note right of WarningContext
-  **Responsibilities:**
-  • Polls Auswärtiges Amt API
-  • Matches warnings with destinations
-  • Sends email alerts
-end note
-
-
-note right of WeatherContext
-  **Event Subscriptions:**
-  • ItineraryCreated
-  • ItineraryUpdated
-end note
 
 ' ----------------------------------------------------------
 ' Legend
 ' ----------------------------------------------------------
 
 legend right
-  |= Pattern |= Description |
-  | <<Customer/Supplier>> | Direct reference by ID |
-  | <<Published Events>> | Async event-driven |
 
   |= Color |= Context |
   | <#LightGreen> | Itinerary Management |
@@ -161,14 +135,5 @@ legend right
   | <#LightSkyBlue> | Travel Warnings |
   | <#LightPink> | Weather Forecast |
 endlegend
-
-note as ContextNote
-  **Context Integration Strategy:**
-
-  • Each bounded context = independent microservice
-  • Contexts communicate via REST APIs and events
-  • No shared databases between contexts
-  • User authentication handled by external Identity Provider
-end note
 
 @enduml
