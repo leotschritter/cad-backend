@@ -10,21 +10,34 @@ System_Boundary(travelSaaS, "Travel SaaS Platform") {
     Container(frontend, "Web & Mobile Frontend", "Vue.js / TypeScript", "User-facing web and mobile client for trip planning, social interaction, and personalized feed")
 
     ' API Gateway
-    Container(apiGateway, "API Gateway", "Kong / Cloud API Gateway", "Central entry point, routing, authentication, rate limiting, tenant management")
+Container(apiGateway, "API Gateway", "Kong / Cloud API Gateway", "Central entry point, routing, authentication, rate limiting, tenant management")
 
+rectangle "Microservices" as Microservices {
     ' Microservices
-    Container(itineraryService, "Itinerary Management Service", "Quarkus (Java)", "Manages trip plans, destinations, activities, travel dates")
-    Container(socialService, "Social Interaction Service", "Quarkus (Java)", "Handles likes, comments, user interactions on itineraries")
-    Container(recommendationService, "Recommendation Service", "Quarkus (Java)", "Generates personalized feed based on likes, locations, social graph")
-    Container(travelWarningService, "Travel Warning Service", "Quarkus (Java)", "Polls Auswärtiges Amt API, matches warnings with user trips, sends email alerts")
-    Container(weatherWarningService, "Weather Information Service", "Quarkus (Java)", "Monitors weather data, alerts travelers about severe weather")
+    Container(itineraryService, "Itinerary Management", "Quarkus (Java)", "Manages trip plans, destinations, activities, travel dates")
 
+    Container(socialService, "Social Interaction", "Quarkus (Java)", "Handles likes, comments, user interactions on itineraries")
+
+    Container(recommendationService, "Recommendations", "Quarkus (Java)", "Generates personalized feed based on likes, locations, social graph")
+
+    Container(travelWarningService, "Travel Warnings", "Quarkus (Java)", "Polls Auswärtiges Amt API, matches warnings with user trips, sends email alerts")
+
+    Container(weatherWarningService, "Weather Information", "Quarkus (Java)", "Monitors weather data, alerts travelers about severe weather")
+
+}
     ' Datastores
-    ContainerDb(itineraryDb, "Itinerary Database", "PostgreSQL", "Stores itineraries, locations, activities, travel dates")
+
+rectangle "Datastores" {
+ContainerDb(itineraryDb, "Itinerary Database", "PostgreSQL", "Stores itineraries, locations, activities, travel dates")
     ContainerDb(objectStorage, "Object Storage", "Google Cloud Storage", "Stores images")
+
     ContainerDb(socialDb, "Social Interaction Store", "Google Firestore", "NoSQL store for likes, comments, user interactions")
+
     ContainerDb(recommendationDb, "Graph Database", "Google Cloud Spanner (Graph)", "Stores user-itinerary-location relationships, social graph for recommendations")
+
     ContainerDb(weatherDb, "Weather Forecast Database", "PostgreSQL", "Stores weather forecast data for destinations")
+}
+
 }
 
 ' External Systems
@@ -69,7 +82,5 @@ Rel(socialService, identity, "Validates JWT tokens", "OIDC / JWT")
 Rel(recommendationService, identity, "Validates JWT tokens", "OIDC / JWT")
 Rel(travelWarningService, identity, "Validates JWT tokens", "OIDC / JWT")
 Rel(weatherWarningService, identity, "Validates JWT tokens", "OIDC / JWT")
-
-
 
 @enduml
