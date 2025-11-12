@@ -20,10 +20,11 @@ System_Boundary(travelSaaS, "Travel SaaS Platform") {
     Container(weatherWarningService, "Weather Information Service", "Quarkus (Java)", "Monitors weather data, alerts travelers about severe weather")
 
     ' Datastores
-    ContainerDb(itineraryDb, "Itinerary Database", "PostgreSQL", "Stores itineraries, locations, activities, travel dates, weather information")
+    ContainerDb(itineraryDb, "Itinerary Database", "PostgreSQL", "Stores itineraries, locations, activities, travel dates")
     ContainerDb(objectStorage, "Object Storage", "Google Cloud Storage", "Stores images, documents, media files")
     ContainerDb(socialDb, "Social Interaction Store", "Google Firestore", "NoSQL store for likes, comments, user interactions")
     ContainerDb(recommendationDb, "Graph Database", "Google Cloud Spanner (Graph)", "Stores user-itinerary-location relationships, social graph for recommendations")
+    ContainerDb(weatherDb, "Weather Forecast Database", "PostgreSQL", "Stores weather forecast data for destinations")
 }
 
 ' External Systems
@@ -48,6 +49,7 @@ Rel(itineraryService, itineraryDb, "CRUD operations", "JDBC / SQL")
 Rel(itineraryService, objectStorage, "Upload/retrieve media", "GCS SDK")
 Rel(socialService, socialDb, "Read/Write likes, comments", "Firestore SDK")
 Rel(recommendationService, recommendationDb, "Graph queries for recommendations", "Spanner SDK")
+Rel(weatherWarningService, weatherDb, "Stores weather forecast data", "JDBC / SQL")
 
 ' Service-to-Service Communication
 Rel(recommendationService, socialService, "Fetches user likes & comments", "REST / Async Message Queue")
@@ -68,20 +70,6 @@ Rel(recommendationService, identity, "Validates JWT tokens", "OIDC / JWT")
 Rel(travelWarningService, identity, "Validates JWT tokens", "OIDC / JWT")
 Rel(weatherWarningService, identity, "Validates JWT tokens", "OIDC / JWT")
 
-' Note about authentication flow
-note right of apiGateway
-  **Authentication Flow (Defense in Depth):**
-  1. User authenticates with Identity Provider
-  2. Frontend receives JWT token
-  3. Frontend sends token in Authorization header
-  4. API Gateway performs basic validation
-     (rate limiting, routing)
-  5. Gateway forwards JWT to microservice
-  6. **Microservice validates JWT** and extracts
-     user information (user ID, roles, etc.)
 
-  Each microservice validates tokens independently
-  for defense in depth security
-end note
 
 @enduml
