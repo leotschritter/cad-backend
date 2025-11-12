@@ -1,0 +1,138 @@
+@startuml BoundedContexts
+!pragma layout smetana
+
+title Bounded Contexts\nTravel SaaS Platform
+caption Last updated: 2025-11-10
+
+' ----------------------------------------------------------
+' Existing bounded contexts
+' ----------------------------------------------------------
+
+/'package "Identity & Access\nContext" as IdentityContext #LightBlue {
+  rectangle "User" #White
+  rectangle "Authentication" #White
+  rectangle "Authorization" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • User registration & profile
+    • Authentication & tokens
+    • Role & permission management
+    • Tenant configuration
+  end note
+}'/
+
+package "Itinerary Management\nContext" as ItineraryContext #LightGreen {
+  rectangle "Itinerary" #White
+  rectangle "Location" #White
+  rectangle "Trip Planning" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • Create & manage itineraries
+    • Manage locations & visits
+    • Trip scheduling & planning
+    • Visibility settings
+  end note
+}
+
+package "Social Interaction\nContext" as SocialContext #LightCoral {
+  rectangle "Like" #White
+  rectangle "Comment" #White
+  rectangle "Engagement" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • Like/unlike itineraries
+    • Comment on itineraries
+    • Track user engagement
+  end note
+}
+
+package "Personalized Feed\nContext" as FeedContext #LightYellow {
+  rectangle "Feed Generation" #White
+  rectangle "Recommendation\nEngine" #White
+  rectangle "Ranking" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • Generate personalized feed
+    • Analyze user preferences
+    • Rank & score content
+    • Handle recommendation signals
+  end note
+}
+
+' ----------------------------------------------------------
+' NEW Bounded Context: Travel Warnings
+' ----------------------------------------------------------
+
+package "Travel Warnings\nContext" as WarningContext #LightSkyBlue {
+  rectangle "Warning Fetcher" #White
+  rectangle "Warning Matcher" #White
+  rectangle "Alert Dispatcher" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • Fetch official travel warnings
+    • Match warnings with destinations
+    • Trigger email notifications
+    • Manage alert subscriptions
+  end note
+}
+
+' ----------------------------------------------------------
+' NEW Bounded Context: Weather Forecast
+' ----------------------------------------------------------
+
+package "Weather Forecast\nContext" as WeatherContext #LightPink {
+  rectangle "WeatherFetcher\n(Service)" #White
+  rectangle "ForecastStore\n(Service)" #White
+  rectangle "WeatherAggregator\n(Service)" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • Fetch weather forecasts (Meteosource API)
+    • Cache forecast data per location
+    • Provide weather info for destinations
+    • Aggregate multi-day forecasts
+  end note
+}
+
+' ----------------------------------------------------------
+' Relationships
+' ----------------------------------------------------------
+
+' Social context interacts with Itinerary
+SocialContext -up-> ItineraryContext : References Itinerary ID
+
+' Feed context consumes data from Social and Itinerary
+FeedContext -up-> SocialContext : Fetches Likes & Comments
+FeedContext -up-> ItineraryContext : Fetches Itinerary & Location Data
+
+' Warning contexts depend on Itinerary for matching
+ItineraryContext -right-> WarningContext : Provides Destinations
+
+' Contexts publish events
+SocialContext ..> FeedContext : ItineraryLiked, CommentAdded
+ItineraryContext ..> FeedContext : ItineraryCreated, LocationAdded
+
+' Weather Context subscribes to itinerary events for forecast caching
+ItineraryContext ..> WeatherContext : ItineraryCreated/Updated
+
+
+' ----------------------------------------------------------
+' Legend
+' ----------------------------------------------------------
+
+legend right
+
+  |= Color |= Context |
+  | <#LightGreen> | Itinerary Management |
+  | <#LightCoral> | Social Interaction |
+  | <#LightYellow> | Personalized Feed |
+  | <#LightSkyBlue> | Travel Warnings |
+  | <#LightPink> | Weather Forecast |
+endlegend
+
+@enduml

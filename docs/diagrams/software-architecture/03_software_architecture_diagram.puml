@@ -1,0 +1,86 @@
+@startuml
+!include <C4/C4_Container>
+
+
+!pragma layout smetana
+
+System_Boundary(travelSaaS, "Travel SaaS Platform") {
+
+    ' Frontend
+    Container(frontend, "Web & Mobile Frontend", "Vue.js / TypeScript", "User-facing web and mobile client for trip planning, social interaction, and personalized feed")
+
+    ' API Gateway
+Container(apiGateway, "API Gateway", "Kong / Cloud API Gateway", "Central entry point, routing, authentication, rate limiting, tenant management")
+
+rectangle "Microservices" as Microservices {
+    ' Microservices
+    Container(itineraryService, "Itinerary Management", "Quarkus (Java)", "Manages trip plans, destinations, activities, travel dates")
+
+    Container(socialService, "Social Interaction", "Quarkus (Java)", "Handles likes, comments, user interactions on itineraries")
+
+    Container(recommendationService, "Recommendations", "Quarkus (Java)", "Generates personalized feed based on likes, locations, social graph")
+
+    Container(travelWarningService, "Travel Warnings", "Quarkus (Java)", "Polls Auswärtiges Amt API, matches warnings with user trips, sends email alerts")
+
+    Container(weatherWarningService, "Weather Information", "Quarkus (Java)", "Monitors weather data, alerts travelers about severe weather")
+
+}
+    ' Datastores
+
+rectangle "Datastores" {
+ContainerDb(itineraryDb, "Itinerary Database", "PostgreSQL", "Stores itineraries, locations, activities, travel dates")
+    ContainerDb(objectStorage, "Object Storage", "Google Cloud Storage", "Stores images")
+
+    ContainerDb(socialDb, "Social Interaction Store", "Google Firestore", "NoSQL store for likes, comments, user interactions")
+
+    ContainerDb(recommendationDb, "Graph Database", "Google Cloud Spanner (Graph)", "Stores user-itinerary-location relationships, social graph for recommendations")
+
+    ContainerDb(weatherDb, "Weather Forecast Database", "PostgreSQL", "Stores weather forecast data for destinations")
+}
+
+}
+
+' External Systems
+System_Ext(identity, "Identity Provider", "Firebase Authentication / OAuth2", "User authentication and token validation")
+System_Ext(auswaertigesAmt, "Auswärtiges Amt API", "REST API", "Official travel warnings and safety information")
+System_Ext(emailApi, "Email Service", "SendGrid API", "SMTP / Email delivery platform for notifications")
+System_Ext(weatherApi, "Weather Service API", "Meteo Source API", "Weather data and alerts")
+
+' Frontend Relationships
+Rel(frontend, identity, "User authentication", "OIDC / JWT")
+Rel(frontend, apiGateway, "All API requests", "HTTPS / REST")
+
+' API Gateway to Microservices
+Rel(apiGateway, itineraryService, "Routes itinerary requests (with JWT)", "REST / HTTPS")
+Rel(apiGateway, socialService, "Routes social interaction requests (with JWT)", "REST / HTTPS")
+Rel(apiGateway, recommendationService, "Routes feed & recommendation requests (with JWT)", "REST / HTTPS")
+Rel(apiGateway, travelWarningService, "Routes warning subscriptions (with JWT)", "REST / HTTPS")
+Rel(apiGateway, weatherWarningService, "Routes weather alert requests (with JWT)", "REST / HTTPS")
+
+' Microservices to Datastores
+Rel(itineraryService, itineraryDb, "CRUD operations", "JDBC / SQL")
+Rel(itineraryService, objectStorage, "Upload/retrieve media", "GCS SDK")
+Rel(socialService, socialDb, "Read/Write likes, comments", "Firestore SDK")
+Rel(recommendationService, recommendationDb, "Graph queries for recommendations", "Spanner SDK")
+Rel(weatherWarningService, weatherDb, "Stores weather forecast data", "JDBC / SQL")
+
+' Service-to-Service Communication
+Rel(recommendationService, socialService, "Fetches user likes & comments", "REST / Async Message Queue")
+Rel(recommendationService, itineraryService, "Fetches itinerary & location data", "REST / Async Message Queue")
+Rel(travelWarningService, itineraryService, "Reads user trips and destinations", "REST")
+Rel(weatherWarningService, itineraryService, "Reads trip locations/dates, writes weather data", "REST")
+
+' External Service Relationships
+Rel(apiGateway, identity, "Validates JWT tokens (basic checks)", "OIDC / JWT")
+Rel(travelWarningService, auswaertigesAmt, "Polls travel warnings", "HTTPS / REST")
+Rel(travelWarningService, emailApi, "Sends email alerts", "HTTPS / SendGrid API")
+Rel(weatherWarningService, weatherApi, "Fetches weather data", "HTTPS / REST")
+
+' Microservices to Identity Provider for token validation
+Rel(itineraryService, identity, "Validates JWT tokens", "OIDC / JWT")
+Rel(socialService, identity, "Validates JWT tokens", "OIDC / JWT")
+Rel(recommendationService, identity, "Validates JWT tokens", "OIDC / JWT")
+Rel(travelWarningService, identity, "Validates JWT tokens", "OIDC / JWT")
+Rel(weatherWarningService, identity, "Validates JWT tokens", "OIDC / JWT")
+
+@enduml
