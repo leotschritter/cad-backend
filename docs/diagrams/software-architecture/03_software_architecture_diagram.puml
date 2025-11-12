@@ -60,7 +60,6 @@ Rel(apiGateway, identity, "Validates JWT tokens (basic checks)", "OIDC / JWT")
 Rel(travelWarningService, auswaertigesAmt, "Polls travel warnings", "HTTPS / REST")
 Rel(travelWarningService, emailApi, "Sends email alerts", "HTTPS / SendGrid API")
 Rel(weatherWarningService, weatherApi, "Fetches weather data", "HTTPS / REST")
-Rel(weatherWarningService, emailApi, "Sends weather alerts", "HTTPS / SendGrid API")
 
 ' Microservices to Identity Provider for token validation
 Rel(itineraryService, identity, "Validates JWT tokens", "OIDC / JWT")
