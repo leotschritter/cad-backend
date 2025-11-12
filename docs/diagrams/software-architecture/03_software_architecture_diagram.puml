@@ -21,7 +21,7 @@ System_Boundary(travelSaaS, "Travel SaaS Platform") {
 
     ' Datastores
     ContainerDb(itineraryDb, "Itinerary Database", "PostgreSQL", "Stores itineraries, locations, activities, travel dates")
-    ContainerDb(objectStorage, "Object Storage", "Google Cloud Storage", "Stores images, documents, media files")
+    ContainerDb(objectStorage, "Object Storage", "Google Cloud Storage", "Stores images")
     ContainerDb(socialDb, "Social Interaction Store", "Google Firestore", "NoSQL store for likes, comments, user interactions")
     ContainerDb(recommendationDb, "Graph Database", "Google Cloud Spanner (Graph)", "Stores user-itinerary-location relationships, social graph for recommendations")
     ContainerDb(weatherDb, "Weather Forecast Database", "PostgreSQL", "Stores weather forecast data for destinations")
