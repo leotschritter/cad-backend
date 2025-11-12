@@ -87,8 +87,7 @@ package "Travel Warnings\nContext" as WarningContext #LightSkyBlue {
 
 package "Weather Forecast\nContext" as WeatherContext #LightPink {
   rectangle "WeatherFetcher\n(Service)" #White
-  rectangle "ForecastCache\n(Service)" #White
-  rectangle "LocationWeather\n(Service)" #White
+  rectangle "ForecastStore\n(Service)" #White
   rectangle "WeatherAggregator\n(Service)" #White
 
   note bottom
