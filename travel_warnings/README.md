@@ -1,78 +1,217 @@
-# code-with-quarkus
+# Travel Warnings Microservice
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+A comprehensive travel warning microservice that integrates with the Auswärtiges Amt (German Federal Foreign Office) API to provide real-time travel safety information and alerts.
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+## 🎯 User Stories Implemented
 
-## Running the application in dev mode
+### ✅ User Story 1: Receive Timely, Relevant Safety Alerts
+- **Feature**: Automated notification system that alerts travelers only for countries in their itinerary
+- **Implementation**: 
+  - Trip-based alert matching
+  - Configurable notification preferences per trip
+  - Email alerts sent only when warnings affect active/upcoming trips
+  - Severity levels clearly indicated (None, Minor, Moderate, Severe, Critical)
 
-You can run your application in dev mode that enables live coding using:
+### ✅ User Story 2: Understand Safety Changes Quickly
+- **Feature**: Clear, concise summaries of travel warnings
+- **Implementation**:
+  - HTML-formatted email alerts with structured information
+  - Summary highlights: what changed, severity, recommended actions
+  - Visual severity indicators with color coding
+  - Scannable format with sections and bullet points
 
-```shell script
-./mvnw quarkus:dev
+### ✅ User Story 3: Access Comprehensive Safety Information
+- **Feature**: Detailed, organized safety information by category
+- **Implementation**:
+  - Content categorization: Security, Nature & Climate, Travel Info, Documents & Customs, Health
+  - Full content access via REST API
+  - Links to official Auswärtiges Amt pages
+  - Both summary and detailed views available
+
+## 🏗️ Architecture
+
+### Technology Stack
+- **Framework**: Quarkus 3.29.3 (Java 21)
+- **Database**: PostgreSQL 15
+- **ORM**: Hibernate with Panache
+- **REST Client**: MicroProfile REST Client
+- **Email**: Quarkus Mailer (configurable for SendGrid)
+- **Caching**: Caffeine Cache
+- **Scheduling**: Quarkus Scheduler
+- **API Documentation**: SmallRye OpenAPI (Swagger UI)
+
+### Components (Based on Bounded Context Diagram)
+1. **Warning Fetcher**: Polls Auswärtiges Amt API every 15 minutes
+2. **Warning Matcher**: Matches warnings with user trips based on country and dates
+3. **Alert Dispatcher**: Sends email notifications to affected users
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Java 21 or higher
+- Maven 3.8+
+- Docker & Docker Compose (for PostgreSQL)
+
+### 1. Start the Database
+```cmd
+docker-compose up -d
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+This starts:
+- PostgreSQL on port 5432
+- pgAdmin on port 5050 (http://localhost:5050)
 
-## Packaging and running the application
+### 2. Configure Environment Variables
 
-The application can be packaged using:
+Create a `.env` file or set environment variables (see `.env.example`):
 
-```shell script
-./mvnw package
+```properties
+# SendGrid Email Configuration (optional)
+SMTP_FROM=<username>@htwg-konstanz.de
+SMTP_HOST=smtp.htwg-konstanz.de
+SMTP_PORT=587
+SMTP_USER=<username>
+SMTP_PASSWORD=<htwg-password>
+SMTP_START_TLS=REQUIRED
+
 ```
 
-It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
+### 3. Run the Application
 
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
-
-If you want to build an _über-jar_, execute the following command:
-
-```shell script
-./mvnw package -Dquarkus.package.jar.type=uber-jar
+**Development Mode (with live reload):**
+```cmd
+mvnw quarkus:dev
 ```
 
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
-
-## Creating a native executable
-
-You can create a native executable using:
-
-```shell script
-./mvnw package -Dnative
+**Production Mode:**
+```cmd
+mvnw clean package
+java -jar target\quarkus-app\quarkus-run.jar
 ```
 
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
+### 4. Access the Application
 
-```shell script
-./mvnw package -Dnative -Dquarkus.native.container-build=true
+- **API Base URL**: http://localhost:8080
+- **Swagger UI**: http://localhost:8080/swagger-ui
+- **OpenAPI Spec**: http://localhost:8080/openapi
+- **Health Check**: http://localhost:8080/q/health
+
+## 🔄 Automated Warning Polling
+
+The service automatically polls the Auswärtiges Amt API every 15 minutes (configurable):
+
+```properties
+# application.properties
+travel-warnings.poll.cron=0 */15 * * * ?
 ```
 
-You can then execute your native executable with: `./target/code-with-quarkus-1.0.0-SNAPSHOT-runner`
+**Process Flow:**
+1. Fetch latest warnings from Auswärtiges Amt API
+2. Compare with existing database entries (using lastModified timestamp)
+3. Update changed warnings
+4. Match warnings with active/upcoming user trips
+5. Send email alerts (only if not already sent for this version)
 
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
+## 📧 Email Notifications
 
-## Related Guides
+### Configuration
 
-- REST ([guide](https://quarkus.io/guides/rest)): A Jakarta REST implementation utilizing build time processing and Vert.x. This extension is not compatible with the quarkus-resteasy extension, or any of the extensions that depend on it.
-- REST Jackson ([guide](https://quarkus.io/guides/rest#json-serialisation)): Jackson serialization support for Quarkus REST. This extension is not compatible with the quarkus-resteasy extension, or any of the extensions that depend on it
-- Hibernate ORM with Panache ([guide](https://quarkus.io/guides/hibernate-orm-panache)): Simplify your persistence code for Hibernate ORM via the active record or the repository pattern
-- JDBC Driver - PostgreSQL ([guide](https://quarkus.io/guides/datasource)): Connect to the PostgreSQL database via JDBC
+The service uses Quarkus Mailer.
 
-## Provided Code
+### Email Content
 
-### Hibernate ORM
+Emails include:
+- **Severity-coded header** with visual indicators
+- **Trip information**: name, destination, dates
+- **Alert summary**: what's new, severity, status
+- **Warning details**: full/partial warnings
+- **Recommended actions**: specific guidance based on severity
+- **Links**: to official Auswärtiges Amt page
 
-Create your first JPA entity
+## 🗄️ Database Schema
 
-[Related guide section...](https://quarkus.io/guides/hibernate-orm)
+### Main Tables
 
-[Related Hibernate with Panache section...](https://quarkus.io/guides/hibernate-orm-panache)
+**travel_warnings**
+- Stores fetched travel warnings from Auswärtiges Amt
+- Indexed on: country_code, content_id, last_modified
 
+**user_trips**
+- Stores user trip itineraries
+- Indexed on: email, country_code, travel_dates
 
-### REST
+**warning_notifications**
+- Tracks sent notifications to prevent duplicates
+- Indexed on: user_trip_id, warning_content_id, sent_at
 
-Easily start your REST Web Services
+## 🧪 Testing
 
-[Related guide section...](https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources)
+### Run Tests
+```cmd
+mvnw test
+```
+
+### Run with Coverage
+```cmd
+mvnw test jacoco:report
+```
+
+### Integration Tests
+The project includes integration tests using Quarkus Test framework and RestAssured.
+
+## 🔧 Configuration
+
+### Key Configuration Properties
+
+```properties
+# Database
+quarkus.datasource.jdbc.url=jdbc:postgresql://localhost:5432/travel_warnings_db
+quarkus.datasource.username=postgres
+quarkus.datasource.password=postgres
+
+# External API
+quarkus.rest-client."de.htwg.travelwarnings.client.AuswaertigesAmtClient".url=https://www.auswaertiges-amt.de/opendata
+
+# Scheduler
+travel-warnings.poll.cron=0 */15 * * * ?
+
+# Cache
+quarkus.cache.caffeine."travel-warnings".expire-after-write=PT15M
+```
+
+## 📊 Monitoring & Health
+
+### Health Endpoints
+- **Readiness**: http://localhost:8080/q/health/ready
+- **Liveness**: http://localhost:8080/q/health/live
+
+### Metrics
+- Database connection status
+- Number of warnings stored
+- Service availability
+
+## 🐳 Docker Deployment
+
+### Build Native Image
+```cmd
+mvnw package -Pnative -Dquarkus.native.container-build=true
+```
+
+### Run with Docker
+```cmd
+docker build -f src/main/docker/Dockerfile.jvm -t travel-warnings-service .
+docker run -p 8080:8080 travel-warnings-service
+```
+
+## 🤝 Contributing
+
+This is a university project for the CAD course at HTWG Konstanz.
+
+## 📄 License
+
+This project is for educational purposes.
+
+## 🔗 References
+
+- [Auswärtiges Amt OpenData API](https://www.auswaertiges-amt.de/de/open-data-schnittstelle/736118)
+- [Quarkus Documentation](https://quarkus.io/guides/)
