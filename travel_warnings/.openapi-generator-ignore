@@ -1,0 +1,25 @@
+# OpenAPI Generator Ignore File
+# Files/patterns to ignore when generating code from openapi.yaml
+
+# Don't generate these files
+.openapi-generator-ignore
+.openapi-generator/
+README.md
+pom.xml
+.gitignore
+git_push.sh
+
+# Don't generate test files
+*Test.java
+*IT.java
+
+# Don't generate documentation
+docs/
+
+# Don't generate gradle files
+build.gradle
+settings.gradle
+gradle/
+gradlew
+gradlew.bat
+

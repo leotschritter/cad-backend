@@ -56,12 +56,56 @@
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-client-jackson</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-scheduler</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-mailer</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-openapi</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-health</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.34</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
             <artifactId>quarkus-junit5</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-junit5-mockito</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jdbc-h2</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -121,6 +165,80 @@
                         <maven.home>${maven.home}</maven.home>
                     </systemPropertyVariables>
                 </configuration>
+            </plugin>
+
+            <!-- OpenAPI Generator - Generate DTOs only from openapi.yaml -->
+            <plugin>
+                <groupId>org.openapitools</groupId>
+                <artifactId>openapi-generator-maven-plugin</artifactId>
+                <version>7.2.0</version>
+                <executions>
+                    <execution>
+                        <id>generate-client-dtos</id>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <inputSpec>${project.basedir}/openapi.yaml</inputSpec>
+                            <generatorName>java</generatorName>
+                            <output>${project.build.directory}/generated-sources/openapi</output>
+
+                            <!-- Only generate models (DTOs), not API interfaces -->
+                            <generateApis>false</generateApis>
+                            <generateModels>true</generateModels>
+                            <generateSupportingFiles>false</generateSupportingFiles>
+                            <generateApiTests>false</generateApiTests>
+                            <generateModelTests>false</generateModelTests>
+                            <generateApiDocumentation>false</generateApiDocumentation>
+                            <generateModelDocumentation>false</generateModelDocumentation>
+
+                            <!-- Package configuration -->
+                            <modelPackage>de.htwg.travelwarnings.client.dto</modelPackage>
+
+                            <!-- Use Jakarta EE and modern Java -->
+                            <configOptions>
+                                <useJakartaEe>true</useJakartaEe>
+                                <dateLibrary>java8</dateLibrary>
+                                <serializationLibrary>jackson</serializationLibrary>
+                                <openApiNullable>false</openApiNullable>
+                                <library>native</library>
+                                <hideGenerationTimestamp>true</hideGenerationTimestamp>
+                                <useBeanValidation>false</useBeanValidation>
+                            </configOptions>
+
+                            <!-- Type mappings -->
+                            <typeMappings>
+                                <typeMapping>number=Long</typeMapping>
+                            </typeMappings>
+
+                            <!-- Import mappings -->
+                            <importMappings>
+                                <importMapping>java.time.OffsetDateTime=java.time.Instant</importMapping>
+                            </importMappings>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Add generated sources to build path -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>add-generated-source</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources/openapi/src/main/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
