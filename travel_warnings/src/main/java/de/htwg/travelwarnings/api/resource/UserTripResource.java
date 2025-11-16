@@ -4,8 +4,11 @@ import de.htwg.travelwarnings.api.dto.ErrorResponse;
 import de.htwg.travelwarnings.api.dto.TravelWarningDto;
 import de.htwg.travelwarnings.api.dto.UserTripDto;
 import de.htwg.travelwarnings.api.mapper.TravelWarningMapper;
+import de.htwg.travelwarnings.persistence.entity.TravelWarning;
 import de.htwg.travelwarnings.persistence.entity.UserTrip;
+import de.htwg.travelwarnings.persistence.repository.TravelWarningRepository;
 import de.htwg.travelwarnings.persistence.repository.UserTripRepository;
+import de.htwg.travelwarnings.service.AlertDispatcherService;
 import de.htwg.travelwarnings.service.WarningMatcherService;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -17,6 +20,7 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -35,10 +39,16 @@ public class UserTripResource {
     UserTripRepository tripRepository;
 
     @Inject
+    TravelWarningRepository warningRepository;
+
+    @Inject
     TravelWarningMapper mapper;
 
     @Inject
     WarningMatcherService matcherService;
+
+    @Inject
+    AlertDispatcherService alertDispatcher;
 
     /**
      * Get all trips for a user
@@ -81,7 +91,8 @@ public class UserTripResource {
     @POST
     @Transactional
     @Operation(summary = "Create a new trip",
-               description = "Creates a new trip for receiving travel warnings")
+               description = "Creates a new trip for receiving travel warnings. " +
+                           "If active warnings exist for the destination, an immediate notification is sent.")
     public Response createTrip(UserTripDto tripDto) {
         if (tripDto.getEmail() == null || tripDto.getCountryCode() == null) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -98,9 +109,58 @@ public class UserTripResource {
 
         LOG.infof("Created trip for user %s to %s", trip.getEmail(), trip.getCountryName());
 
+        // Check for existing active warnings for the destination country
+        checkAndNotifyActiveWarnings(trip);
+
         return Response.status(Response.Status.CREATED)
             .entity(mapper.toDto(trip))
             .build();
+    }
+
+    /**
+     * Check if there are active warnings for the trip's destination and send immediate notification
+     */
+    private void checkAndNotifyActiveWarnings(UserTrip trip) {
+        try {
+            // Find active warnings for the country
+            Optional<TravelWarning> activeWarningOpt = warningRepository.findByCountryCode(trip.getCountryCode());
+
+            if (activeWarningOpt.isEmpty()) {
+                LOG.debugf("No warnings found for country %s, no immediate notification needed", trip.getCountryCode());
+                return;
+            }
+
+            TravelWarning warning = activeWarningOpt.get();
+
+            // Check if there are any active warnings
+            boolean hasActiveWarning = warning.getWarning() ||
+                                      warning.getPartialWarning() ||
+                                      warning.getSituationWarning() ||
+                                      warning.getSituationPartWarning();
+
+            if (hasActiveWarning && trip.getNotificationsEnabled()) {
+                LOG.infof("🚨 Active warning detected for %s! Sending immediate notification to %s",
+                         trip.getCountryCode(), trip.getEmail());
+
+                // Send immediate alert
+                boolean sent = alertDispatcher.sendAlert(warning, trip, trip.getEmail());
+
+                if (sent) {
+                    LOG.infof("✅ Immediate warning notification sent successfully to %s for trip to %s",
+                             trip.getEmail(), trip.getCountryName());
+                } else {
+                    LOG.warnf("⚠️ Failed to send immediate warning notification to %s", trip.getEmail());
+                }
+            } else if (!hasActiveWarning) {
+                LOG.debugf("✅ No active warnings for %s, user can travel safely", trip.getCountryCode());
+            } else {
+                LOG.debugf("Notifications disabled for trip, skipping immediate alert");
+            }
+
+        } catch (Exception e) {
+            // Don't fail trip creation if notification fails
+            LOG.errorf(e, "Error checking/sending active warning notification for trip to %s", trip.getCountryCode());
+        }
     }
 
     /**
