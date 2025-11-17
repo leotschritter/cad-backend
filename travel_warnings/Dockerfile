@@ -7,7 +7,7 @@ COPY pom.xml .
 RUN mvn -q -DskipTests dependency:go-offline
 
 # build
-COPY src ./src
+COPY travel_warnings/src ./travel_warnings/src
 RUN mvn -DskipTests package
 
 # ===== runtime =====
