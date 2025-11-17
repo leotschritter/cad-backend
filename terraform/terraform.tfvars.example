@@ -28,14 +28,6 @@ import_existing_resources = true             # Use existing resources if they ex
 bucket_name             = "tripico-images"
 bucket_location         = "EU"
 
-# Cloud Run Configuration
-cloud_run_service_name  = "travel-backend"
-cloud_run_cpu           = "1"
-cloud_run_memory        = "512Mi"
-cloud_run_max_instances = 10
-cloud_run_min_instances = 0
-cloud_run_timeout       = 300
-
 # Artifact Registry Configuration
 artifact_registry_name  = "docker-repo"
 
@@ -60,8 +52,10 @@ domain_name             = ""                 # e.g., "api.tripico.fun"
 # Firestore Configuration
 firestore_location      = "europe-west1"
 
-# Networking Configuration
-allow_unauthenticated   = true
+# Kubernetes/GKE Configuration (optional - defaults provided)
+# gke_subnet_cidr       = "10.0.0.0/16"
+# gke_services_cidr     = "192.168.0.0/24"
+# gke_pods_cidr         = "192.168.1.0/24"
 
 # Labels
 labels = {

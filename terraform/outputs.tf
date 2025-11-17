@@ -10,16 +10,6 @@ output "region" {
   value       = var.region
 }
 
-# Cloud Run Outputs
-output "cloud_run_url" {
-  description = "The URL of the Cloud Run service"
-  value       = google_cloud_run_v2_service.main.uri
-}
-
-output "cloud_run_service_name" {
-  description = "The name of the Cloud Run service"
-  value       = google_cloud_run_v2_service.main.name
-}
 
 # Cloud SQL Outputs
 output "db_instance_name" {
@@ -70,19 +60,19 @@ output "artifact_registry_url" {
 }
 
 output "docker_image_url" {
-  description = "The full Docker image URL used by Cloud Run"
+  description = "The full Docker image URL for Kubernetes deployments"
   value       = var.docker_image_url != "" ? var.docker_image_url : "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_name}/${var.app_name}:${var.app_version}"
 }
 
 # Service Account Outputs
 output "service_account_email" {
-  description = "The email of the Cloud Run service account"
-  value       = google_service_account.cloud_run_sa.email
+  description = "The email of the Kubernetes service account"
+  value       = google_service_account.kubernetes_sa.email
 }
 
 output "service_account_name" {
-  description = "The name of the Cloud Run service account"
-  value       = google_service_account.cloud_run_sa.name
+  description = "The name of the Kubernetes service account"
+  value       = google_service_account.kubernetes_sa.name
 }
 
 # Firestore Outputs
@@ -133,20 +123,69 @@ output "deployment_commands" {
     docker build -t ${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_name}/${var.app_name}:${var.app_version} .
     docker push ${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_name}/${var.app_name}:${var.app_version}
 
-    # Update Cloud Run service with new image:
-    gcloud run services update ${var.cloud_run_service_name} \
-      --image ${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_name}/${var.app_name}:${var.app_version} \
-      --region ${var.region}
+    # Connect to GKE cluster:
+    gcloud container clusters get-credentials ${google_container_cluster.main.name} --region ${var.region} --project ${var.project_id}
+
+    # Update Kubernetes deployment:
+    kubectl set image deployment/itinerary-service itinerary-service=${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_name}/${var.app_name}:${var.app_version}
   EOT
+}
+
+# Kubernetes/GKE Outputs
+output "gke_cluster_name" {
+  description = "The name of the GKE cluster"
+  value       = google_container_cluster.main.name
+}
+
+output "gke_cluster_location" {
+  description = "The location of the GKE cluster"
+  value       = google_container_cluster.main.location
+}
+
+output "gke_cluster_endpoint" {
+  description = "The endpoint of the GKE cluster"
+  value       = google_container_cluster.main.endpoint
+}
+
+output "gke_network_name" {
+  description = "The name of the GKE network"
+  value       = google_compute_network.gke_network.name
+}
+
+output "gke_subnet_name" {
+  description = "The name of the GKE subnetwork"
+  value       = google_compute_subnetwork.gke_subnet.name
+}
+
+# API Gateway Outputs
+output "api_gateway_name" {
+  description = "The name of the API Gateway"
+  value       = google_api_gateway_api.api_gateway.api_id
+}
+
+output "api_gateway_gateway_name" {
+  description = "The name of the API Gateway gateway"
+  value       = google_api_gateway_gateway.api_gateway.gateway_id
+}
+
+output "api_gateway_url" {
+  description = "The URL of the API Gateway"
+  value       = "https://${google_api_gateway_gateway.api_gateway.default_hostname}"
+}
+
+# Kubernetes Connection Command
+output "kubectl_connect_command" {
+  description = "Command to connect kubectl to the GKE cluster"
+  value       = "gcloud container clusters get-credentials ${google_container_cluster.main.name} --region ${var.region} --project ${var.project_id}"
 }
 
 output "service_urls" {
   description = "Important service URLs"
   value = {
-    cloud_run   = google_cloud_run_v2_service.main.uri
-    swagger_ui  = "${google_cloud_run_v2_service.main.uri}/q/swagger-ui/"
-    openapi     = "${google_cloud_run_v2_service.main.uri}/q/openapi"
-    health      = "${google_cloud_run_v2_service.main.uri}/q/health"
+    api_gateway = "https://${google_api_gateway_gateway.api_gateway.default_hostname}"
+    swagger_ui  = "https://${google_api_gateway_gateway.api_gateway.default_hostname}/q/swagger-ui/"
+    openapi     = "https://${google_api_gateway_gateway.api_gateway.default_hostname}/q/openapi"
+    health      = "https://${google_api_gateway_gateway.api_gateway.default_hostname}/q/health"
   }
 }
 

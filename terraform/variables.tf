@@ -85,42 +85,6 @@ variable "bucket_location" {
   default     = "EU"
 }
 
-# Cloud Run Configuration
-variable "cloud_run_service_name" {
-  description = "The name of the Cloud Run service"
-  type        = string
-  default     = "travel-backend"
-}
-
-variable "cloud_run_cpu" {
-  description = "CPU allocation for Cloud Run service"
-  type        = string
-  default     = "1"
-}
-
-variable "cloud_run_memory" {
-  description = "Memory allocation for Cloud Run service"
-  type        = string
-  default     = "512Mi"
-}
-
-variable "cloud_run_max_instances" {
-  description = "Maximum number of Cloud Run instances"
-  type        = number
-  default     = 5
-}
-
-variable "cloud_run_min_instances" {
-  description = "Minimum number of Cloud Run instances"
-  type        = number
-  default     = 0
-}
-
-variable "cloud_run_timeout" {
-  description = "Request timeout for Cloud Run service in seconds"
-  type        = number
-  default     = 300
-}
 
 # Artifact Registry Configuration
 variable "artifact_registry_name" {
@@ -130,7 +94,7 @@ variable "artifact_registry_name" {
 }
 
 variable "create_artifact_registry" {
-  description = "Whether to create GCP Artifact Registry (required for Cloud Run v2)"
+  description = "Whether to create GCP Artifact Registry (required for Kubernetes deployments)"
   type        = bool
   default     = true
 }
@@ -156,12 +120,6 @@ variable "firestore_location" {
   default     = "europe-west1"
 }
 
-# Networking Configuration
-variable "allow_unauthenticated" {
-  description = "Allow unauthenticated access to Cloud Run service"
-  type        = bool
-  default     = true
-}
 
 # Tags and Labels
 variable "labels" {
@@ -191,4 +149,44 @@ variable "import_existing_resources" {
   description = "Whether to use existing resources if they exist (true) or always create fresh (false)"
   type        = bool
   default     = true  # Prefer using existing resources
+}
+
+# Kubernetes/GKE Configuration
+variable "gke_subnet_cidr" {
+  description = "CIDR range for GKE subnetwork"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "gke_services_cidr" {
+  description = "CIDR range for GKE services (secondary IP range)"
+  type        = string
+  default     = "192.168.0.0/24"
+}
+
+variable "gke_pods_cidr" {
+  description = "CIDR range for GKE pods (secondary IP range)"
+  type        = string
+  default     = "192.168.1.0/24"
+}
+
+# Microservices Configuration
+variable "microservices" {
+  description = "Map of microservice configurations for API Gateway routing"
+  type = map(object({
+    name         = string
+    service_name = string
+    namespace    = string
+    port         = number
+    path_prefix  = string
+  }))
+  default = {
+    itinerary = {
+      name         = "itinerary-service"
+      service_name = "itinerary-service"
+      namespace    = "default"
+      port         = 8080
+      path_prefix  = "/api/itinerary"
+    }
+  }
 }

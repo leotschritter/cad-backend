@@ -7,7 +7,7 @@ project_id = "graphite-plane-474510-s9"
 # Optional Variables (defaults are provided)
 region                  = "europe-west1"
 zone                    = "europe-west4-a"
-app_name                = "travel-backend"
+app_name                = "tripico"
 app_version             = "latest"
 environment             = "prod"
 
@@ -30,14 +30,6 @@ import_existing_resources = true
 bucket_name             = "tripico-images"
 bucket_location         = "US"
 
-# Cloud Run Configuration
-cloud_run_service_name  = "travel-backend"
-cloud_run_cpu           = "1"
-cloud_run_memory        = "512Mi"
-cloud_run_max_instances = 10
-cloud_run_min_instances = 0
-cloud_run_timeout       = 300
-
 # Artifact Registry Configuration
 artifact_registry_name  = "docker-repo"
 
@@ -51,9 +43,6 @@ domain_name             = ""
 
 # Firestore Configuration
 firestore_location      = "europe-west1"
-
-# Networking Configuration
-allow_unauthenticated   = true
 
 # Labels
 labels = {
