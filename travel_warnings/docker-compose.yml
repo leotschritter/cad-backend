@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
   postgres:
-    image: postgres:15-alpine
-    container_name: travel-warnings-db
+    image: postgres:17-alpine
+    container_name: travel_warnings_db
     environment:
       POSTGRES_DB: travel_warnings_db
       POSTGRES_USER: postgres
@@ -11,34 +9,34 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - travel-warnings-network
+      - postgres_data2:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d travel_warnings_db" ]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 20
+    restart: unless-stopped
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: travel-warnings-pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@travelwarnings.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
+  travel_warnings_api:
+    image: ghcr.io/leotschritter/cad-backend-travel-warnings:8a81ec812761918b1b60df4aac6cf47217e58a72
+    container_name: travel_warnings_api
     ports:
-      - "5050:80"
-    networks:
-      - travel-warnings-network
+      - "8080:8080"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy # waits for pg to be ready (not just started)
+    environment:
+      SMTP_FROM: "noreply.travel-warning@htwg-konstanz.de"
+      SMTP_HOST: "smtp.htwg-konstanz.de"
+      SMTP_PORT: 587
+      SMTP_USER: ""
+      SMTP_PASSWORD: ""
+      SMTP_START_TLS: "REQUIRED"
+      DB_USER: "postgres"
+      DB_PASSWORD: "postgres"
+      DB_URL: "jdbc:postgresql://travel_warnings_db:5432/travel_warnings_db"
+    restart: unless-stopped
 
 volumes:
-  postgres_data:
-    driver: local
-
-networks:
-  travel-warnings-network:
-    driver: bridge
+  postgres_data2:
 

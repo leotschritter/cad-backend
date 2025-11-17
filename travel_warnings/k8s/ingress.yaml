@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: travel-warnings-ingress
+spec:
+  rules:
+    - host: travel-warnings.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: travel-warnings-api
+                port:
+                  number: 8080
