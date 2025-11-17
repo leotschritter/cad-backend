@@ -65,14 +65,49 @@ spec:
             - name: DB_PASSWORD
               value: postgres
 
+            # Connection pool settings to prevent exhaustion
+            - name: QUARKUS_DATASOURCE_JDBC_ACQUISITION_TIMEOUT
+              value: "10"
+            - name: QUARKUS_DATASOURCE_JDBC_BACKGROUND_VALIDATION_INTERVAL
+              value: "2M"
+            - name: QUARKUS_DATASOURCE_JDBC_IDLE_REMOVAL_INTERVAL
+              value: "5M"
+            - name: QUARKUS_DATASOURCE_JDBC_MAX_LIFETIME
+              value: "30M"
+
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
           ports:
             - containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /q/health/started
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
+            timeoutSeconds: 3
           readinessProbe:
             httpGet:
-              path: /actuator/health
+              path: /q/health/ready
               port: 8080
-            periodSeconds: 5
-            initialDelaySeconds: 10
+            periodSeconds: 30
+            initialDelaySeconds: 0
+            failureThreshold: 3
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8080
+            periodSeconds: 30
+            initialDelaySeconds: 0
+            failureThreshold: 3
+            timeoutSeconds: 5
 
 ---
 apiVersion: v1
