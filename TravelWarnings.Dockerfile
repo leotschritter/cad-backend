@@ -8,6 +8,8 @@ RUN mvn -q -DskipTests dependency:go-offline
 
 # build
 COPY ./travel_warnings/src ./src
+COPY ./travel_warnings/openapi.yaml ./openapi.yaml
+
 RUN mvn -DskipTests package
 
 # ===== runtime =====
