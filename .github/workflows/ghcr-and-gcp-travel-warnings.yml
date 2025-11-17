@@ -43,8 +43,8 @@ jobs:
       - name: Build and push to GHCR and GCP
         uses: docker/build-push-action@v6
         with:
-          context: ./travel_warnings
-          file: ./travel_warnings/Dockerfile
+          context: .
+          file: TravelWarnings.Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository }}-travel-warnings:latest
