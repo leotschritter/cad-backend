@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: weather-forecast-config
+  labels:
+    app: weather-forecast-service
+data:
+  # Database Configuration
+  # Connect to PostgreSQL running in Kubernetes
+  db-jdbc-url: "jdbc:postgresql://postgres:5432/weather_forecast"
+
+  # Application Configuration
+  meteosource-api-sections: "daily,hourly"
+  meteosource-api-language: "en"
+  meteosource-api-units: "metric"
