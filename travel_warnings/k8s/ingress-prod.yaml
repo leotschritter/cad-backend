@@ -4,13 +4,20 @@ metadata:
   name: travel-warnings-ingress
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$1
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - warnings.tripico.fun
+      secretName: warnings-tls
   rules:
-    - host: tripico.fun
+    - host: warnings.tripico.fun
       http:
         paths:
-          - path: /travel-warnings-service/(.*)
+          - path: /(.*)
             pathType: ImplementationSpecific
             backend:
               service:

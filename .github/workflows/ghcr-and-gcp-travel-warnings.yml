@@ -2,7 +2,7 @@ name: Build Docker Image and Deploy to GCP/GHCR for Travel Warnings Microservice
 
 on:
   push:
-    branches: [ "feature/exercise7-Leo" ]
+    branches: [ "main", "feature/exercise7-Leo" ]
     tags: [ "v*.*.*" ]
     paths:
       - "travel_warnings/**"
@@ -94,9 +94,10 @@ jobs:
           kubectl apply -f app-config.yaml
           kubectl apply -f postgres-pvc.yaml
           kubectl apply -f postgres.yaml
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
           kubectl apply -f travel-warnings-api.yaml
           kubectl apply -f ingress-prod.yaml
-          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+          kubectl apply -f certificate.yaml
 
       # Update deployment image dynamically
       - name: Patch deployment with new image
