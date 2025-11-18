@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
         - name: travel-warnings-api
-          image: ghcr.io/leotschritter/cad-backend-travel-warnings:b4391dddbcabbcc4af096535ea35879f58d8a4bc
+          image: ghcr.io/leotschritter/cad-backend-travel-warnings:latest
           imagePullPolicy: Always
           env:
             - name: SMTP_FROM
