@@ -173,6 +173,43 @@ output "api_gateway_url" {
   value       = "https://${google_api_gateway_gateway.api_gateway.default_hostname}"
 }
 
+output "api_gateway_default_hostname" {
+  description = "The default hostname for the API Gateway"
+  value       = google_api_gateway_gateway.api_gateway.default_hostname
+}
+
+output "api_gateway_important_note" {
+  description = "IMPORTANT: API Gateway configuration note"
+  value       = <<-EOT
+    ⚠️  IMPORTANT: API Gateway cannot directly reach Kubernetes ClusterIP services!
+
+    The API Gateway is currently configured to reach:
+      http://itinerary-service.default.svc.cluster.local:8080
+
+    This WILL NOT WORK because:
+    - API Gateway runs outside your GKE cluster
+    - Kubernetes DNS names only work inside the cluster
+
+    SOLUTION OPTIONS:
+
+    1. USE KUBERNETES INGRESS (RECOMMENDED):
+       - Your Ingress already provides routing, load balancing, and external IP
+       - Get Ingress IP: kubectl get ingress itinerary-ingress
+       - Access API: http://<INGRESS-IP>/comment/itinerary/1
+       - Run: ./deploy_ingress.sh for automated setup
+
+    2. UPDATE API GATEWAY to use Ingress IP:
+       - Get IP: kubectl get ingress itinerary-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+       - Update terraform/api-gateway-config.yaml:
+         x-google-backend:
+           address: http://<INGRESS-IP>
+       - Run: terraform apply
+
+    See QUICK_FIX_NO_HEALTHY_UPSTREAM.md for details.
+  EOT
+}
+
+
 # Kubernetes Connection Command
 output "kubectl_connect_command" {
   description = "Command to connect kubectl to the GKE cluster"
@@ -182,10 +219,20 @@ output "kubectl_connect_command" {
 output "service_urls" {
   description = "Important service URLs"
   value = {
+    # API Gateway URLs (for public API access)
     api_gateway = "https://${google_api_gateway_gateway.api_gateway.default_hostname}"
-    swagger_ui  = "https://${google_api_gateway_gateway.api_gateway.default_hostname}/q/swagger-ui/"
-    openapi     = "https://${google_api_gateway_gateway.api_gateway.default_hostname}/q/openapi"
-    health      = "https://${google_api_gateway_gateway.api_gateway.default_hostname}/q/health"
+
+    # API endpoints via API Gateway
+    comment_api   = "https://${google_api_gateway_gateway.api_gateway.default_hostname}/comment"
+    itinerary_api = "https://${google_api_gateway_gateway.api_gateway.default_hostname}/itinerary"
+    like_api      = "https://${google_api_gateway_gateway.api_gateway.default_hostname}/like"
+    location_api  = "https://${google_api_gateway_gateway.api_gateway.default_hostname}/location"
+    user_api      = "https://${google_api_gateway_gateway.api_gateway.default_hostname}/user"
+
+    # Note: Swagger UI and health endpoints accessible via Kubernetes Ingress
+    # Get Ingress IP with: kubectl get ingress itinerary-ingress
+    swagger_ui_note = "Access Swagger UI via Kubernetes Ingress IP: http://<INGRESS-IP>/q/swagger-ui/"
+    health_note     = "Access health endpoint via Kubernetes Ingress IP: http://<INGRESS-IP>/q/health"
   }
 }
 

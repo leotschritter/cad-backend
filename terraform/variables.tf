@@ -106,12 +106,6 @@ variable "docker_image_url" {
   default     = ""
 }
 
-# Domain Configuration (Optional)
-variable "domain_name" {
-  description = "Custom domain name for the application (e.g., api.tripico.fun)"
-  type        = string
-  default     = ""
-}
 
 # Firestore Configuration
 variable "firestore_location" {
@@ -181,12 +175,47 @@ variable "microservices" {
     path_prefix  = string
   }))
   default = {
+    comment = {
+      name         = "itinerary-service"
+      service_name = "itinerary-service"
+      namespace    = "default"
+      port         = 8080
+      path_prefix  = "/comment"
+    }
     itinerary = {
       name         = "itinerary-service"
       service_name = "itinerary-service"
       namespace    = "default"
       port         = 8080
-      path_prefix  = "/api/itinerary"
+      path_prefix  = "/itinerary"
+    }
+    like = {
+      name         = "itinerary-service"
+      service_name = "itinerary-service"
+      namespace    = "default"
+      port         = 8080
+      path_prefix  = "/like"
+    }
+    location = {
+      name         = "itinerary-service"
+      service_name = "itinerary-service"
+      namespace    = "default"
+      port         = 8080
+      path_prefix  = "/location"
+    }
+    user = {
+      name         = "itinerary-service"
+      service_name = "itinerary-service"
+      namespace    = "default"
+      port         = 8080
+      path_prefix  = "/user"
+    }
+    travel-warnings = {
+      name         = "travel-warnings-api"
+      service_name = "travel-warnings-api"
+      namespace    = "default"
+      port         = 8080
+      path_prefix  = "/warnings"
     }
   }
 }

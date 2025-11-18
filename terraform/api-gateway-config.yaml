@@ -3,83 +3,326 @@ info:
   title: ${app_name} API Gateway
   description: API Gateway for ${app_name} microservices
   version: 1.0.0
-host: ${api_gateway_host}
 schemes:
   - https
 produces:
   - application/json
 consumes:
   - application/json
+
+# Define backend address at top level - applies to all operations
 x-google-backend:
-  address: http://${backend_service_address}
+  address: http://itinerary-service.default.svc.cluster.local:8080
+  path_translation: APPEND_PATH_TO_ADDRESS
+
 paths:
-%{ for service_key, service in services ~}
-  ${service.path_prefix}:
+  # Auth endpoints
+  /auth:
     get:
-      summary: Route to ${service.name}
-      operationId: route_${service_key}_get
+      operationId: get_auth
+      responses:
+        '200':
+          description: Success
+    options:
+      operationId: options_auth
+      responses:
+        '200':
+          description: Success
+
+  /auth/**:
+    get:
+      operationId: get_auth_wildcard
       responses:
         '200':
           description: Success
     post:
-      summary: Route to ${service.name}
-      operationId: route_${service_key}_post
+      operationId: post_auth_wildcard
       responses:
         '200':
           description: Success
-    put:
-      summary: Route to ${service.name}
-      operationId: route_${service_key}_put
+    options:
+      operationId: options_auth_wildcard
       responses:
         '200':
           description: Success
-    delete:
-      summary: Route to ${service.name}
-      operationId: route_${service_key}_delete
-      responses:
-        '200':
-          description: Success
-    patch:
-      summary: Route to ${service.name}
-      operationId: route_${service_key}_patch
-      responses:
-        '200':
-          description: Success
-  ${service.path_prefix}/{path}:
-    parameters:
-      - name: path
-        in: path
-        required: true
-        type: string
+
+  # Comment endpoints
+  /comment:
     get:
-      summary: Route to ${service.name} with path
-      operationId: route_${service_key}_get_path
+      operationId: get_comment
       responses:
         '200':
           description: Success
     post:
-      summary: Route to ${service.name} with path
-      operationId: route_${service_key}_post_path
-      responses:
-        '200':
-          description: Success
-    put:
-      summary: Route to ${service.name} with path
-      operationId: route_${service_key}_put_path
+      operationId: post_comment
       responses:
         '200':
           description: Success
     delete:
-      summary: Route to ${service.name} with path
-      operationId: route_${service_key}_delete_path
+      operationId: delete_comment
+      responses:
+        '200':
+          description: Success
+    options:
+      operationId: options_comment
+      responses:
+        '200':
+          description: Success
+
+  /comment/**:
+    get:
+      operationId: get_comment_wildcard
+      responses:
+        '200':
+          description: Success
+    post:
+      operationId: post_comment_wildcard
+      responses:
+        '200':
+          description: Success
+    put:
+      operationId: put_comment_wildcard
+      responses:
+        '200':
+          description: Success
+    delete:
+      operationId: delete_comment_wildcard
       responses:
         '200':
           description: Success
     patch:
-      summary: Route to ${service.name} with path
-      operationId: route_${service_key}_patch_path
+      operationId: patch_comment_wildcard
       responses:
         '200':
           description: Success
-%{ endfor ~}
+    options:
+      operationId: options_comment_wildcard
+      responses:
+        '200':
+          description: Success
+
+  # Itinerary endpoints
+  /itinerary:
+    get:
+      operationId: get_itinerary
+      responses:
+        '200':
+          description: Success
+    post:
+      operationId: post_itinerary
+      responses:
+        '200':
+          description: Success
+    put:
+      operationId: put_itinerary
+      responses:
+        '200':
+          description: Success
+    delete:
+      operationId: delete_itinerary
+      responses:
+        '200':
+          description: Success
+    options:
+      operationId: options_itinerary
+      responses:
+        '200':
+          description: Success
+
+  /itinerary/**:
+    get:
+      operationId: get_itinerary_wildcard
+      responses:
+        '200':
+          description: Success
+    post:
+      operationId: post_itinerary_wildcard
+      responses:
+        '200':
+          description: Success
+    put:
+      operationId: put_itinerary_wildcard
+      responses:
+        '200':
+          description: Success
+    delete:
+      operationId: delete_itinerary_wildcard
+      responses:
+        '200':
+          description: Success
+    patch:
+      operationId: patch_itinerary_wildcard
+      responses:
+        '200':
+          description: Success
+    options:
+      operationId: options_itinerary_wildcard
+      responses:
+        '200':
+          description: Success
+
+  # Like endpoints
+  /like:
+    get:
+      operationId: get_like
+      responses:
+        '200':
+          description: Success
+    post:
+      operationId: post_like
+      responses:
+        '200':
+          description: Success
+    delete:
+      operationId: delete_like
+      responses:
+        '200':
+          description: Success
+    options:
+      operationId: options_like
+      responses:
+        '200':
+          description: Success
+
+  /like/**:
+    get:
+      operationId: get_like_wildcard
+      responses:
+        '200':
+          description: Success
+    post:
+      operationId: post_like_wildcard
+      responses:
+        '200':
+          description: Success
+    put:
+      operationId: put_like_wildcard
+      responses:
+        '200':
+          description: Success
+    delete:
+      operationId: delete_like_wildcard
+      responses:
+        '200':
+          description: Success
+    patch:
+      operationId: patch_like_wildcard
+      responses:
+        '200':
+          description: Success
+    options:
+      operationId: options_like_wildcard
+      responses:
+        '200':
+          description: Success
+
+  # Location endpoints
+  /location:
+    get:
+      operationId: get_location
+      responses:
+        '200':
+          description: Success
+    post:
+      operationId: post_location
+      responses:
+        '200':
+          description: Success
+    put:
+      operationId: put_location
+      responses:
+        '200':
+          description: Success
+    delete:
+      operationId: delete_location
+      responses:
+        '200':
+          description: Success
+    options:
+      operationId: options_location
+      responses:
+        '200':
+          description: Success
+
+  /location/**:
+    get:
+      operationId: get_location_wildcard
+      responses:
+        '200':
+          description: Success
+    post:
+      operationId: post_location_wildcard
+      responses:
+        '200':
+          description: Success
+    put:
+      operationId: put_location_wildcard
+      responses:
+        '200':
+          description: Success
+    delete:
+      operationId: delete_location_wildcard
+      responses:
+        '200':
+          description: Success
+    patch:
+      operationId: patch_location_wildcard
+      responses:
+        '200':
+          description: Success
+    options:
+      operationId: options_location_wildcard
+      responses:
+        '200':
+          description: Success
+
+  # User endpoints
+  /user:
+    get:
+      operationId: get_user
+      responses:
+        '200':
+          description: Success
+    post:
+      operationId: post_user
+      responses:
+        '200':
+          description: Success
+    options:
+      operationId: options_user
+      responses:
+        '200':
+          description: Success
+
+  /user/**:
+    get:
+      operationId: get_user_wildcard
+      responses:
+        '200':
+          description: Success
+    post:
+      operationId: post_user_wildcard
+      responses:
+        '200':
+          description: Success
+    put:
+      operationId: put_user_wildcard
+      responses:
+        '200':
+          description: Success
+    delete:
+      operationId: delete_user_wildcard
+      responses:
+        '200':
+          description: Success
+    patch:
+      operationId: patch_user_wildcard
+      responses:
+        '200':
+          description: Success
+    options:
+      operationId: options_user_wildcard
+      responses:
+        '200':
+          description: Success
 

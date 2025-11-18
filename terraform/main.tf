@@ -430,10 +430,8 @@ resource "google_api_gateway_api_config" "api_config" {
     document {
       path     = "api-config.yaml"
       contents = base64encode(templatefile("${path.module}/api-gateway-config.yaml", {
-        app_name            = var.app_name
-        api_gateway_host    = "${var.app_name}-gateway-${data.google_project.project.number}.${var.region}.cloudfunctions.net"
-        services            = var.microservices
-        backend_service_address = "itinerary-service.default.svc.cluster.local:8080"
+        app_name = var.app_name
+        services = var.microservices
       }))
     }
   }

@@ -2,6 +2,21 @@
 
 This directory contains Terraform configuration files for automated deployment of the Travel App Backend to Google Cloud Platform.
 
+## 📚 Documentation
+
+**→ [INDEX.md](./INDEX.md) - Complete documentation index with quick navigation by role and topic**
+
+### 🎯 Quick Start
+- **[FRONTEND_SUMMARY.md](./FRONTEND_SUMMARY.md)** - ⭐ TL;DR for frontend developers - Read this first!
+- **[QUICKSTART.md](./QUICKSTART.md)** - Quick deployment guide
+
+### 📖 Complete Guides
+- **[MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md)** - Complete guide for migrating from Cloud Run to Kubernetes
+- **[FRONTEND_INTEGRATION.md](./FRONTEND_INTEGRATION.md)** - Detailed guide for frontend developers on API Gateway integration
+- **[ARCHITECTURE_COMPARISON.md](./ARCHITECTURE_COMPARISON.md)** - Side-by-side comparison of old vs new architecture
+- **[DOMAIN_MAPPING.md](./DOMAIN_MAPPING.md)** - Setup custom domain (api.tripico.fun) for API Gateway
+- **[KUBERNETES_SETUP.md](./KUBERNETES_SETUP.md)** - Kubernetes-specific setup instructions
+
 ## 📋 Prerequisites
 
 1. **Terraform**: Install Terraform >= 1.0
