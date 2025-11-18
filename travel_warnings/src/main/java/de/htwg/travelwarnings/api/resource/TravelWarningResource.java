@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
  * REST API for travel warnings
  * Implements User Story 1 & 3: Access to travel warnings with severity information
  */
-@Path("/api/v1/travel-warnings")
+@Path("/warnings/travel-warnings")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Travel Warnings", description = "Access official travel warnings from Auswärtiges Amt")
@@ -108,7 +108,7 @@ public class TravelWarningResource {
             .orElse(Response.status(Response.Status.NOT_FOUND)
                 .entity(ErrorResponse.notFound(
                     "No warning found with content ID: " + contentId,
-                    "/api/v1/travel-warnings/" + contentId))
+                    "/warnings/travel-warnings/" + contentId))
                 .build());
     }
 

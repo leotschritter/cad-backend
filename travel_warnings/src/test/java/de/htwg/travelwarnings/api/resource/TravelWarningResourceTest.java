@@ -48,7 +48,7 @@ class TravelWarningResourceTest {
     @Test
     void testGetAllWarnings() {
         given()
-            .when().get("/api/v1/travel-warnings")
+            .when().get("/warnings/travel-warnings")
             .then()
             .statusCode(200)
             .contentType(ContentType.JSON)
@@ -58,7 +58,7 @@ class TravelWarningResourceTest {
     @Test
     void testGetWarningByCountryCode() {
         given()
-            .when().get("/api/v1/travel-warnings/country/DE")
+            .when().get("/warnings/travel-warnings/country/DE")
             .then()
             .statusCode(200)
             .contentType(ContentType.JSON)
@@ -71,7 +71,7 @@ class TravelWarningResourceTest {
     @Test
     void testGetWarningByCountryCodeNotFound() {
         given()
-            .when().get("/api/v1/travel-warnings/country/XX")
+            .when().get("/warnings/travel-warnings/country/XX")
             .then()
             .statusCode(404);
     }
@@ -79,7 +79,7 @@ class TravelWarningResourceTest {
     @Test
     void testGetWarningDetail() {
         given()
-            .when().get("/api/v1/travel-warnings/country/DE/detail")
+            .when().get("/warnings/travel-warnings/country/DE/detail")
             .then()
             .statusCode(200)
             .contentType(ContentType.JSON)
@@ -92,7 +92,7 @@ class TravelWarningResourceTest {
     void testGetActiveWarningsOnly() {
         given()
             .queryParam("activeOnly", true)
-            .when().get("/api/v1/travel-warnings")
+            .when().get("/warnings/travel-warnings")
             .then()
             .statusCode(200)
             .contentType(ContentType.JSON)

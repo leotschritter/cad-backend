@@ -34,7 +34,7 @@ import java.util.Map;
  * Search for: TESTING_ONLY_REMOVE_AFTER_EMAIL_VERIFICATION
  *//*
 
-@Path("/api/v1/test/email")
+@Path("/warnings/test/email")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Testing (Remove After Email Verification)", description = "Test email functionality - DELETE after testing")
@@ -55,7 +55,7 @@ public class EmailTestResource {
      * Send a test email to verify email configuration is working.
      *
      * Usage:
-     * POST /api/v1/test/email/send
+     * POST /warnings/test/email/send
      * Body: { "email": "your-email@example.com" }
      *//*
 
@@ -158,7 +158,7 @@ public class EmailTestResource {
 
         Map<String, Object> config = new HashMap<>();
         config.put("mockMode", mailerMockMode);
-        config.put("endpoint", "/api/v1/test/email/send");
+        config.put("endpoint", "/warnings/test/email/send");
         config.put("method", "POST");
         config.put("body", Map.of("email", "your-email@example.com"));
 
@@ -188,7 +188,7 @@ public class EmailTestResource {
         ));
 
         config.put("testCommand",
-            "curl -X POST http://localhost:8080/api/v1/test/email/send -H \"Content-Type: application/json\" -d \"{\\\"email\\\":\\\"your@example.com\\\"}\"");
+            "curl -X POST http://localhost:8080/warnings/test/email/send -H \"Content-Type: application/json\" -d \"{\\\"email\\\":\\\"your@example.com\\\"}\"");
 
         return Response.ok(config).build();
     }

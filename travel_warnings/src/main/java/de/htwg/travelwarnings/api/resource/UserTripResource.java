@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
  * REST API for managing user trips
  * Supports User Story 1: Manage trips to receive relevant alerts
  */
-@Path("/api/v1/trips")
+@Path("/warnings/trips")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "User Trips", description = "Manage user trip itineraries for travel warning notifications")
@@ -81,7 +81,7 @@ public class UserTripResource {
             .orElse(Response.status(Response.Status.NOT_FOUND)
                 .entity(ErrorResponse.notFound(
                     "Trip not found with ID: " + tripId,
-                    "/api/v1/trips/" + tripId))
+                    "/warnings/trips/" + tripId))
                 .build());
     }
 
@@ -98,7 +98,7 @@ public class UserTripResource {
             return Response.status(Response.Status.BAD_REQUEST)
                 .entity(ErrorResponse.badRequest(
                     "email and countryCode are required",
-                    "/api/v1/trips"))
+                    "/warnings/trips"))
                 .build();
         }
 
@@ -199,7 +199,7 @@ public class UserTripResource {
             .orElse(Response.status(Response.Status.NOT_FOUND)
                 .entity(ErrorResponse.notFound(
                     "Trip not found with ID: " + tripId,
-                    "/api/v1/trips/" + tripId))
+                    "/warnings/trips/" + tripId))
                 .build());
     }
 
@@ -220,7 +220,7 @@ public class UserTripResource {
             return Response.status(Response.Status.NOT_FOUND)
                 .entity(ErrorResponse.notFound(
                     "Trip not found with ID: " + tripId,
-                    "/api/v1/trips/" + tripId))
+                    "/warnings/trips/" + tripId))
                 .build();
         }
     }
@@ -264,7 +264,7 @@ public class UserTripResource {
             .orElse(Response.status(Response.Status.NOT_FOUND)
                 .entity(ErrorResponse.notFound(
                     "Trip not found with ID: " + tripId,
-                    "/api/v1/trips/" + tripId + "/notifications"))
+                    "/warnings/trips/" + tripId + "/notifications"))
                 .build());
     }
 }
