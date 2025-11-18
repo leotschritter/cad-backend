@@ -1,0 +1,113 @@
+name: ghcr-and-gcp-travel-warnings.yml
+on:
+  push:
+    branches: [ "main", "feature/exercise07-weather-forecas-service" ]
+    tags: [ "v*.*.*" ]
+    paths:
+      - "weather-forecast-service/**"
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    outputs:
+      image-tag: ${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCP
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev
+
+      - name: Build and Push Images
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Weather.Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}-weather-forecast-service:latest
+            ghcr.io/${{ github.repository }}-weather-forecast-service:${{ github.sha }}
+            europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/weather-forecast-service:latest
+            europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/weather-forecast-service:${{ github.sha }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Authenticate again for kubectl
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Configure kubectl for GKE
+        run: |
+          gcloud container clusters get-credentials tripico-cluster --region europe-west1
+
+      # Create or update SMTP secret
+      - name: Create/Update SMTP Secret
+        run: |
+          kubectl delete secret weather-forecast-secret --ignore-not-found
+          kubectl create secret generic weather-forecast-secret \
+            --from-literal=db-username=weather_user \
+            --from-literal=db-password=weather_pass \
+            --from-literal=meteosource-api-key=${{ secrets.METEOSOURCE_API_KEY }}
+          
+
+      # Apply any updated manifests
+      - name: Apply Kubernetes Manifests
+        working-directory: ./weather-forecast-service/k8s
+        run: |
+          kubectl apply -f configmap.yaml
+          kubectl apply -f postgres-pvc.yaml
+          kubectl apply -f postgres-deployment.yaml
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
+          kubectl apply -f deployment.yaml
+          kubectl apply -f ingress-prod.yaml
+          kubectl apply -f certificate.yaml
+
+      # Update deployment image dynamically
+      - name: Patch deployment with new image
+        run: |
+          kubectl set image deployment/weather-forecast-service weather-forecast-service=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/weather-forecast-service:${{ needs.build-and-push.outputs.image-tag }} --record
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/travel-warnings-api --timeout=240s
+
+      - name: Show pod status
+        run: kubectl get pods -o wide
