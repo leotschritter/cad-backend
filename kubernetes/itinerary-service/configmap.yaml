@@ -10,5 +10,5 @@ data:
   bucket_name: "graphite-plane-474510-s9-tripico-images"
   project_id: "graphite-plane-474510-s9"
   service_account_email: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
-  backend_url: "https://api-gateway-url"
+  backend_url: "https://itierary.tripico.fun"
 
