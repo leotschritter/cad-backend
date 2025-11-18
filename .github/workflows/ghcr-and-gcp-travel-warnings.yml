@@ -70,11 +70,10 @@ jobs:
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
-        
+
       - name: Install GKE Auth Plugin
         run: |
-          sudo apt-get update
-          sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
+          gcloud components install gke-gcloud-auth-plugin --quiet
 
       - name: Configure kubectl for GKE
         run: |
@@ -102,7 +101,7 @@ jobs:
       # Update deployment image dynamically
       - name: Patch deployment with new image
         run: |
-          kubectl set image deployment/travel-warnings-api travel-warnings-api=ghcr.io/${{ github.repository }}-travel-warnings:${{ needs.build-and-push.outputs.image-tag }} --record
+          kubectl set image deployment/travel-warnings-api travel-warnings-api=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-warnings:${{ needs.build-and-push.outputs.image-tag }} --record
 
       - name: Wait for rollout
         run: |
