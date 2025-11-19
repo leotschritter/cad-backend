@@ -11,4 +11,10 @@ data:
   project_id: "graphite-plane-474510-s9"
   service_account_email: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
   backend_url: "https://itierary.tripico.fun"
+  # Identity Platform Authentication Configuration
+  # API Gateway preserves original token in X-Forwarded-Authorization header
+  # Fallback to Authorization header for direct access (Swagger UI, debugging)
+  identity_platform_auth_enabled: "true"
+  identity_platform_auth_primary_header: "X-Forwarded-Authorization"
+  identity_platform_auth_fallback_header: "Authorization"
 
