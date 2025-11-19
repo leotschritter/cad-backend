@@ -78,8 +78,8 @@ jobs:
         run: |
           gcloud container clusters get-credentials tripico-cluster --region europe-west1
 
-      # Create or update SMTP secret
-      - name: Create/Update SMTP Secret
+      # Create or update WFS secret
+      - name: Create/Update WFS Secret
         run: |
           kubectl delete secret weather-forecast-secret --ignore-not-found
           kubectl create secret generic weather-forecast-secret \
