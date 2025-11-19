@@ -7,7 +7,7 @@ metadata:
 data:
   # Database Configuration
   # Connect to PostgreSQL running in Kubernetes
-  db-jdbc-url: "jdbc:postgresql://postgres:5432/weather_forecast"
+  db-jdbc-url: "jdbc:postgresql://weather-postgres:5432/weather_forecast"
 
   # Application Configuration
   meteosource-api-sections: "daily,hourly"

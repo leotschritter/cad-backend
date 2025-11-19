@@ -1,15 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: postgres
+  name: weather-postgres
 spec:
   selector:
     matchLabels:
-      app: postgres
+      app: weather-postgres
   template:
     metadata:
       labels:
-        app: postgres
+        app: weather-postgres
     spec:
       containers:
         - name: postgres
@@ -36,16 +36,16 @@ spec:
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
-            claimName: postgres-pvc
+            claimName: weather-postgres-data-pvc
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgres
+  name: weather-postgres
 spec:
   type: ClusterIP
   selector:
-    app: postgres
+    app: weather-postgres
   ports:
     - name: postgres
       port: 5432
