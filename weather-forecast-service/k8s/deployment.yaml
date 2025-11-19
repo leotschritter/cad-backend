@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-forecast-service
+  labels:
+    app: weather-forecast-service
+spec:
+  selector:
+    matchLabels:
+      app: weather-forecast-service
+  template:
+    metadata:
+      labels:
+        app: weather-forecast-service
+    spec:
+      containers:
+      - name: weather-forecast-service
+        image: ghcr.io/leotschritter/weather-forecast-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        env:
+        - name: QUARKUS_DATASOURCE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: weather-forecast-secret
+              key: db-username
+        - name: QUARKUS_DATASOURCE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: weather-forecast-secret
+              key: db-password
+        - name: QUARKUS_DATASOURCE_JDBC_URL
+          valueFrom:
+            configMapKeyRef:
+              name: weather-forecast-config
+              key: db-jdbc-url
+        - name: METEOSOURCE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: weather-forecast-secret
+              key: meteosource-api-key
+
+
+        # Connection pool settings to prevent exhaustion
+        - name: QUARKUS_DATASOURCE_JDBC_ACQUISITION_TIMEOUT
+          value: "10"
+        - name: QUARKUS_DATASOURCE_JDBC_BACKGROUND_VALIDATION_INTERVAL
+          value: "2M"
+        - name: QUARKUS_DATASOURCE_JDBC_IDLE_REMOVAL_INTERVAL
+          value: "5M"
+        - name: QUARKUS_DATASOURCE_JDBC_MAX_LIFETIME
+          value: "30M"
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /q/health/live
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /q/health/ready
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: weather-forecast-service
+spec:
+  type: ClusterIP
+  selector:
+    app: weather-forecast-service
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

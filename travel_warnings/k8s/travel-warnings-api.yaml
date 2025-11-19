@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: travel-warnings-api
+spec:
+  selector:
+    matchLabels:
+      app: travel-warnings-api
+  template:
+    metadata:
+      labels:
+        app: travel-warnings-api
+    spec:
+      containers:
+        - name: travel-warnings-api
+          image: ghcr.io/leotschritter/cad-backend-travel-warnings:latest
+          imagePullPolicy: Always
+          env:
+            - name: SMTP_FROM
+              valueFrom:
+                configMapKeyRef:
+                  name: travel-warnings-config
+                  key: SMTP_FROM
+            - name: SMTP_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: travel-warnings-config
+                  key: SMTP_HOST
+            - name: SMTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: travel-warnings-config
+                  key: SMTP_PORT
+            - name: SMTP_START_TLS
+              valueFrom:
+                configMapKeyRef:
+                  name: travel-warnings-config
+                  key: SMTP_START_TLS
+            - name: DB_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: travel-warnings-config
+                  key: DB_URL
+
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-secret
+                  key: SMTP_USER
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smtp-secret
+                  key: SMTP_PASSWORD
+
+            # likely needed:
+            - name: DB_HOST
+              value: warnings-postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: travel_warnings_db
+            - name: DB_USER
+              value: postgres
+            - name: DB_PASSWORD
+              value: postgres
+
+            # Connection pool settings to prevent exhaustion
+            - name: QUARKUS_DATASOURCE_JDBC_ACQUISITION_TIMEOUT
+              value: "10"
+            - name: QUARKUS_DATASOURCE_JDBC_BACKGROUND_VALIDATION_INTERVAL
+              value: "2M"
+            - name: QUARKUS_DATASOURCE_JDBC_IDLE_REMOVAL_INTERVAL
+              value: "5M"
+            - name: QUARKUS_DATASOURCE_JDBC_MAX_LIFETIME
+              value: "30M"
+
+            # CORS configuration - allow all origins in production (handled by ingress)
+            - name: QUARKUS_HTTP_CORS_ORIGINS
+              value: "*"
+            - name: QUARKUS_HTTP_CORS_METHODS
+              value: "GET,POST,PUT,DELETE,OPTIONS,HEAD,PATCH"
+            - name: QUARKUS_HTTP_CORS_HEADERS
+              value: "accept,authorization,content-type,x-requested-with,origin"
+            - name: QUARKUS_HTTP_CORS_EXPOSED_HEADERS
+              value: "Content-Disposition"
+            - name: QUARKUS_HTTP_CORS_ACCESS_CONTROL_ALLOW_CREDENTIALS
+              value: "true"
+
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          ports:
+            - containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /q/health/started
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8080
+            periodSeconds: 30
+            initialDelaySeconds: 0
+            failureThreshold: 3
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8080
+            periodSeconds: 30
+            initialDelaySeconds: 0
+            failureThreshold: 3
+            timeoutSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: travel-warnings-api
+spec:
+  type: ClusterIP
+  selector:
+    app: travel-warnings-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
