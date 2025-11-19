@@ -27,7 +27,7 @@ if gcloud iam service-accounts describe travel-backend-sa@${PROJECT_ID}.iam.gser
     echo "  ✅ Exists - Will import"
     cat >> imports.tf << EOF
 import {
-  to = google_service_account.cloud_run_sa
+  to = google_service_account.kubernetes_sa
   id = "projects/${PROJECT_ID}/serviceAccounts/travel-backend-sa@${PROJECT_ID}.iam.gserviceaccount.com"
 }
 
@@ -146,20 +146,8 @@ else
     echo "  ℹ️  Doesn't exist - Will create"
 fi
 
-# Check Cloud Run Service
-echo "[9/9] Checking Cloud Run Service..."
-if gcloud run services describe travel-backend --region=${REGION} --project=${PROJECT_ID} >/dev/null 2>&1; then
-    echo "  ✅ Exists - Will import"
-    cat >> imports.tf << EOF
-import {
-  to = google_cloud_run_v2_service.main
-  id = "projects/${PROJECT_ID}/locations/${REGION}/services/travel-backend"
-}
-
-EOF
-else
-    echo "  ℹ️  Doesn't exist - Will create"
-fi
+# Cloud Run service removed - using Kubernetes instead
+echo "[9/9] Cloud Run service check skipped (migrated to Kubernetes)"
 
 echo ""
 echo "╔═══════════════════════════════════════════════════════════════╗"

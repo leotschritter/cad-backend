@@ -16,61 +16,70 @@ locals {
 resource "google_project_service" "required_apis" {
   for_each = toset([
     "sqladmin.googleapis.com",
-    "run.googleapis.com",
     "artifactregistry.googleapis.com",
     "firestore.googleapis.com",
     "storage-api.googleapis.com",
     "iamcredentials.googleapis.com",
     "secretmanager.googleapis.com",
     "compute.googleapis.com",
-    "vpcaccess.googleapis.com",
+    "container.googleapis.com",
+    "apigateway.googleapis.com",
+    "servicemanagement.googleapis.com",
+    "servicecontrol.googleapis.com",
   ])
 
   service            = each.value
   disable_on_destroy = false
 }
 
-# Service Account for Cloud Run
-resource "google_service_account" "cloud_run_sa" {
+# Service Account for Kubernetes workloads
+resource "google_service_account" "kubernetes_sa" {
   account_id   = local.service_account_name
-  display_name = "Cloud Run SA for ${var.app_name}"
-  description  = "Service account for Cloud Run service to access Cloud SQL, Firestore, and Cloud Storage"
+  display_name = "Kubernetes SA for ${var.app_name}"
+  description  = "Service account for Kubernetes workloads to access Cloud SQL, Firestore, and Cloud Storage"
 
   depends_on = [google_project_service.required_apis]
 
   lifecycle {
     prevent_destroy = false
     # If resource exists, import it instead of failing
-    # Run: terraform import google_service_account.cloud_run_sa projects/PROJECT_ID/serviceAccounts/SERVICE_ACCOUNT_EMAIL
+    # Run: terraform import google_service_account.kubernetes_sa projects/PROJECT_ID/serviceAccounts/SERVICE_ACCOUNT_EMAIL
   }
 }
 
 # IAM Binding - Cloud SQL Client
-resource "google_project_iam_member" "cloud_run_sql_client" {
+resource "google_project_iam_member" "kubernetes_sql_client" {
   project = var.project_id
   role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+  member  = "serviceAccount:${google_service_account.kubernetes_sa.email}"
 }
 
 # IAM Binding - Firestore User
-resource "google_project_iam_member" "cloud_run_firestore_user" {
+resource "google_project_iam_member" "kubernetes_firestore_user" {
   project = var.project_id
   role    = "roles/datastore.user"
-  member  = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+  member  = "serviceAccount:${google_service_account.kubernetes_sa.email}"
 }
 
 # IAM Binding - Identity Platform Token Verifier
-resource "google_project_iam_member" "cloud_run_identity_platform_viewer" {
+resource "google_project_iam_member" "kubernetes_identity_platform_viewer" {
   project = var.project_id
   role    = "roles/identityplatform.viewer"
-  member  = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+  member  = "serviceAccount:${google_service_account.kubernetes_sa.email}"
 }
 
 # IAM Binding - Service Account Token Creator
-resource "google_service_account_iam_member" "cloud_run_token_creator" {
-  service_account_id = google_service_account.cloud_run_sa.name
+resource "google_service_account_iam_member" "kubernetes_token_creator" {
+  service_account_id = google_service_account.kubernetes_sa.name
   role               = "roles/iam.serviceAccountTokenCreator"
-  member             = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+  member             = "serviceAccount:${google_service_account.kubernetes_sa.email}"
+}
+
+# Workload Identity Binding for GKE
+resource "google_service_account_iam_member" "workload_identity_user" {
+  service_account_id = google_service_account.kubernetes_sa.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[default/itinerary-service-sa]"
 }
 
 # Store database password in Secret Manager
@@ -96,10 +105,10 @@ resource "google_secret_manager_secret_version" "db_password" {
 }
 
 # IAM Binding - Secret Manager Secret Accessor
-resource "google_secret_manager_secret_iam_member" "cloud_run_secret_accessor" {
+resource "google_secret_manager_secret_iam_member" "kubernetes_secret_accessor" {
   secret_id = google_secret_manager_secret.db_password.id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+  member    = "serviceAccount:${google_service_account.kubernetes_sa.email}"
 }
 
 # Cloud SQL Instance
@@ -220,11 +229,19 @@ resource "google_storage_bucket" "app_bucket" {
   }
 }
 
-# IAM Binding - Storage Object Admin
-resource "google_storage_bucket_iam_member" "cloud_run_storage_admin" {
+# IAM Binding - Storage Object Admin (for reading/writing objects)
+resource "google_storage_bucket_iam_member" "kubernetes_storage_admin" {
   bucket = google_storage_bucket.app_bucket.name
   role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+  member = "serviceAccount:${google_service_account.kubernetes_sa.email}"
+}
+
+# IAM Binding - Storage Admin (for creating signed URLs)
+# This role includes permissions needed for URL signing
+resource "google_project_iam_member" "kubernetes_storage_admin_project" {
+  project = var.project_id
+  role    = "roles/storage.admin"
+  member  = "serviceAccount:${google_service_account.kubernetes_sa.email}"
 }
 
 # Firestore Database
@@ -291,153 +308,10 @@ resource "google_firestore_index" "likes_by_user" {
   }
 }*/
 
-# Cloud Run Service
-resource "google_cloud_run_v2_service" "main" {
-  name     = var.cloud_run_service_name
-  location = var.region
-  ingress  = "INGRESS_TRAFFIC_ALL"
-
-  template {
-    service_account = google_service_account.cloud_run_sa.email
-
-    annotations = {
-      "run.googleapis.com/cloudsql-instances" = google_sql_database_instance.main.connection_name
-    }
-
-    scaling {
-      min_instance_count = var.cloud_run_min_instances
-      max_instance_count = var.cloud_run_max_instances
-    }
-
-    timeout = "600s"  # Increased to 10 minutes for Quarkus startup
-
-    containers {
-      image = var.docker_image_url != "" ? var.docker_image_url : "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_name}/${var.app_name}:${var.app_version}"
-
-      resources {
-        limits = {
-          cpu    = "2"      # 2 CPUs for faster startup
-          memory = "2Gi"    # 2GB for Java heap
-        }
-        cpu_idle          = false  # Always-on CPU during request processing
-        startup_cpu_boost = true   # Boost CPU during startup
-      }
-
-      ports {
-        container_port = 8080
-        name          = "http1"
-      }
-
-      startup_probe {
-        initial_delay_seconds = 5
-        timeout_seconds       = 5
-        period_seconds        = 10
-        failure_threshold     = 60
-        tcp_socket {
-          port = 8080
-        }
-      }
-
-      # Note: Liveness probe removed - Cloud Run doesn't support TCP in liveness probes
-      # Startup probe is sufficient for Quarkus health checking
-
-      env {
-        name  = "QUARKUS_HTTP_PORT"
-        value = "8080"
-      }
-
-      env {
-        name  = "QUARKUS_HTTP_HOST"
-        value = "0.0.0.0"
-      }
-
-      env {
-        name  = "DB_USER"
-        value = var.db_user
-      }
-
-      env {
-        name  = "DB_PASSWORD"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.db_password.secret_id
-            version = "latest"
-          }
-        }
-      }
-
-      env {
-        name  = "DB_URL"
-        value = "jdbc:postgresql:///${var.db_name}?cloudSqlInstance=${google_sql_database_instance.main.connection_name}&socketFactory=com.google.cloud.sql.postgres.SocketFactory"
-      }
-
-      env {
-        name  = "BUCKET_NAME"
-        value = google_storage_bucket.app_bucket.name
-      }
-
-      env {
-        name  = "PROJECT_ID"
-        value = var.project_id
-      }
-
-      env {
-        name  = "BACKEND_URL"
-        value = "https://${var.cloud_run_service_name}-${data.google_project.project.number}.${var.region}.run.app"
-      }
-
-      env {
-        name  = "SERVICE_ACCOUNT_EMAIL"
-        value = google_service_account.cloud_run_sa.email
-      }
-
-      env {
-        name  = "QUARKUS_PROFILE"
-        value = "prod"
-      }
-    }
-  }
-
-  depends_on = [
-    google_project_service.required_apis,
-    google_sql_database.database,
-    google_sql_user.user,
-    google_firestore_database.database,
-    google_storage_bucket.app_bucket,
-  ]
-}
-
 # Data source for project information
 data "google_project" "project" {
   project_id = var.project_id
 }
-
-# Cloud Run IAM - Allow public access (optional)
-/* resource "google_cloud_run_v2_service_iam_member" "public_access" {
-  count = var.allow_unauthenticated ? 1 : 0
-
-  project  = google_cloud_run_v2_service.main.project
-  location = google_cloud_run_v2_service.main.location
-  name     = google_cloud_run_v2_service.main.name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-} */
-
-# Optional: Domain Mapping (requires domain verification)
-# resource "google_cloud_run_domain_mapping" "default" {
-#   count = var.domain_name != "" ? 1 : 0
-#
-#   location = var.region
-#   name     = var.domain_name
-#
-#   metadata {
-#     namespace = var.project_id
-#   }
-#
-#   spec {
-#     route_name = google_cloud_run_v2_service.main.name
-#   }
-# }
 
 resource "google_project_service" "identitytoolkit" {
   project = var.project_id
@@ -445,11 +319,12 @@ resource "google_project_service" "identitytoolkit" {
 }
 
 resource "google_identity_platform_config" "default" {
-  project = var.project_id
+  provider = google-beta
+  project  = var.project_id
   
   sign_in {
     email {
-      enabled = true
+      enabled           = true
       password_required = true
     }
   }
@@ -460,5 +335,151 @@ resource "google_identity_platform_config" "default" {
     "tripico.fun",
     "frontend.tripico.fun",
     "api.tripico.fun",
+  ]
+
+  depends_on = [google_project_service.identitytoolkit]
+}
+
+# ============================================================================
+# Kubernetes (GKE) Infrastructure
+# ============================================================================
+
+# VPC Network for GKE
+resource "google_compute_network" "gke_network" {
+  name                    = "${var.app_name}-network"
+  auto_create_subnetworks = false
+  enable_ula_internal_ipv6 = true
+
+  depends_on = [google_project_service.required_apis]
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+# Subnetwork for GKE with secondary IP ranges for services and pods
+resource "google_compute_subnetwork" "gke_subnet" {
+  name          = "${var.app_name}-subnet"
+  ip_cidr_range = var.gke_subnet_cidr
+  region        = var.region
+  network       = google_compute_network.gke_network.id
+
+  stack_type       = "IPV4_IPV6"
+  ipv6_access_type = "INTERNAL"
+
+  secondary_ip_range {
+    range_name    = "services-range"
+    ip_cidr_range = var.gke_services_cidr
+  }
+
+  secondary_ip_range {
+    range_name    = "pod-ranges"
+    ip_cidr_range = var.gke_pods_cidr
+  }
+
+  depends_on = [google_compute_network.gke_network]
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+# GKE Autopilot Cluster
+resource "google_container_cluster" "main" {
+  name     = "${var.app_name}-cluster"
+  location = var.region
+
+  enable_autopilot         = true
+  enable_l4_ilb_subsetting = true
+
+  network    = google_compute_network.gke_network.id
+  subnetwork = google_compute_subnetwork.gke_subnet.id
+
+  ip_allocation_policy {
+    stack_type                    = "IPV4_IPV6"
+    services_secondary_range_name = google_compute_subnetwork.gke_subnet.secondary_ip_range[0].range_name
+    cluster_secondary_range_name  = google_compute_subnetwork.gke_subnet.secondary_ip_range[1].range_name
+  }
+
+  deletion_protection = false
+
+  depends_on = [
+    google_project_service.required_apis,
+    google_compute_subnetwork.gke_subnet,
+  ]
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+# ============================================================================
+# Google Cloud API Gateway
+# ============================================================================
+
+# API Gateway API
+resource "google_api_gateway_api" "api_gateway" {
+  provider     = google-beta
+  api_id       = "${var.app_name}-api"
+  display_name = "${var.app_name} API Gateway"
+  project      = var.project_id
+
+  depends_on = [google_project_service.required_apis]
+}
+
+# API Gateway API Config
+resource "google_api_gateway_api_config" "api_config" {
+  provider = google-beta
+  api      = google_api_gateway_api.api_gateway.api_id
+
+  # Stable based on content, NOT timestamp
+  api_config_id = "${var.app_name}-api-config-${substr(sha256(templatefile("${path.module}/api-gateway-config.yaml", {
+    app_name           = var.app_name
+    services           = var.microservices
+    firebase_project_id = var.project_id
+  })), 0, 8)}"
+
+  display_name = "${var.app_name} API Config"
+
+  openapi_documents {
+    document {
+      path     = "api-config.yaml"
+      contents = base64encode(templatefile("${path.module}/api-gateway-config.yaml", {
+        app_name           = var.app_name
+        services           = var.microservices
+        firebase_project_id = var.project_id
+      }))
+    }
+  }
+
+  # Only include this if backend requires IAM tokens
+  # Otherwise: remove gateway_config entirely.
+  gateway_config {
+    backend_config {
+      google_service_account = google_service_account.kubernetes_sa.email
+    }
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  depends_on = [
+    google_api_gateway_api.api_gateway,
+    google_service_account.kubernetes_sa,
+  ]
+}
+
+# API Gateway instance
+resource "google_api_gateway_gateway" "api_gateway" {
+  provider    = google-beta
+  api_config  = google_api_gateway_api_config.api_config.id
+  gateway_id  = "${var.app_name}-gateway"
+  display_name = "${var.app_name} Gateway"
+  region      = var.region
+  project     = var.project_id
+
+  depends_on = [
+    google_api_gateway_api_config.api_config
   ]
 }

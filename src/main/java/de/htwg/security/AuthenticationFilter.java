@@ -15,8 +15,9 @@ import java.util.Optional;
 /**
  * JAX-RS filter that intercepts requests to endpoints annotated with @Authenticated
  * and validates the Google Cloud Identity Platform authentication token.
- *
- * The filter expects the token in the Authorization header with "Bearer " prefix.
+ * The filter checks for tokens in a configurable primary header (e.g., X-Forwarded-Authorization for API Gateway)
+ * with fallback to a secondary header (e.g., Authorization for direct access/Swagger UI).
+ * This allows the backend to work both behind API Gateway and for direct access.
  * Tokens are verified using Firebase Admin SDK (the official SDK for Identity Platform).
  */
 @Provider
@@ -25,7 +26,6 @@ import java.util.Optional;
 public class AuthenticationFilter implements ContainerRequestFilter {
 
     private static final Logger LOG = Logger.getLogger(AuthenticationFilter.class);
-    private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
 
     @Inject
@@ -48,12 +48,23 @@ public class AuthenticationFilter implements ContainerRequestFilter {
             return;
         }
 
-        // Extract token from Authorization header
-        String authHeader = requestContext.getHeaderString(AUTHORIZATION_HEADER);
+        // Extract token from configured headers (primary with fallback)
+        String primaryHeaderName = authenticationService.getPrimaryAuthHeader();
+        String fallbackHeaderName = authenticationService.getFallbackAuthHeader();
+
+        String authHeader = requestContext.getHeaderString(primaryHeaderName);
+
+        // Fallback to secondary header if primary is not present
+        if (authHeader == null || authHeader.isEmpty()) {
+            authHeader = requestContext.getHeaderString(fallbackHeaderName);
+            LOG.debug("Primary header '" + primaryHeaderName + "' not found, using fallback header '" + fallbackHeaderName + "'");
+        } else {
+            LOG.debug("Using primary header '" + primaryHeaderName + "' for authentication");
+        }
 
         if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
-            LOG.warn("Missing or invalid Authorization header");
-            abortWithUnauthorized(requestContext, "Missing or invalid Authorization header");
+            LOG.warn("Missing or invalid authentication header (checked: " + primaryHeaderName + ", " + fallbackHeaderName + ")");
+            abortWithUnauthorized(requestContext, "Missing or invalid authentication header");
             return;
         }
 

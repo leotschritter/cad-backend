@@ -85,42 +85,6 @@ variable "bucket_location" {
   default     = "EU"
 }
 
-# Cloud Run Configuration
-variable "cloud_run_service_name" {
-  description = "The name of the Cloud Run service"
-  type        = string
-  default     = "travel-backend"
-}
-
-variable "cloud_run_cpu" {
-  description = "CPU allocation for Cloud Run service"
-  type        = string
-  default     = "1"
-}
-
-variable "cloud_run_memory" {
-  description = "Memory allocation for Cloud Run service"
-  type        = string
-  default     = "512Mi"
-}
-
-variable "cloud_run_max_instances" {
-  description = "Maximum number of Cloud Run instances"
-  type        = number
-  default     = 5
-}
-
-variable "cloud_run_min_instances" {
-  description = "Minimum number of Cloud Run instances"
-  type        = number
-  default     = 0
-}
-
-variable "cloud_run_timeout" {
-  description = "Request timeout for Cloud Run service in seconds"
-  type        = number
-  default     = 300
-}
 
 # Artifact Registry Configuration
 variable "artifact_registry_name" {
@@ -130,7 +94,7 @@ variable "artifact_registry_name" {
 }
 
 variable "create_artifact_registry" {
-  description = "Whether to create GCP Artifact Registry (required for Cloud Run v2)"
+  description = "Whether to create GCP Artifact Registry (required for Kubernetes deployments)"
   type        = bool
   default     = true
 }
@@ -142,12 +106,6 @@ variable "docker_image_url" {
   default     = ""
 }
 
-# Domain Configuration (Optional)
-variable "domain_name" {
-  description = "Custom domain name for the application (e.g., api.tripico.fun)"
-  type        = string
-  default     = ""
-}
 
 # Firestore Configuration
 variable "firestore_location" {
@@ -156,12 +114,13 @@ variable "firestore_location" {
   default     = "europe-west1"
 }
 
-# Networking Configuration
-variable "allow_unauthenticated" {
-  description = "Allow unauthenticated access to Cloud Run service"
-  type        = bool
-  default     = true
+variable "firebase_project_id" {
+  description = "Firebase Auth Project ID"
+  type        = string
+  default = "graphite-plane-474510-s9"
 }
+
+
 
 # Tags and Labels
 variable "labels" {
@@ -191,4 +150,97 @@ variable "import_existing_resources" {
   description = "Whether to use existing resources if they exist (true) or always create fresh (false)"
   type        = bool
   default     = true  # Prefer using existing resources
+}
+
+# Kubernetes/GKE Configuration
+variable "gke_subnet_cidr" {
+  description = "CIDR range for GKE subnetwork"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "gke_services_cidr" {
+  description = "CIDR range for GKE services (secondary IP range)"
+  type        = string
+  default     = "192.168.0.0/24"
+}
+
+variable "gke_pods_cidr" {
+  description = "CIDR range for GKE pods (secondary IP range)"
+  type        = string
+  default     = "192.168.1.0/24"
+}
+
+# Microservices Configuration
+# Note: This variable defines the routing configuration for API Gateway.
+# Each microservice is routed via its ingress URL (not Kubernetes service names).
+variable "microservices" {
+  description = "Map of microservice configurations for API Gateway routing via ingress URLs"
+  type = map(object({
+    name         = string  # Service name (for reference)
+    ingress_url  = string  # Ingress URL (e.g., https://itinerary.tripico.fun) - used by API Gateway
+    path_prefix  = string  # API Gateway path prefix (e.g., /comment)
+    # Legacy fields (kept for reference/documentation, not used in API Gateway routing)
+    service_name = string  # Kubernetes service name (for reference only)
+    namespace    = string  # Kubernetes namespace (for reference only)
+    port         = number  # Service port (for reference only)
+  }))
+  default = {
+    comment = {
+      name         = "comment-service"
+      ingress_url  = "https://itinerary.tripico.fun"
+      path_prefix  = "/comment"
+      service_name = "comment-service"
+      namespace    = "default"
+      port         = 8080
+    }
+    itinerary = {
+      name         = "itinerary-service"
+      ingress_url  = "https://itinerary.tripico.fun"
+      path_prefix  = "/itinerary"
+      service_name = "itinerary-service"
+      namespace    = "default"
+      port         = 8080
+    }
+    like = {
+      name         = "like-service"
+      ingress_url  = "https://itinerary.tripico.fun"
+      path_prefix  = "/like"
+      service_name = "like-service"
+      namespace    = "default"
+      port         = 8080
+    }
+    location = {
+      name         = "location-service"
+      ingress_url  = "https://itinerary.tripico.fun"
+      path_prefix  = "/location"
+      service_name = "location-service"
+      namespace    = "default"
+      port         = 8080
+    }
+    user = {
+      name         = "user-service"
+      ingress_url  = "https://itinerary.tripico.fun"
+      path_prefix  = "/user"
+      service_name = "user-service"
+      namespace    = "default"
+      port         = 8080
+    }
+    travel-warnings = {
+      name         = "travel-warnings-service"
+      ingress_url  = "https://warnings.tripico.fun"
+      path_prefix  = "/warnings"
+      service_name = "travel-warnings-service"
+      namespace    = "default"
+      port         = 8080
+    }
+    weather = {
+      name         = "weather-service"
+      ingress_url  = "https://weather.tripico.fun"
+      path_prefix  = "/api/weather"
+      service_name = "weather-service"
+      namespace    = "default"
+      port         = 8080
+    }
+  }
 }

@@ -24,6 +24,12 @@ public class AuthenticationService {
     @ConfigProperty(name = "identity-platform.auth.enabled", defaultValue = "true")
     boolean authEnabled;
 
+    @ConfigProperty(name = "identity-platform.auth.primary-header", defaultValue = "Authorization")
+    String primaryAuthHeader;
+
+    @ConfigProperty(name = "identity-platform.auth.fallback-header", defaultValue = "Authorization")
+    String fallbackAuthHeader;
+
     /**
      * Verifies an Identity Platform ID token and returns the authenticated user information.
      *

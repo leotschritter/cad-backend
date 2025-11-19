@@ -51,3 +51,5 @@ google:
 identity-platform:
   auth:
     enabled: ${IDENTITY_PLATFORM_AUTH_ENABLED:true}  # Enabled by default - use ADC for local development
+    primary-header: ${IDENTITY_PLATFORM_AUTH_PRIMARY_HEADER:Authorization}  # Primary header to check for token
+    fallback-header: ${IDENTITY_PLATFORM_AUTH_FALLBACK_HEADER:Authorization}  # Fallback header if primary is not present
