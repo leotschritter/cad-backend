@@ -1,328 +1,124 @@
-swagger: '2.0'
+swagger: "2.0"
 info:
-  title: ${app_name} API Gateway
-  description: API Gateway for ${app_name} microservices
-  version: 1.0.0
+  title: "${app_name} API Gateway"
+  version: "1.0.0"
+
 schemes:
   - https
-produces:
-  - application/json
-consumes:
-  - application/json
 
-# Define backend address at top level - applies to all operations
-x-google-backend:
-  address: http://itinerary-service.default.svc.cluster.local:8080
-  path_translation: APPEND_PATH_TO_ADDRESS
+# ---------------------------------------------------------
+# Firebase Authentication (global)
+# ---------------------------------------------------------
+securityDefinitions:
+  firebase:
+    type: oauth2
+    authorizationUrl: ""
+    flow: implicit
+    x-google-issuer: "https://securetoken.google.com/${firebase_project_id}" # Replace with actual project ID
+    x-google-jwks_uri: "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"
+    x-google-audiences: "${firebase_project_id}" # Replace with actual project ID
 
+# Apply globally if needed
+security:
+  - firebase: []
+
+# ---------------------------------------------------------
+# Paths / Services
+# ---------------------------------------------------------
 paths:
-  # Auth endpoints
-  /auth:
-    get:
-      operationId: get_auth
-      responses:
-        '200':
-          description: Success
-    options:
-      operationId: options_auth
-      responses:
-        '200':
-          description: Success
+%{ for key, svc in services ~}
+  ${svc.path_prefix}/{proxy}:
 
-  /auth/**:
     get:
-      operationId: get_auth_wildcard
+      summary: "Proxy GET to ${svc.name}"
+      operationId: "${svc.name}_get_proxy"
+      security:
+        - firebase: []        # JWT required
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
       responses:
-        '200':
-          description: Success
-    post:
-      operationId: post_auth_wildcard
-      responses:
-        '200':
-          description: Success
-    options:
-      operationId: options_auth_wildcard
-      responses:
-        '200':
-          description: Success
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
 
-  # Comment endpoints
-  /comment:
-    get:
-      operationId: get_comment
-      responses:
-        '200':
-          description: Success
     post:
-      operationId: post_comment
+      summary: "Proxy POST to ${svc.name}"
+      operationId: "${svc.name}_post_proxy"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: false
+          schema: {}
       responses:
-        '200':
-          description: Success
-    delete:
-      operationId: delete_comment
-      responses:
-        '200':
-          description: Success
-    options:
-      operationId: options_comment
-      responses:
-        '200':
-          description: Success
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
 
-  /comment/**:
-    get:
-      operationId: get_comment_wildcard
-      responses:
-        '200':
-          description: Success
-    post:
-      operationId: post_comment_wildcard
-      responses:
-        '200':
-          description: Success
     put:
-      operationId: put_comment_wildcard
+      summary: "Proxy PUT to ${svc.name}"
+      operationId: "${svc.name}_put_proxy"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: false
+          schema: {}
       responses:
-        '200':
-          description: Success
-    delete:
-      operationId: delete_comment_wildcard
-      responses:
-        '200':
-          description: Success
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
     patch:
-      operationId: patch_comment_wildcard
+      summary: "Proxy PATCH to ${svc.name}"
+      operationId: "${svc.name}_patch_proxy"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: false
+          schema: {}
       responses:
-        '200':
-          description: Success
-    options:
-      operationId: options_comment_wildcard
-      responses:
-        '200':
-          description: Success
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
 
-  # Itinerary endpoints
-  /itinerary:
-    get:
-      operationId: get_itinerary
-      responses:
-        '200':
-          description: Success
-    post:
-      operationId: post_itinerary
-      responses:
-        '200':
-          description: Success
-    put:
-      operationId: put_itinerary
-      responses:
-        '200':
-          description: Success
     delete:
-      operationId: delete_itinerary
+      summary: "Proxy DELETE to ${svc.name}"
+      operationId: "${svc.name}_delete_proxy"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
       responses:
-        '200':
-          description: Success
-    options:
-      operationId: options_itinerary
-      responses:
-        '200':
-          description: Success
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
 
-  /itinerary/**:
-    get:
-      operationId: get_itinerary_wildcard
-      responses:
-        '200':
-          description: Success
-    post:
-      operationId: post_itinerary_wildcard
-      responses:
-        '200':
-          description: Success
-    put:
-      operationId: put_itinerary_wildcard
-      responses:
-        '200':
-          description: Success
-    delete:
-      operationId: delete_itinerary_wildcard
-      responses:
-        '200':
-          description: Success
-    patch:
-      operationId: patch_itinerary_wildcard
-      responses:
-        '200':
-          description: Success
-    options:
-      operationId: options_itinerary_wildcard
-      responses:
-        '200':
-          description: Success
-
-  # Like endpoints
-  /like:
-    get:
-      operationId: get_like
-      responses:
-        '200':
-          description: Success
-    post:
-      operationId: post_like
-      responses:
-        '200':
-          description: Success
-    delete:
-      operationId: delete_like
-      responses:
-        '200':
-          description: Success
-    options:
-      operationId: options_like
-      responses:
-        '200':
-          description: Success
-
-  /like/**:
-    get:
-      operationId: get_like_wildcard
-      responses:
-        '200':
-          description: Success
-    post:
-      operationId: post_like_wildcard
-      responses:
-        '200':
-          description: Success
-    put:
-      operationId: put_like_wildcard
-      responses:
-        '200':
-          description: Success
-    delete:
-      operationId: delete_like_wildcard
-      responses:
-        '200':
-          description: Success
-    patch:
-      operationId: patch_like_wildcard
-      responses:
-        '200':
-          description: Success
-    options:
-      operationId: options_like_wildcard
-      responses:
-        '200':
-          description: Success
-
-  # Location endpoints
-  /location:
-    get:
-      operationId: get_location
-      responses:
-        '200':
-          description: Success
-    post:
-      operationId: post_location
-      responses:
-        '200':
-          description: Success
-    put:
-      operationId: put_location
-      responses:
-        '200':
-          description: Success
-    delete:
-      operationId: delete_location
-      responses:
-        '200':
-          description: Success
-    options:
-      operationId: options_location
-      responses:
-        '200':
-          description: Success
-
-  /location/**:
-    get:
-      operationId: get_location_wildcard
-      responses:
-        '200':
-          description: Success
-    post:
-      operationId: post_location_wildcard
-      responses:
-        '200':
-          description: Success
-    put:
-      operationId: put_location_wildcard
-      responses:
-        '200':
-          description: Success
-    delete:
-      operationId: delete_location_wildcard
-      responses:
-        '200':
-          description: Success
-    patch:
-      operationId: patch_location_wildcard
-      responses:
-        '200':
-          description: Success
-    options:
-      operationId: options_location_wildcard
-      responses:
-        '200':
-          description: Success
-
-  # User endpoints
-  /user:
-    get:
-      operationId: get_user
-      responses:
-        '200':
-          description: Success
-    post:
-      operationId: post_user
-      responses:
-        '200':
-          description: Success
-    options:
-      operationId: options_user
-      responses:
-        '200':
-          description: Success
-
-  /user/**:
-    get:
-      operationId: get_user_wildcard
-      responses:
-        '200':
-          description: Success
-    post:
-      operationId: post_user_wildcard
-      responses:
-        '200':
-          description: Success
-    put:
-      operationId: put_user_wildcard
-      responses:
-        '200':
-          description: Success
-    delete:
-      operationId: delete_user_wildcard
-      responses:
-        '200':
-          description: Success
-    patch:
-      operationId: patch_user_wildcard
-      responses:
-        '200':
-          description: Success
-    options:
-      operationId: options_user_wildcard
-      responses:
-        '200':
-          description: Success
-
+%{ endfor ~}

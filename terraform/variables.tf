@@ -114,6 +114,13 @@ variable "firestore_location" {
   default     = "europe-west1"
 }
 
+variable "firebase_project_id" {
+  description = "Firebase Auth Project ID"
+  type        = string
+  default = "graphite-plane-474510-s9"
+}
+
+
 
 # Tags and Labels
 variable "labels" {
@@ -165,57 +172,67 @@ variable "gke_pods_cidr" {
 }
 
 # Microservices Configuration
+# Note: This variable defines the routing configuration for API Gateway.
+# Each microservice is routed via its ingress URL (not Kubernetes service names).
 variable "microservices" {
-  description = "Map of microservice configurations for API Gateway routing"
+  description = "Map of microservice configurations for API Gateway routing via ingress URLs"
   type = map(object({
-    name         = string
-    service_name = string
-    namespace    = string
-    port         = number
-    path_prefix  = string
+    name         = string  # Service name (for reference)
+    ingress_url  = string  # Ingress URL (e.g., https://itinerary.tripico.fun) - used by API Gateway
+    path_prefix  = string  # API Gateway path prefix (e.g., /comment)
+    # Legacy fields (kept for reference/documentation, not used in API Gateway routing)
+    service_name = string  # Kubernetes service name (for reference only)
+    namespace    = string  # Kubernetes namespace (for reference only)
+    port         = number  # Service port (for reference only)
   }))
   default = {
     comment = {
-      name         = "itinerary-service"
-      service_name = "itinerary-service"
+      name         = "comment-service"
+      ingress_url  = "https://itinerary.tripico.fun"
+      path_prefix  = "/comment"
+      service_name = "comment-service"
       namespace    = "default"
       port         = 8080
-      path_prefix  = "/comment"
     }
     itinerary = {
       name         = "itinerary-service"
+      ingress_url  = "https://itinerary.tripico.fun"
+      path_prefix  = "/itinerary"
       service_name = "itinerary-service"
       namespace    = "default"
       port         = 8080
-      path_prefix  = "/itinerary"
     }
     like = {
-      name         = "itinerary-service"
-      service_name = "itinerary-service"
+      name         = "like-service"
+      ingress_url  = "https://itinerary.tripico.fun"
+      path_prefix  = "/like"
+      service_name = "like-service"
       namespace    = "default"
       port         = 8080
-      path_prefix  = "/like"
     }
     location = {
-      name         = "itinerary-service"
-      service_name = "itinerary-service"
+      name         = "location-service"
+      ingress_url  = "https://itinerary.tripico.fun"
+      path_prefix  = "/location"
+      service_name = "location-service"
       namespace    = "default"
       port         = 8080
-      path_prefix  = "/location"
     }
     user = {
-      name         = "itinerary-service"
-      service_name = "itinerary-service"
+      name         = "user-service"
+      ingress_url  = "https://itinerary.tripico.fun"
+      path_prefix  = "/user"
+      service_name = "user-service"
       namespace    = "default"
       port         = 8080
-      path_prefix  = "/user"
     }
     travel-warnings = {
-      name         = "travel-warnings-api"
-      service_name = "travel-warnings-api"
+      name         = "travel-warnings-service"
+      ingress_url  = "https://warnings.tripico.fun"
+      path_prefix  = "/warnings"
+      service_name = "travel-warnings-service"
       namespace    = "default"
       port         = 8080
-      path_prefix  = "/warnings"
     }
   }
 }

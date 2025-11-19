@@ -421,21 +421,31 @@ resource "google_api_gateway_api" "api_gateway" {
 
 # API Gateway API Config
 resource "google_api_gateway_api_config" "api_config" {
-  provider      = google-beta
-  api           = google_api_gateway_api.api_gateway.api_id
-  api_config_id = "${var.app_name}-api-config-${substr(sha256(timestamp()), 0, 8)}"
-  display_name  = "${var.app_name} API Config"
+  provider = google-beta
+  api      = google_api_gateway_api.api_gateway.api_id
+
+  # Stable based on content, NOT timestamp
+  api_config_id = "${var.app_name}-api-config-${substr(sha256(templatefile("${path.module}/api-gateway-config.yaml", {
+    app_name           = var.app_name
+    services           = var.microservices
+    firebase_project_id = var.project_id
+  })), 0, 8)}"
+
+  display_name = "${var.app_name} API Config"
 
   openapi_documents {
     document {
       path     = "api-config.yaml"
       contents = base64encode(templatefile("${path.module}/api-gateway-config.yaml", {
-        app_name = var.app_name
-        services = var.microservices
+        app_name           = var.app_name
+        services           = var.microservices
+        firebase_project_id = var.project_id
       }))
     }
   }
 
+  # Only include this if backend requires IAM tokens
+  # Otherwise: remove gateway_config entirely.
   gateway_config {
     backend_config {
       google_service_account = google_service_account.kubernetes_sa.email
@@ -452,14 +462,16 @@ resource "google_api_gateway_api_config" "api_config" {
   ]
 }
 
-# API Gateway Gateway
+# API Gateway instance
 resource "google_api_gateway_gateway" "api_gateway" {
-  provider   = google-beta
+  provider    = google-beta
   api_config  = google_api_gateway_api_config.api_config.id
   gateway_id  = "${var.app_name}-gateway"
   display_name = "${var.app_name} Gateway"
   region      = var.region
   project     = var.project_id
 
-  depends_on = [google_api_gateway_api_config.api_config]
+  depends_on = [
+    google_api_gateway_api_config.api_config
+  ]
 }
