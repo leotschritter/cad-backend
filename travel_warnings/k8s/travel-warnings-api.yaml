@@ -75,6 +75,18 @@ spec:
             - name: QUARKUS_DATASOURCE_JDBC_MAX_LIFETIME
               value: "30M"
 
+            # CORS configuration - allow all origins in production (handled by ingress)
+            - name: QUARKUS_HTTP_CORS_ORIGINS
+              value: "*"
+            - name: QUARKUS_HTTP_CORS_METHODS
+              value: "GET,POST,PUT,DELETE,OPTIONS,HEAD,PATCH"
+            - name: QUARKUS_HTTP_CORS_HEADERS
+              value: "accept,authorization,content-type,x-requested-with,origin"
+            - name: QUARKUS_HTTP_CORS_EXPOSED_HEADERS
+              value: "Content-Disposition"
+            - name: QUARKUS_HTTP_CORS_ACCESS_CONTROL_ALLOW_CREDENTIALS
+              value: "true"
+
           resources:
             requests:
               memory: "512Mi"
