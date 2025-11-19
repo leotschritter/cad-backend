@@ -7,4 +7,4 @@ data:
   SMTP_HOST: "smtp.htwg-konstanz.de"
   SMTP_PORT: "587"
   SMTP_START_TLS: "REQUIRED"
-  DB_URL: "jdbc:postgresql://postgres:5432/travel_warnings_db"
+  DB_URL: "jdbc:postgresql://warnings-postgres:5432/travel_warnings_db"

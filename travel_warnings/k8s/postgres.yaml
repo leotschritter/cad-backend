@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: postgres
+  name: warnings-postgres
 spec:
   selector:
     matchLabels:
-      app: postgres
+      app: warnings-postgres
   template:
     metadata:
       labels:
-        app: postgres
+        app: warnings-postgres
     spec:
       containers:
-        - name: postgres
+        - name: warnings-postgres
           image: postgres:15-alpine
           env:
             - name: POSTGRES_DB
@@ -30,23 +30,23 @@ spec:
               name: postgres-storage
           readinessProbe:
             exec:
-              command: ["sh", "-c", "pg_isready -U postgres -d travel_warnings_db"]
+              command: ["sh", "-c", "pg_isready -U warnings-postgres -d travel_warnings_db"]
             initialDelaySeconds: 5
             periodSeconds: 5
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
-            claimName: postgres-data-pvc
+            claimName: warnings-postgres-data-pvc
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgres
+  name: warnings-postgres
 spec:
   type: ClusterIP
   selector:
-    app: postgres
+    app: warnings-postgres
   ports:
-    - name: postgres
+    - name: warnings-postgres
       port: 5432
       targetPort: 5432
