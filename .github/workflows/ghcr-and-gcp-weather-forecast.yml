@@ -1,4 +1,4 @@
-name: ghcr-and-gcp-travel-warnings.yml
+name: ghcr-and-gcp-weather-forecast.yml
 on:
   push:
     branches: [ "main", "feature/exercise07-weather-forecas-service" ]
@@ -107,7 +107,7 @@ jobs:
 
       - name: Wait for rollout
         run: |
-          kubectl rollout status deployment/travel-warnings-api --timeout=240s
+          kubectl rollout status deployment/weather-forecast-service --timeout=240s
 
       - name: Show pod status
         run: kubectl get pods -o wide
