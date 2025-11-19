@@ -1,0 +1,5 @@
+# Ignore actual secret files
+secret.yaml
+
+# Keep the example
+!secret.yaml.example

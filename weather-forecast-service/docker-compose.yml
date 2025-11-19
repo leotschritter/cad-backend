@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for Weather Forecast Service
+  weather-db:
+    image: postgres:16-alpine
+    container_name: weather-forecast-db
+    environment:
+      POSTGRES_DB: weather_forecast
+      POSTGRES_USER: weather_user
+      POSTGRES_PASSWORD: weather_pass
+    ports:
+      - "5433:5432"  # External port 5433 to avoid conflicts with main app
+    volumes:
+      - weather-db-data:/var/lib/postgresql/data
+    networks:
+      - weather-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U weather_user -d weather_forecast"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Weather Forecast Service
+  weather-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: weather-forecast-service
+    environment:
+      # Database Configuration
+      QUARKUS_DATASOURCE_DB_KIND: postgresql
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://weather-db:5432/weather_forecast
+      QUARKUS_DATASOURCE_USERNAME: weather_user
+      QUARKUS_DATASOURCE_PASSWORD: weather_pass
+      # Hibernate Configuration
+      QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION: update
+      QUARKUS_HIBERNATE_ORM_LOG_SQL: "false"
+      # Meteosource API Configuration
+      METEOSOURCE_API_KEY: ${METEOSOURCE_API_KEY}
+    ports:
+      - "8081:8080"  # External port 8081 to avoid conflicts
+    depends_on:
+      weather-db:
+        condition: service_healthy
+    networks:
+      - weather-network
+    restart: unless-stopped
+
+networks:
+  weather-network:
+    driver: bridge
+
+volumes:
+  weather-db-data:
+    driver: local

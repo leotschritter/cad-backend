@@ -1,0 +1,69 @@
+---
+openapi: 3.1.0
+paths:
+  /api/weather/forecast/coordinates:
+    get:
+      parameters:
+      - name: lat
+        in: query
+        schema:
+          type: number
+          format: double
+      - name: lon
+        in: query
+        schema:
+          type: number
+          format: double
+      responses:
+        "200":
+          description: OK
+      summary: Get Weather Forecast By Coordinates
+      tags:
+      - Weather Forecast Resource
+    post:
+      parameters:
+      - name: lat
+        in: query
+        schema:
+          type: number
+          format: double
+      - name: location
+        in: query
+        schema:
+          type: string
+      - name: lon
+        in: query
+        schema:
+          type: number
+          format: double
+      responses:
+        "200":
+          description: OK
+      summary: Fetch Weather Forecast By Coordinates
+      tags:
+      - Weather Forecast Resource
+  /api/weather/forecast/location/{location}:
+    get:
+      parameters:
+      - name: location
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+      summary: Get Weather Forecast By Location
+      tags:
+      - Weather Forecast Resource
+  /api/weather/forecasts:
+    get:
+      responses:
+        "200":
+          description: OK
+      summary: Get All Weather Forecasts
+      tags:
+      - Weather Forecast Resource
+info:
+  title: weather-forecast-service API
+  version: 1.0.0-SNAPSHOT
