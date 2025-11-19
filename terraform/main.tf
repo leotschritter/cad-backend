@@ -229,11 +229,19 @@ resource "google_storage_bucket" "app_bucket" {
   }
 }
 
-# IAM Binding - Storage Object Admin
+# IAM Binding - Storage Object Admin (for reading/writing objects)
 resource "google_storage_bucket_iam_member" "kubernetes_storage_admin" {
   bucket = google_storage_bucket.app_bucket.name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.kubernetes_sa.email}"
+}
+
+# IAM Binding - Storage Admin (for creating signed URLs)
+# This role includes permissions needed for URL signing
+resource "google_project_iam_member" "kubernetes_storage_admin_project" {
+  project = var.project_id
+  role    = "roles/storage.admin"
+  member  = "serviceAccount:${google_service_account.kubernetes_sa.email}"
 }
 
 # Firestore Database

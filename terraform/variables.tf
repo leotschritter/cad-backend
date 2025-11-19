@@ -234,5 +234,13 @@ variable "microservices" {
       namespace    = "default"
       port         = 8080
     }
+    weather = {
+      name         = "weather-service"
+      ingress_url  = "https://weather.tripico.fun"
+      path_prefix  = "/api/weather"
+      service_name = "weather-service"
+      namespace    = "default"
+      port         = 8080
+    }
   }
 }

@@ -14,9 +14,9 @@ securityDefinitions:
     type: oauth2
     authorizationUrl: ""
     flow: implicit
-    x-google-issuer: "https://securetoken.google.com/${firebase_project_id}" # Replace with actual project ID
+    x-google-issuer: "https://securetoken.google.com/${firebase_project_id}"
     x-google-jwks_uri: "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"
-    x-google-audiences: "${firebase_project_id}" # Replace with actual project ID
+    x-google-audiences: "${firebase_project_id}"
 
 # Apply globally if needed
 security:
@@ -27,13 +27,38 @@ security:
 # ---------------------------------------------------------
 paths:
 %{ for key, svc in services ~}
+  # Single segment path: ${svc.path_prefix}/{proxy}
   ${svc.path_prefix}/{proxy}:
+    options:
+      summary: "Handle CORS preflight for ${svc.name}"
+      operationId: "${svc.name}_options_proxy"
+      security: []  # Override global security - OPTIONS doesn't need auth
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+      responses:
+        '200': 
+          description: OK
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+            Access-Control-Max-Age:
+              type: string
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
 
     get:
       summary: "Proxy GET to ${svc.name}"
       operationId: "${svc.name}_get_proxy"
       security:
-        - firebase: []        # JWT required
+        - firebase: []
       parameters:
         - name: proxy
           in: path
@@ -112,6 +137,149 @@ paths:
         - firebase: []
       parameters:
         - name: proxy
+          in: path
+          required: true
+          type: string
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+  # Two segment path: ${svc.path_prefix}/{proxy}/{proxy2} (for nested paths like /location/itinerary/1461)
+  ${svc.path_prefix}/{proxy}/{proxy2}:
+    options:
+      summary: "Handle CORS preflight for ${svc.name} (nested)"
+      operationId: "${svc.name}_options_proxy_nested"
+      security: []  # Override global security - OPTIONS doesn't need auth
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+      responses:
+        '200': 
+          description: OK
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+            Access-Control-Max-Age:
+              type: string
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    get:
+      summary: "Proxy GET to ${svc.name} (nested)"
+      operationId: "${svc.name}_get_proxy_nested"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    post:
+      summary: "Proxy POST to ${svc.name} (nested)"
+      operationId: "${svc.name}_post_proxy_nested"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: false
+          schema: {}
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    put:
+      summary: "Proxy PUT to ${svc.name} (nested)"
+      operationId: "${svc.name}_put_proxy_nested"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: false
+          schema: {}
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    patch:
+      summary: "Proxy PATCH to ${svc.name} (nested)"
+      operationId: "${svc.name}_patch_proxy_nested"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: false
+          schema: {}
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    delete:
+      summary: "Proxy DELETE to ${svc.name} (nested)"
+      operationId: "${svc.name}_delete_proxy_nested"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
           in: path
           required: true
           type: string
