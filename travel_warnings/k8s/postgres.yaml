@@ -27,14 +27,14 @@ spec:
             - containerPort: 5432
           volumeMounts:
             - mountPath: /var/lib/postgresql/data
-              name: postgres-storage
+              name: warnings-postgres-storage
           readinessProbe:
             exec:
               command: ["sh", "-c", "pg_isready -U postgres -d travel_warnings_db"]
             initialDelaySeconds: 5
             periodSeconds: 5
       volumes:
-        - name: postgres-storage
+        - name: warnings-postgres-storage
           persistentVolumeClaim:
             claimName: warnings-postgres-data-pvc
 ---
