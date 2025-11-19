@@ -115,7 +115,7 @@ kind: Service
 metadata:
   name: travel-warnings-api
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   selector:
     app: travel-warnings-api
   ports:
