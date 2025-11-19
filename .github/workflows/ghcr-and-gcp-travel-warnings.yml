@@ -2,7 +2,7 @@ name: Build Docker Image and Deploy to GCP/GHCR for Travel Warnings Microservice
 
 on:
   push:
-    branches: [ "main", "feature/exercise7-Leo" ]
+    branches: [ "main" ]
     tags: [ "v*.*.*" ]
     paths:
       - "travel_warnings/**"
