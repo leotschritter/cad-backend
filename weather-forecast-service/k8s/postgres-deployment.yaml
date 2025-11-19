@@ -30,7 +30,7 @@ spec:
               name: postgres-storage
           readinessProbe:
             exec:
-              command: ["sh", "-c", "pg_isready -U postgres -d travel_warnings_db"]
+              command: ["sh", "-c", "pg_isready -U weather_user -d weather-forecast"]
             initialDelaySeconds: 5
             periodSeconds: 5
       volumes:
