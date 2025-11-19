@@ -1,7 +1,7 @@
 name: ghcr-and-gcp-weather-forecast.yml
 on:
   push:
-    branches: [ "main", "feature/exercise-07-weather-forecas-service" ]
+    branches: [ "main" ]
     tags: [ "v*.*.*" ]
     paths:
       - "weather-forecast-service/**"
