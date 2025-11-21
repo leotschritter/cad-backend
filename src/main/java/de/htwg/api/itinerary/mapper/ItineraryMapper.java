@@ -43,6 +43,7 @@ public class ItineraryMapper {
                 .shortDescription(entity.getShortDescription())
                 .detailedDescription(entity.getDetailedDescription())
                 .userName(entity.getUser() != null ? entity.getUser().getName() : null)
+                .userEmail(entity.getUser() != null ? entity.getUser().getEmail() : null)
                 .build();
     }
 
