@@ -1,8 +1,9 @@
 # Example Terraform Variables File
 # Copy this file to terraform.tfvars and fill in your values
+# IMPORTANT: Never commit terraform.tfvars if it contains sensitive data!
 
 # Required Variables
-project_id = "graphite-plane-474510-s9"
+project_id = "your-gcp-project-id"
 
 # Optional Variables (defaults are provided)
 region                  = "europe-west1"
@@ -14,15 +15,22 @@ environment             = "prod"
 # Cloud SQL Configuration
 db_name                 = "travel-db"
 db_user                 = "cad_db_user"
-db_password             = <password>
-db_instance_name        = "cad-travel-db"    # Will get random suffix like: cad-travel-db-a1b2c3d4
+# Database password - DO NOT SET HERE
+# Set via environment variable TF_VAR_db_password or CI/CD secrets
+# If not provided, a random password will be generated and stored in Secret Manager
+# db_password             = ""  # NEVER commit passwords here!
+db_instance_name        = "cad-travel-db"
 db_tier                 = "db-f1-micro"      # Options: db-f1-micro, db-g1-small, db-n1-standard-1, etc.
 db_availability_type    = "ZONAL"            # Options: ZONAL, REGIONAL
+db_disk_size            = 10
 
 # Resource Management Strategy
 use_random_suffix       = false              # Set to true for unique names, false to use existing
 resource_suffix         = ""                 # Or provide custom suffix (e.g., "dev", "prod")
-import_existing_resources = true             # Use existing resources if they exist (recommended)
+
+# Protection Settings
+deletion_protection     = false              # Set to true for production
+bucket_force_destroy    = false              # Set to true to allow bucket deletion with contents
 
 # Cloud Storage Configuration
 bucket_name             = "tripico-images"
@@ -30,20 +38,19 @@ bucket_location         = "EU"
 
 # Artifact Registry Configuration
 artifact_registry_name  = "docker-repo"
+create_artifact_registry = true
 
 # Docker Image Configuration
 # Option 1: Use GitHub Container Registry (ghcr.io)
 # Uncomment these lines and set your GitHub image URL:
 # create_artifact_registry = false
 # docker_image_url = "ghcr.io/YOUR-GITHUB-USERNAME/travel-backend:latest"
-# docker_image_url = "ghcr.io/YOUR-GITHUB-USERNAME/travel-backend:v1.0.0"
 
 # Option 2: Use Docker Hub
 # create_artifact_registry = false
 # docker_image_url = "docker.io/YOUR-USERNAME/travel-backend:latest"
 
 # Option 3: Use GCP Artifact Registry (default - Terraform will create it)
-create_artifact_registry = true
 docker_image_url = ""
 
 # Domain Configuration (optional)
@@ -57,6 +64,66 @@ firestore_location      = "europe-west1"
 # gke_services_cidr     = "192.168.0.0/24"
 # gke_pods_cidr         = "192.168.1.0/24"
 
+# Microservices Configuration for API Gateway
+microservices = {
+  comment = {
+    name         = "comment-service"
+    ingress_url  = "https://itinerary.tripico.fun"
+    path_prefix  = "/comment"
+    service_name = "comment-service"
+    namespace    = "default"
+    port         = 8080
+  }
+  itinerary = {
+    name         = "itinerary-service"
+    ingress_url  = "https://itinerary.tripico.fun"
+    path_prefix  = "/itinerary"
+    service_name = "itinerary-service"
+    namespace    = "default"
+    port         = 8080
+  }
+  like = {
+    name         = "like-service"
+    ingress_url  = "https://itinerary.tripico.fun"
+    path_prefix  = "/like"
+    service_name = "like-service"
+    namespace    = "default"
+    port         = 8080
+  }
+  location = {
+    name         = "location-service"
+    ingress_url  = "https://itinerary.tripico.fun"
+    path_prefix  = "/location"
+    service_name = "location-service"
+    namespace    = "default"
+    port         = 8080
+  }
+  user = {
+    name         = "user-service"
+    ingress_url  = "https://itinerary.tripico.fun"
+    path_prefix  = "/user"
+    service_name = "user-service"
+    namespace    = "default"
+    port         = 8080
+  }
+  travel-warnings = {
+    name         = "travel-warnings-service"
+    ingress_url  = "https://warnings.tripico.fun"
+    path_prefix  = "/warnings"
+    service_name = "travel-warnings-service"
+    namespace    = "default"
+    port         = 8080
+  }
+  weather = {
+    name         = "weather-service"
+    ingress_url  = "https://weather.tripico.fun"
+    path_prefix  = "/api/weather"
+    service_name = "weather-service"
+    namespace    = "default"
+    port         = 8080
+  }
+}
+
 # Labels
 labels = {
   app         = "travel-backend"
@@ -64,4 +131,3 @@ labels = {
   environment = "prod"
   team        = "cad-team"
 }
-

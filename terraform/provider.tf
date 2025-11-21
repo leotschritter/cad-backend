@@ -16,11 +16,12 @@ terraform {
     }
   }
 
-  # Optional: Configure remote backend for state management
-  # backend "gcs" {
-  #   bucket = "your-terraform-state-bucket"
-  #   prefix = "terraform/state"
-  # }
+  # Remote backend configuration
+  # The bucket must be created manually before first use (see SETUP.md)
+  backend "gcs" {
+    bucket = ""  # Set via backend-config.hcl or -backend-config flag
+    prefix = "terraform/state"
+  }
 }
 
 provider "google" {

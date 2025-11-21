@@ -66,10 +66,59 @@ variable "db_availability_type" {
   default     = "ZONAL" # Use REGIONAL for high availability
 }
 
+variable "db_disk_size" {
+  description = "Disk size in GB for Cloud SQL instance"
+  type        = number
+  default     = 10
+}
+
+variable "deletion_protection" {
+  description = "Enable deletion protection for critical resources"
+  type        = bool
+  default     = false
+}
+
+variable "bucket_force_destroy" {
+  description = "Force destroy bucket even if it contains objects"
+  type        = bool
+  default     = false
+}
+
+variable "required_apis" {
+  description = "List of Google Cloud APIs to enable"
+  type        = list(string)
+  default = [
+    "sqladmin.googleapis.com",
+    "artifactregistry.googleapis.com",
+    "firestore.googleapis.com",
+    "storage-api.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "secretmanager.googleapis.com",
+    "compute.googleapis.com",
+    "container.googleapis.com",
+    "apigateway.googleapis.com",
+    "servicemanagement.googleapis.com",
+    "servicecontrol.googleapis.com",
+  ]
+}
+
+variable "authorized_domains" {
+  description = "List of authorized domains for Identity Platform"
+  type        = list(string)
+  default = [
+    "graphite-plane-474510-s9.firebaseapp.com",
+    "graphite-plane-474510-s9.web.app",
+    "tripico.fun",
+    "frontend.tripico.fun",
+    "api.tripico.fun",
+  ]
+}
+
 variable "db_password" {
-  description = "Fixed database password to use for the Cloud SQL user and Secret Manager (provide via terraform.tfvars)."
+  description = "Database password (optional - if not provided, will be auto-generated). Set via environment variable TF_VAR_db_password or CI/CD secrets. NEVER commit to version control."
   type        = string
   sensitive   = true
+  default     = null
 }
 
 # Cloud Storage Configuration
