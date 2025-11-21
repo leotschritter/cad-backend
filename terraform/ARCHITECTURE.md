@@ -12,7 +12,9 @@ terraform/
 │   ├── project/          # Project-level APIs and Identity Platform
 │   ├── iam/              # Service accounts and IAM bindings
 │   ├── database/         # Cloud SQL instance, database, and secrets
-│   ├── storage/          # Cloud Storage, Firestore, and Artifact Registry
+│   ├── storage/          # Cloud Storage bucket
+│   ├── firestore/        # Firestore database
+│   ├── artifact-registry/ # Artifact Registry repository
 │   ├── gke/              # GKE cluster and networking
 │   └── api-gateway/      # API Gateway configuration
 ├── main.tf               # Root module orchestrating all modules
@@ -30,7 +32,9 @@ project (APIs, Identity Platform)
   │     ├── storage (needs service account for bucket access)
   │     └── api-gateway (needs service account for backend auth)
   ├── database (Cloud SQL)
-  ├── storage (Storage, Firestore, Artifact Registry)
+  ├── storage (Cloud Storage bucket)
+  ├── firestore (Firestore database)
+  ├── artifact-registry (Artifact Registry - optional)
   ├── gke (GKE Cluster)
   └── api-gateway (API Gateway)
 ```
@@ -97,20 +101,43 @@ Manages:
 
 Manages:
 - Cloud Storage bucket
-- Firestore database
-- Artifact Registry (optional)
 - IAM bindings for storage access
 
 **Inputs:**
-- `project_id`, `region`
+- `project_id`
 - Storage configuration (`bucket_name`, `bucket_location`, etc.)
 - `service_account_email`
-- `create_artifact_registry` (boolean)
+- `force_destroy` (boolean)
+- `labels`
 
 **Outputs:**
 - Bucket name and URL
-- Firestore details
-- Artifact Registry URL (if created)
+
+### firestore/
+
+Manages:
+- Firestore database
+
+**Inputs:**
+- `project_id`
+- `firestore_location`
+
+**Outputs:**
+- Firestore database name and location
+
+### artifact-registry/
+
+Manages:
+- Artifact Registry repository
+
+**Inputs:**
+- `project_id`, `region`
+- `app_name`
+- `repository_id`
+- `labels`
+
+**Outputs:**
+- Repository name and URL
 
 ### gke/
 

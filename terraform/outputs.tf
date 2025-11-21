@@ -49,12 +49,12 @@ output "bucket_url" {
 
 output "artifact_registry_name" {
   description = "The name of the Artifact Registry repository"
-  value       = module.storage.artifact_registry_name
+  value       = var.create_artifact_registry ? module.artifact_registry[0].repository_name : null
 }
 
 output "artifact_registry_url" {
   description = "The URL of the Artifact Registry repository"
-  value       = module.storage.artifact_registry_url
+  value       = var.create_artifact_registry ? module.artifact_registry[0].repository_url : null
 }
 
 output "docker_image_url" {
@@ -76,12 +76,12 @@ output "service_account_name" {
 # Firestore Outputs
 output "firestore_database_name" {
   description = "The name of the Firestore database"
-  value       = module.storage.firestore_database_name
+  value       = module.firestore.firestore_database_name
 }
 
 output "firestore_location" {
   description = "The location of the Firestore database"
-  value       = module.storage.firestore_location
+  value       = module.firestore.firestore_location
 }
 
 # Resource naming outputs
@@ -113,7 +113,7 @@ output "actual_bucket_name" {
 # Deployment Information
 output "deployment_commands" {
   description = "Commands to build and deploy the application"
-  value = <<-EOT
+  value       = <<-EOT
     # Authenticate with Artifact Registry:
     gcloud auth configure-docker ${var.region}-docker.pkg.dev
 

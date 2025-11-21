@@ -15,8 +15,8 @@ resource "google_api_gateway_api_config" "api_config" {
 
   # Stable based on content, NOT timestamp
   api_config_id = "${var.app_name}-api-config-${substr(sha256(templatefile("${path.module}/api-gateway-config.yaml", {
-    app_name           = var.app_name
-    services           = var.microservices
+    app_name            = var.app_name
+    services            = var.microservices
     firebase_project_id = var.project_id
   })), 0, 8)}"
 
@@ -24,10 +24,10 @@ resource "google_api_gateway_api_config" "api_config" {
 
   openapi_documents {
     document {
-      path     = "api-config.yaml"
+      path = "api-config.yaml"
       contents = base64encode(templatefile("${path.module}/api-gateway-config.yaml", {
-        app_name           = var.app_name
-        services           = var.microservices
+        app_name            = var.app_name
+        services            = var.microservices
         firebase_project_id = var.project_id
       }))
     }

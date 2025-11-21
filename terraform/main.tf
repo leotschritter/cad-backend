@@ -1,10 +1,10 @@
 # Local variables for resource naming
 locals {
-  suffix = var.resource_suffix != "" ? var.resource_suffix : (var.use_random_suffix ? random_id.suffix.hex : "")
-  db_instance_name = var.resource_suffix != "" || var.use_random_suffix ? "${var.db_instance_name}-${local.suffix}" : var.db_instance_name
+  suffix               = var.resource_suffix != "" ? var.resource_suffix : (var.use_random_suffix ? random_id.suffix.hex : "")
+  db_instance_name     = var.resource_suffix != "" || var.use_random_suffix ? "${var.db_instance_name}-${local.suffix}" : var.db_instance_name
   service_account_name = var.use_random_suffix ? "${var.app_name}-sa-${local.suffix}" : "${var.app_name}-sa"
-  secret_name = var.use_random_suffix ? "${var.app_name}-db-password-${local.suffix}" : "${var.app_name}-db-password"
-  bucket_name = var.use_random_suffix ? "${var.project_id}-${var.bucket_name}-${local.suffix}" : "${var.project_id}-${var.bucket_name}"
+  secret_name          = var.use_random_suffix ? "${var.app_name}-db-password-${local.suffix}" : "${var.app_name}-db-password"
+  bucket_name          = var.use_random_suffix ? "${var.project_id}-${var.bucket_name}-${local.suffix}" : "${var.project_id}-${var.bucket_name}"
 }
 
 # Generate random suffix for unique resource names
@@ -25,10 +25,10 @@ module "project" {
 module "iam" {
   source = "./modules/iam"
 
-  project_id            = var.project_id
-  app_name              = var.app_name
-  service_account_name  = local.service_account_name
-  project_apis_enabled  = module.project.identity_platform_config_id
+  project_id           = var.project_id
+  app_name             = var.app_name
+  service_account_name = local.service_account_name
+  project_apis_enabled = module.project.identity_platform_config_id
 }
 
 # Database Module
@@ -54,18 +54,35 @@ module "database" {
 module "storage" {
   source = "./modules/storage"
 
-  project_id              = var.project_id
-  region                  = var.region
-  app_name                = var.app_name
-  bucket_name             = local.bucket_name
-  bucket_location         = var.bucket_location
-  force_destroy           = var.bucket_force_destroy
-  firestore_location      = var.firestore_location
-  create_artifact_registry = var.create_artifact_registry
-  artifact_registry_name  = var.artifact_registry_name
-  service_account_email   = module.iam.service_account_email
-  labels                  = var.labels
-  project_apis_enabled    = module.project.identity_platform_config_id
+  project_id            = var.project_id
+  bucket_name           = local.bucket_name
+  bucket_location       = var.bucket_location
+  force_destroy         = var.bucket_force_destroy
+  service_account_email = module.iam.service_account_email
+  labels                = var.labels
+  project_apis_enabled  = module.project.identity_platform_config_id
+}
+
+# Firestore Module
+module "firestore" {
+  source = "./modules/firestore"
+
+  project_id           = var.project_id
+  firestore_location   = var.firestore_location
+  project_apis_enabled = module.project.identity_platform_config_id
+}
+
+# Artifact Registry Module
+module "artifact_registry" {
+  count  = var.create_artifact_registry ? 1 : 0
+  source = "./modules/artifact-registry"
+
+  project_id           = var.project_id
+  region               = var.region
+  app_name             = var.app_name
+  repository_id        = var.artifact_registry_name
+  labels               = var.labels
+  project_apis_enabled = module.project.identity_platform_config_id
 }
 
 # GKE Module

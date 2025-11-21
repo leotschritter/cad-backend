@@ -1,7 +1,7 @@
 # VPC Network for GKE
 resource "google_compute_network" "gke_network" {
-  name                    = "${var.app_name}-network"
-  auto_create_subnetworks = false
+  name                     = "${var.app_name}-network"
+  auto_create_subnetworks  = false
   enable_ula_internal_ipv6 = true
 
   depends_on = [var.project_apis_enabled]

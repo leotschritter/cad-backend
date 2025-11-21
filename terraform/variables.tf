@@ -166,7 +166,7 @@ variable "firestore_location" {
 variable "firebase_project_id" {
   description = "Firebase Auth Project ID"
   type        = string
-  default = "graphite-plane-474510-s9"
+  default     = "graphite-plane-474510-s9"
 }
 
 
@@ -186,7 +186,7 @@ variable "labels" {
 variable "use_random_suffix" {
   description = "Add random suffix to resource names for uniqueness (useful for fresh deployments)"
   type        = bool
-  default     = false  # Changed to false - prefer using existing resources
+  default     = false # Changed to false - prefer using existing resources
 }
 
 variable "resource_suffix" {
@@ -198,7 +198,7 @@ variable "resource_suffix" {
 variable "import_existing_resources" {
   description = "Whether to use existing resources if they exist (true) or always create fresh (false)"
   type        = bool
-  default     = true  # Prefer using existing resources
+  default     = true # Prefer using existing resources
 }
 
 # Kubernetes/GKE Configuration
@@ -226,13 +226,13 @@ variable "gke_pods_cidr" {
 variable "microservices" {
   description = "Map of microservice configurations for API Gateway routing via ingress URLs"
   type = map(object({
-    name         = string  # Service name (for reference)
-    ingress_url  = string  # Ingress URL (e.g., https://itinerary.tripico.fun) - used by API Gateway
-    path_prefix  = string  # API Gateway path prefix (e.g., /comment)
+    name        = string # Service name (for reference)
+    ingress_url = string # Ingress URL (e.g., https://itinerary.tripico.fun) - used by API Gateway
+    path_prefix = string # API Gateway path prefix (e.g., /comment)
     # Legacy fields (kept for reference/documentation, not used in API Gateway routing)
-    service_name = string  # Kubernetes service name (for reference only)
-    namespace    = string  # Kubernetes namespace (for reference only)
-    port         = number  # Service port (for reference only)
+    service_name = string # Kubernetes service name (for reference only)
+    namespace    = string # Kubernetes namespace (for reference only)
+    port         = number # Service port (for reference only)
   }))
   default = {
     comment = {
