@@ -628,6 +628,59 @@ public class LocationApi {
         }
     }
 
+    @POST
+    @Path("/{locationId}/image-urls")
+    @Authenticated
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Add existing image URLs to location",
+        description = "Adds existing image URLs (filenames) to a location without uploading. Used to re-link images that already exist in storage. Requires authentication."
+    )
+    @SecurityRequirement(name = "BearerAuth")
+    @APIResponses(value = {
+        @APIResponse(
+            responseCode = "200",
+            description = "Image URLs added successfully",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"message\": \"Image URLs added successfully\"}"
+            )
+        ),
+        @APIResponse(
+            responseCode = "404",
+            description = "Location not found"
+        )
+    })
+    public Response addImageUrls(
+        @Parameter(
+            description = "ID of the location to add image URLs to",
+            required = true
+        ) @PathParam("locationId") Long locationId,
+        List<String> imageUrls) {
+
+        if (locationId == null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"Location ID is required\"}")
+                    .build();
+        }
+
+        if (imageUrls == null || imageUrls.isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"Image URLs are required\"}")
+                    .build();
+        }
+
+        try {
+            locationService.addImagesToLocation(locationId, imageUrls);
+            return Response.ok("{\"message\": \"Image URLs added successfully\"}").build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity("{\"error\": \"" + e.getMessage() + "\"}")
+                    .build();
+        }
+    }
+
     @DELETE
     @Path("/{locationId}/images")
     @Authenticated

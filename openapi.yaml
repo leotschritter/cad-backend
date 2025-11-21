@@ -1052,6 +1052,42 @@ paths:
                 error: Location not found
       security:
         - BearerAuth: []
+  /location/{locationId}/image-urls:
+    post:
+      summary: Add existing image URLs to location
+      description: Adds existing image URLs (filenames) to a location without uploading.
+        Used to re-link images that already exist in storage. Requires authentication.
+      tags:
+        - Location Management
+      parameters:
+        - description: ID of the location to add image URLs to
+          required: true
+          name: locationId
+          in: path
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+        required: true
+      responses:
+        "200":
+          description: Image URLs added successfully
+          content:
+            application/json:
+              example:
+                message: Image URLs added successfully
+        "404":
+          description: Location not found
+        "400":
+          description: Bad Request
+      security:
+        - BearerAuth: []
   /location/{locationId}/images:
     post:
       summary: Upload images to location
@@ -1360,3 +1396,28 @@ paths:
             application/json:
               example:
                 error: An error occurred while registering the user
+  /user/{email}/profile-image:
+    get:
+      summary: Get profile image URL by email
+      description: Retrieves the profile image URL for a specific user by email. Requires
+        authentication.
+      tags:
+        - User Management
+      parameters:
+        - description: Email of the user
+          required: true
+          name: email
+          in: path
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Profile image URL retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileImageResponseDto"
+        "404":
+          description: User not found or no profile image
+      security:
+        - BearerAuth: []

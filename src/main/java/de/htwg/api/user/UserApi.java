@@ -393,4 +393,59 @@ public class UserApi {
                     .build();
         }
     }
+
+    @GET
+    @Path("/{email}/profile-image")
+    @Authenticated
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Get profile image URL by email",
+        description = "Retrieves the profile image URL for a specific user by email. Requires authentication."
+    )
+    @SecurityRequirement(name = "BearerAuth")
+    @APIResponses(value = {
+        @APIResponse(
+            responseCode = "200",
+            description = "Profile image URL retrieved successfully",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = ProfileImageResponseDto.class)
+            )
+        ),
+        @APIResponse(
+            responseCode = "404",
+            description = "User not found or no profile image"
+        )
+    })
+    public Response getProfileImageUrlByEmail(
+        @Parameter(
+            description = "Email of the user",
+            required = true
+        ) @PathParam("email") String email) {
+
+        if (email == null || email.trim().isEmpty()) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"Email is required\"}")
+                    .build();
+        }
+
+        try {
+            String imageUrl = userService.getProfileImageUrl(email);
+            if (imageUrl == null) {
+                return Response.status(Response.Status.NOT_FOUND)
+                        .entity("{\"error\": \"No profile image found for user\"}")
+                        .build();
+            }
+            ProfileImageResponseDto response = new ProfileImageResponseDto(imageUrl);
+            return Response.ok(response).build();
+        } catch (IllegalArgumentException e) {
+            return Response.status(Response.Status.NOT_FOUND)
+                    .entity(e.getMessage())
+                    .build();
+        } catch (Exception e) {
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity("An error occurred while retrieving the profile image")
+                    .build();
+        }
+    }
 }

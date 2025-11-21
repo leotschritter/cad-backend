@@ -12,7 +12,8 @@ public record ItinerarySearchResponseDto(
     LocalDate startDate,
     String shortDescription,
     String detailedDescription,
-    String userName
+    String userName,
+    String userEmail
 ) {
 }
 
