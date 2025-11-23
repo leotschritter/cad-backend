@@ -4,6 +4,7 @@ This Helm chart deploys the Weather Forecast Service along with a PostgreSQL dat
 
 ## Prerequisites
 
+
 - Kubernetes 1.19+
 - Helm 3.0+
 - cert-manager (for TLS certificates in production)
