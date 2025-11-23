@@ -100,20 +100,40 @@ jobs:
           fi
 
 
-      - name: Clean up pre-existing secrets (if not managed by Helm)
+      - name: Clean up pre-existing resources (if not managed by Helm)
         run: |
-          # Check if smt-secret exists and is not managed by Helm
-          if kubectl get secret smtp-secret &>/dev/null; then
-            # Check if it's managed by Helm
-            if ! kubectl get secret smtp-secret -o jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}' | grep -q "Helm"; then
-              echo "Found smtp-secret not managed by Helm, deleting..."
-              kubectl delete secret smtp-secret
+          echo "Checking for non-Helm managed resources..."
+          
+          # Function to check and delete resource if not managed by Helm
+          cleanup_resource() {
+            local resource_type=$1
+            local resource_name=$2
+            
+            if kubectl get $resource_type $resource_name &>/dev/null; then
+              local managed_by=$(kubectl get $resource_type $resource_name -o jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}' 2>/dev/null || echo "")
+              
+              if [ "$managed_by" != "Helm" ]; then
+                echo "Found $resource_type/$resource_name not managed by Helm, deleting..."
+                kubectl delete $resource_type $resource_name
+              else
+                echo "$resource_type/$resource_name is already managed by Helm"
+              fi
             else
-              echo "smtp-secret is already managed by Helm"
+              echo "No pre-existing $resource_type/$resource_name found"
             fi
-          else
-            echo "No pre-existing smtp-secret found"
-          fi
+          }
+          
+          # Clean up all resources that might conflict
+          cleanup_resource "secret" "smtp-secret"
+          cleanup_resource "configmap" "travel-warnings-config"
+          cleanup_resource "pvc" "warnings-postgres-data-pvc"
+          cleanup_resource "service" "warnings-postgres"
+          cleanup_resource "service" "travel-warnings-api"
+          cleanup_resource "deployment" "warnings-postgres"
+          cleanup_resource "deployment" "travel-warnings-api"
+          cleanup_resource "ingress" "travel-warnings-ingress"
+          
+          echo "Cleanup complete!"
 
       - name: Deploy with Helm
         working-directory: ./travel_warnings
