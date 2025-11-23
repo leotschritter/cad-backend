@@ -154,6 +154,9 @@ jobs:
           cleanup_resource "configmap" "travel-warnings-config"
           cleanup_resource "secret" "smtp-secret"
           
+          # 7. Delete certificate resource (the Certificate CR, not cert-manager itself!)
+          cleanup_resource "certificate" "warnings-tls-cert"
+          
           echo "Cleanup complete!"
 
       - name: Deploy with Helm
