@@ -16,9 +16,16 @@ postgres:
   volumeMounts:
     mountPath: /var/lib/postgresql/data
     name: weather-postgres-storage
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
   readinessProbe:
-    initialDelaySeconds: 5
-    periodSeconds: 5
+    initialDelaySeconds: 10
+    periodSeconds: 10
     command: ["sh", "-c", "pg_isready -U weather_user -d weather_forecast"]
 
 postgresPvc:
