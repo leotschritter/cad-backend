@@ -1,7 +1,7 @@
 name: ghcr-and-gcp-weather-forecast.yml
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main" , "feature/wf-helm"]
     tags: [ "v*.*.*" ]
     paths:
       - "weather-forecast-service/**"
@@ -77,37 +77,120 @@ jobs:
       - name: Configure kubectl for GKE
         run: |
           gcloud container clusters get-credentials tripico-cluster --region europe-west1
-
-      # Create or update WFS secret
-      - name: Create/Update WFS Secret
-        run: |
-          kubectl delete secret weather-forecast-secret --ignore-not-found
-          kubectl create secret generic weather-forecast-secret \
-            --from-literal=db-username=weather_user \
-            --from-literal=db-password=weather_pass \
-            --from-literal=meteosource-api-key=${{ secrets.METEOSOURCE_API_KEY }}
           
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
 
-      # Apply any updated manifests
-      - name: Apply Kubernetes Manifests
-        working-directory: ./weather-forecast-service/k8s
+      - name: Install NGINX Ingress Controller (if not exists)
         run: |
-          kubectl apply -f configmap.yaml
-          kubectl apply -f postgres-pvc.yaml
-          kubectl apply -f postgres-deployment.yaml
-          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
-          kubectl apply -f deployment.yaml
-          kubectl apply -f ingress-prod.yaml
-          kubectl apply -f certificate.yaml
+          # Check if ingress-nginx namespace exists
+          if ! kubectl get namespace ingress-nginx &>/dev/null; then
+            echo "Installing NGINX Ingress Controller..."
+            helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+            helm repo update
+            helm install ingress-nginx ingress-nginx/ingress-nginx \
+              --namespace ingress-nginx \
+              --create-namespace \
+              --wait --timeout 5m
+          else
+            echo "NGINX Ingress Controller already installed"
+          fi       
 
-      # Update deployment image dynamically
-      - name: Patch deployment with new image
+      # Cleanup Step - Uncomment if needed (if anything in the cluster is not managed by Helm and must be replaced)
+      # - name: Clean up pre-existing resources (if not managed by Helm)
+      #   run: |
+      #     echo "Checking for non-Helm managed resources..."
+      #
+      #     # Function to check and delete resource if not managed by Helm
+      #     cleanup_resource() {
+      #       local resource_type=$1
+      #       local resource_name=$2
+      #
+      #       if kubectl get $resource_type $resource_name &>/dev/null; then
+      #         local managed_by=$(kubectl get $resource_type $resource_name -o jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}' 2>/dev/null || echo "")
+      #
+      #         if [ "$managed_by" != "Helm" ]; then
+      #           echo "Found $resource_type/$resource_name not managed by Helm, deleting..."
+      #           # Use --wait=false for PVC to avoid hanging, timeout for others
+      #           if [ "$resource_type" == "pvc" ]; then
+      #             kubectl delete $resource_type $resource_name --wait=false --timeout=30s 2>/dev/null || true
+      #           else
+      #             kubectl delete $resource_type $resource_name --timeout=30s 2>/dev/null || true
+      #           fi
+      #           echo "Deleted $resource_type/$resource_name"
+      #         else
+      #           echo "$resource_type/$resource_name is already managed by Helm"
+      #         fi
+      #       else
+      #         echo "No pre-existing $resource_type/$resource_name found"
+      #       fi
+      #     }
+      #
+      #     # Clean up all resources that might conflict
+      #     # IMPORTANT: Delete in correct order to avoid hanging
+      #     # 1. First delete ingress (no dependencies)
+      #     cleanup_resource "ingress" "travel-warnings-ingress"
+      #
+      #     # 2. Delete deployments (this releases PVC mounts)
+      #     cleanup_resource "deployment" "travel-warnings-api"
+      #     cleanup_resource "deployment" "warnings-postgres"
+      #
+      #     # 3. Wait for pods to terminate (important!)
+      #     echo "Waiting for pods to terminate..."
+      #     kubectl wait --for=delete pod -l app=travel-warnings-api --timeout=60s 2>/dev/null || true
+      #     kubectl wait --for=delete pod -l app=warnings-postgres --timeout=60s 2>/dev/null || true
+      #
+      #     # 4. Now safe to delete PVC (no longer mounted)
+      #     cleanup_resource "pvc" "warnings-postgres-data-pvc"
+      #
+      #     # 5. Delete services (no dependencies)
+      #     cleanup_resource "service" "travel-warnings-api"
+      #     cleanup_resource "service" "warnings-postgres"
+      #
+      #     # 6. Delete configmaps and secrets (no dependencies)
+      #     cleanup_resource "configmap" "travel-warnings-config"
+      #     cleanup_resource "secret" "smtp-secret"
+      #
+      #     # 7. Delete certificate resource (the Certificate CR, not cert-manager itself!)
+      #     cleanup_resource "certificate" "warnings-tls-cert"
+      #
+      #     echo "Cleanup complete!"
+
+
+      - name: Deploy with Helm
+        working-directory: ./weather-forecast-service
         run: |
-          kubectl set image deployment/weather-forecast-service weather-forecast-service=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/weather-forecast-service:${{ needs.build-and-push.outputs.image-tag }} --record
+          # Check if release exists
+           if helm list | grep -q "weather-forecast-service"; then
+            echo "Upgrading existing release..."
+            helm upgrade weather-forecast-service ./helm/weather-forecast-service \
+              -f ./helm/weather-forecast-service/values-prod.yaml \
+              --set meteosource.apiKey="${{ secrets.METEOSOURCE_API_KEY }}" \
+              --set weatherForecastApi.image=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/weather-forecast-service:${{ needs.build-and-push.outputs.image-tag }} \
+              --wait --timeout 5m
+          
+          else
+            echo "Installing new release..."
+            helm install weather-forecast-service ./helm/weather-forecast-service \
+              -f ./helm/weather-forecast-service/values-prod.yaml \
+              --set meteosource.apiKey="${{ secrets.METEOSOURCE_API_KEY }}" \
+              --set weatherForecastApi.image=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/weather-forecast-service:${{ needs.build-and-push.outputs.image-tag }} \
+              --create-namespace \
+              --wait --timeout 5m
+          fi          
 
-      - name: Wait for rollout
+      - name: Verify Deployment
         run: |
-          kubectl rollout status deployment/weather-forecast-service --timeout=240s
-
-      - name: Show pod status
-        run: kubectl get pods -o wide
+          echo "=== Helm Release Status ==="
+          helm status weather-forecast-service
+          echo ""
+          echo "=== Pod Status ==="
+          kubectl get pods -l app.kubernetes.io/instance=weather-forecast-service -o wide
+          echo ""
+          echo "=== Service Status ==="
+          kubectl get svc -l app.kubernetes.io/instance=weather-forecast-service
+          echo ""
+          echo "=== Ingress Status ==="
+          kubectl get ingress

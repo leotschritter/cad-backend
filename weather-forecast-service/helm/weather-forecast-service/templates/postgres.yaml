@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.postgres.name }}
+spec:
+  replicas: {{ .Values.postgres.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.postgres.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.postgres.name }}
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.image }}
+          env:
+          - name: POSTGRES_DB
+            value: {{ .Values.postgres.environmentVariables.database }}
+          - name: POSTGRES_USER
+            value: {{ .Values.postgres.environmentVariables.user }}
+          - name: POSTGRES_PASSWORD
+            value: {{ .Values.postgres.environmentVariables.password }}
+          - name: PGDATA
+            value: {{ .Values.postgres.environmentVariables.pgdata }}
+          ports:
+            - containerPort: {{ .Values.postgres.port }}
+          volumeMounts:
+            - mountPath: {{ .Values.postgres.volumeMounts.mountPath }}
+              name: {{ .Values.postgres.volumeMounts.name }}
+          readinessProbe:
+            exec:
+              command: {{ .Values.postgres.readinessProbe.command }}
+            initialDelaySeconds: {{ .Values.postgres.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.postgres.readinessProbe.periodSeconds }}
+      volumes:
+        - name: {{ .Values.postgres.volumeMounts.name }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.postgresPvc.name }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.postgres.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.postgres.name }}
+  ports:
+    - name: postgres
+      port: {{ .Values.postgres.port }}
+      targetPort: {{ .Values.postgres.port }}

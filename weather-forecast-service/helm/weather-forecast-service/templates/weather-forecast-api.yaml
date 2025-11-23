@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.weatherForecastApi.name }}
+spec:
+  replicas: {{ .Values.weatherForecastApi.replicas }}
+  strategy:
+    type: {{ .Values.weatherForecastApi.strategy.type }}
+    {{- if eq .Values.weatherForecastApi.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      maxSurge: {{ .Values.weatherForecastApi.strategy.rollingUpdate.maxSurge }}
+      maxUnavailable: {{ .Values.weatherForecastApi.strategy.rollingUpdate.maxUnavailable }}
+    {{- end }}
+  selector:
+    matchLabels:
+      app: {{ .Values.weatherForecastApi.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.weatherForecastApi.name }}
+    spec:
+      containers:
+        - name: {{ .Values.weatherForecastApi.name }}
+          image: {{ .Values.weatherForecastApi.image }}
+          imagePullPolicy: Always
+          env:
+            # Database configuration from ConfigMap
+            - name: QUARKUS_DATASOURCE_JDBC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.weatherForecastConfig.name }}
+                  key: DB_URL
+
+            # Database credentials from Secret
+            - name: QUARKUS_DATASOURCE_USERNAME
+              value: {{ .Values.postgres.environmentVariables.user }}
+            - name: QUARKUS_DATASOURCE_PASSWORD
+              value: {{ .Values.postgres.environmentVariables.password }}
+
+            # Meteosource API Key from Secret
+            - name: METEOSOURCE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: meteosource-secret
+                  key: METEOSOURCE_API_KEY
+
+            # Meteosource configuration from ConfigMap
+            - name: METEOSOURCE_API_SECTIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.weatherForecastConfig.name }}
+                  key: METEOSOURCE_API_SECTIONS
+            - name: METEOSOURCE_API_LANGUAGE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.weatherForecastConfig.name }}
+                  key: METEOSOURCE_API_LANGUAGE
+            - name: METEOSOURCE_API_UNITS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.weatherForecastConfig.name }}
+                  key: METEOSOURCE_API_UNITS
+
+            # Database connection details
+            - name: DB_HOST
+              value: {{ .Values.postgres.name }}
+            - name: DB_PORT
+              value: {{ .Values.postgres.port | quote }}
+            - name: DB_NAME
+              value: {{ .Values.postgres.environmentVariables.database }}
+            - name: DB_USER
+              value: {{ .Values.postgres.environmentVariables.user }}
+            - name: DB_PASSWORD
+              value: {{ .Values.postgres.environmentVariables.password }}
+
+            # Connection pool settings to prevent exhaustion
+            - name: QUARKUS_DATASOURCE_JDBC_ACQUISITION_TIMEOUT
+              value: {{ .Values.weatherForecastApi.quarkus.acquisitionTimeout | quote }}
+            - name: QUARKUS_DATASOURCE_JDBC_BACKGROUND_VALIDATION_INTERVAL
+              value: {{ .Values.weatherForecastApi.quarkus.backgroundValidationInterval | quote }}
+            - name: QUARKUS_DATASOURCE_JDBC_IDLE_REMOVAL_INTERVAL
+              value: {{ .Values.weatherForecastApi.quarkus.idleRemovalInterval | quote }}
+            - name: QUARKUS_DATASOURCE_JDBC_MAX_LIFETIME
+              value: {{ .Values.weatherForecastApi.quarkus.maxLifetime | quote }}
+
+            # CORS configuration
+            - name: QUARKUS_HTTP_CORS_ORIGINS
+              value: {{ .Values.weatherForecastApi.cors.origins | quote }}
+            - name: QUARKUS_HTTP_CORS_METHODS
+              value: {{ .Values.weatherForecastApi.cors.methods | quote }}
+            - name: QUARKUS_HTTP_CORS_HEADERS
+              value: {{ .Values.weatherForecastApi.cors.headers | quote }}
+            - name: QUARKUS_HTTP_CORS_EXPOSED_HEADERS
+              value: {{ .Values.weatherForecastApi.cors.exposedHeaders | quote }}
+            - name: QUARKUS_HTTP_CORS_ACCESS_CONTROL_ALLOW_CREDENTIALS
+              value: {{ .Values.weatherForecastApi.cors.allowCredentials | quote }}
+
+          resources:
+            requests:
+              memory: {{ .Values.weatherForecastApi.resources.requests.memory }}
+              cpu: {{ .Values.weatherForecastApi.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.weatherForecastApi.resources.limits.memory }}
+              cpu: {{ .Values.weatherForecastApi.resources.limits.cpu }}
+          ports:
+            - containerPort: {{ .Values.weatherForecastApi.port }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.weatherForecastApi.probes.readiness.path }}
+              port: {{ .Values.weatherForecastApi.port }}
+            periodSeconds: {{ .Values.weatherForecastApi.probes.readiness.periodSeconds }}
+            initialDelaySeconds: {{ .Values.weatherForecastApi.probes.readiness.initialDelaySeconds }}
+            failureThreshold: {{ .Values.weatherForecastApi.probes.readiness.failureThreshold }}
+            timeoutSeconds: {{ .Values.weatherForecastApi.probes.readiness.timeoutSeconds }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.weatherForecastApi.probes.liveness.path }}
+              port: {{ .Values.weatherForecastApi.port }}
+            periodSeconds: {{ .Values.weatherForecastApi.probes.liveness.periodSeconds }}
+            initialDelaySeconds: {{ .Values.weatherForecastApi.probes.liveness.initialDelaySeconds }}
+            failureThreshold: {{ .Values.weatherForecastApi.probes.liveness.failureThreshold }}
+            timeoutSeconds: {{ .Values.weatherForecastApi.probes.liveness.timeoutSeconds }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.weatherForecastApi.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.weatherForecastApi.name }}
+  ports:
+    - name: http
+      port: {{ .Values.weatherForecastApi.port }}
+      targetPort: {{ .Values.weatherForecastApi.port }}

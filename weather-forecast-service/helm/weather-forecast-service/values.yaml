@@ -1,0 +1,103 @@
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/part-of: weather-forecast-system
+  app.kubernetes.io/managed-by: helm
+
+postgres:
+  name: weather-postgres
+  image: postgres:15-alpine
+  port: 5432
+  replicas: 1
+  environmentVariables:
+    database: weather_forecast
+    user: weather_user
+    password: weather_pass
+    pgdata: /var/lib/postgresql/data/pgdata
+  volumeMounts:
+    mountPath: /var/lib/postgresql/data
+    name: weather-postgres-storage
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    command: ["sh", "-c", "pg_isready -U weather_user -d weather_forecast"]
+
+postgresPvc:
+  name: weather-postgres-data-pvc
+  storage: 5Gi
+
+weatherForecastApi:
+  name: weather-forecast-service
+  image: ghcr.io/leotschritter/weather-forecast-service:latest
+  port: 8080
+  replicas: 1
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+  cors:
+    origins: "*"
+    methods: "GET,POST,PUT,DELETE,OPTIONS,HEAD,PATCH"
+    headers: "accept,authorization,content-type,x-requested-with,origin"
+    exposedHeaders: "Content-Disposition"
+    allowCredentials: "true"
+
+  quarkus:
+    acquisitionTimeout: "10"
+    backgroundValidationInterval: "2M"
+    idleRemovalInterval: "5M"
+    maxLifetime: "30M"
+
+  probes:
+    readiness:
+      path: /q/health/ready
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
+    liveness:
+      path: /q/health/live
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+
+meteosource:
+  # Meteosource API Key - should be provided via --set or separate values file
+  apiKey: ""  # Set via: --set meteosource.apiKey=your-api-key
+
+weatherForecastConfig:
+  name: weather-forecast-config
+  meteosource:
+    sections: "daily,hourly"
+    language: "en"
+    units: "metric"
+  db:
+    url: "jdbc:postgresql://weather-postgres:5432/weather_forecast"
+
+ingress:
+  name: weather-forecast-ingress
+  enabled: true
+  useProd: false  # Set to true for production deployment
+  prod:
+    host: weather.tripico.fun
+    tlsSecretName: weather-tls
+    sslRedirect: "true"
+    forceSslRedirect: "true"
+  dev:
+    host: weather-forecast.local
+
+certificate:
+  name: weather-tls-cert
+  secretName: weather-tls
+  issuerName: letsencrypt-prod
