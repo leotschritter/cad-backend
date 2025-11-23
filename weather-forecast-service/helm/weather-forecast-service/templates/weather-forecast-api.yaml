@@ -104,6 +104,14 @@ spec:
               cpu: {{ .Values.weatherForecastApi.resources.limits.cpu }}
           ports:
             - containerPort: {{ .Values.weatherForecastApi.port }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.weatherForecastApi.probes.startup.path }}
+              port: {{ .Values.weatherForecastApi.port }}
+            periodSeconds: {{ .Values.weatherForecastApi.probes.startup.periodSeconds }}
+            initialDelaySeconds: {{ .Values.weatherForecastApi.probes.startup.initialDelaySeconds }}
+            failureThreshold: {{ .Values.weatherForecastApi.probes.startup.failureThreshold }}
+            timeoutSeconds: {{ .Values.weatherForecastApi.probes.startup.timeoutSeconds }}
           readinessProbe:
             httpGet:
               path: {{ .Values.weatherForecastApi.probes.readiness.path }}
