@@ -39,6 +39,7 @@ make install-prod METEOSOURCE_API_KEY=your_key
 # Upgrade
 make upgrade
 
+
 # View status
 make status
 
