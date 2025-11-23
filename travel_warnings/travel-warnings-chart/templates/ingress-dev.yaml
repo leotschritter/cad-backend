@@ -1,19 +1,19 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: travel-warnings-ingress
+  name: {{ .Values.ingress.name }}
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$1
 spec:
   ingressClassName: nginx
   rules:
-    - host: travel-warnings.local
+    - host: {{ .Values.ingress.dev.host }}
       http:
         paths:
           - path: /(.*)
             pathType: ImplementationSpecific
             backend:
               service:
-                name: travel-warnings-api
+                name: {{ .Values.travelWarningsApi.name }}
                 port:
-                  number: 8080
+                  number: {{ .Values.travelWarningsApi.port }}

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.travelWarningsConfig.name }}
+data:
+  SMTP_FROM: {{ .Values.travelWarningsConfig.smtp.from | quote }}
+  SMTP_HOST: {{ .Values.travelWarningsConfig.smtp.host | quote }}
+  SMTP_PORT: {{ .Values.travelWarningsConfig.smtp.port | quote }}
+  SMTP_START_TLS: {{ .Values.travelWarningsConfig.smtp.startTls | quote }}
+  DB_URL: {{ .Values.travelWarningsConfig.db.url | quote }}
