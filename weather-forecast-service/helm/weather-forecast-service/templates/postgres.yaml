@@ -29,6 +29,13 @@ spec:
           volumeMounts:
             - mountPath: {{ .Values.postgres.volumeMounts.mountPath }}
               name: {{ .Values.postgres.volumeMounts.name }}
+          resources:
+            requests:
+              memory: {{ .Values.postgres.resources.requests.memory }}
+              cpu: {{ .Values.postgres.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.postgres.resources.limits.memory }}
+              cpu: {{ .Values.postgres.resources.limits.cpu }}
           readinessProbe:
             exec:
               command: {{ .Values.postgres.readinessProbe.command }}
