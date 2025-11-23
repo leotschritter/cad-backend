@@ -105,6 +105,8 @@ components:
           type: string
         userName:
           type: string
+        userEmail:
+          type: string
     LikeDto:
       type: object
       properties:
@@ -146,6 +148,12 @@ components:
           type: string
         description:
           type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
         fromDate:
           $ref: "#/components/schemas/LocalDate"
         toDate:
@@ -921,6 +929,12 @@ paths:
                   $ref: "#/components/schemas/LocalDate"
                 toDate:
                   $ref: "#/components/schemas/LocalDate"
+                latitude:
+                  type: number
+                  format: double
+                longitude:
+                  type: number
+                  format: double
                 files:
                   type: array
                   items:

@@ -108,6 +108,18 @@ public class WeatherForecastService {
         return weatherForecastRepository.listAll();
     }
 
+    @Transactional
+    public int deleteWeatherForecastByLocation(String location) {
+        List<WeatherForecast> forecasts = weatherForecastRepository.findByLocation(location);
+
+        if (forecasts.isEmpty()) {
+            return 0;
+        }
+
+        forecasts.forEach(weatherForecastRepository::delete);
+        return forecasts.size();
+    }
+
     private DailyForecast mapToDailyForecast(
             MeteoSourceResponse.DailyForecastData data,
             WeatherForecast weatherForecast) {
