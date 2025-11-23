@@ -99,6 +99,23 @@ jobs:
             echo "NGINX Ingress Controller already installed"
           fi
 
+
+      - name: Clean up pre-existing secrets (if not managed by Helm)
+        run: |
+          # Check if smt
+          -secret exists and is not managed by Helm
+          if kubectl get secret smtp-secret &>/dev/null; then
+            # Check if it's managed by Helm
+            if ! kubectl get secret smtp-secret -o jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}' | grep -q "Helm"; then
+              echo "Found smtp-secret not managed by Helm, deleting..."
+              kubectl delete secret smtp-secret
+            else
+              echo "smtp-secret is already managed by Helm"
+            fi
+          else
+            echo "No pre-existing smtp-secret found"
+          fi
+
       - name: Deploy with Helm
         working-directory: ./travel_warnings
         run: |
