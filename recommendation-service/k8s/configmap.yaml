@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: recommendation-service-config
+data:
+  neo4j-uri: "bolt://neo4j-service:7687"
+  itinerary-service-url: "http://itinerary-service:8080"
+

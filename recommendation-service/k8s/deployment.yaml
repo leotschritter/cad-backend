@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommendation-service
+  labels:
+    app: recommendation-service
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: recommendation-service
+  template:
+    metadata:
+      labels:
+        app: recommendation-service
+        version: v1
+    spec:
+      containers:
+        - name: recommendation-service
+          image: gcr.io/PROJECT_ID/recommendation-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8083
+              name: http
+          env:
+            - name: NEO4J_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: recommendation-service-config
+                  key: neo4j-uri
+            - name: NEO4J_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-secret
+                  key: username
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-secret
+                  key: password
+            - name: ITINERARY_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: recommendation-service-config
+                  key: itinerary-service-url
+            - name: FIREBASE_CREDENTIALS_PATH
+              value: /etc/firebase/credentials.json
+          volumeMounts:
+            - name: firebase-credentials
+              mountPath: /etc/firebase
+              readOnly: true
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8083
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8083
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: firebase-credentials
+          secret:
+            secretName: firebase-credentials
+
