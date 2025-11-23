@@ -99,42 +99,6 @@ jobs:
             echo "NGINX Ingress Controller already installed"
           fi
 
-      - name: Install cert-manager (if not exists)
-        run: |
-          # Check if cert-manager namespace exists
-          if ! kubectl get namespace cert-manager &>/dev/null; then
-            echo "Installing cert-manager..."
-            helm repo add jetstack https://charts.jetstack.io
-            helm repo update
-            helm install cert-manager jetstack/cert-manager \
-              --namespace cert-manager \
-              --create-namespace \
-              --version v1.13.0 \
-              --set installCRDs=true \
-              --wait --timeout 5m
-            
-            # Create ClusterIssuer for Let's Encrypt
-            echo "Creating Let's Encrypt ClusterIssuer..."
-            kubectl apply -f - <<EOF
-            apiVersion: cert-manager.io/v1
-            kind: ClusterIssuer
-            metadata:
-              name: letsencrypt-prod
-            spec:
-              acme:
-                server: https://acme-v02.api.letsencrypt.org/directory
-                email: ${{ secrets.LETSENCRYPT_EMAIL }}
-                privateKeySecretRef:
-                  name: letsencrypt-prod
-                solvers:
-                - http01:
-                    ingress:
-                      class: nginx
-            EOF
-          else
-            echo "cert-manager already installed"
-          fi
-
       - name: Deploy with Helm
         working-directory: ./travel_warnings
         run: |
