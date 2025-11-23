@@ -95,6 +95,8 @@ travelWarningsConfig:
 
 ingress:
   name: travel-warnings-ingress
+  enabled: true
+  useProd: false  # Set to true for production deployment
   prod:
     host: warnings.tripico.fun
     tlsSecretName: warnings-tls

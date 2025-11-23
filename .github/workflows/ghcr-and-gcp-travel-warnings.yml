@@ -2,7 +2,7 @@ name: Build Docker Image and Deploy to GCP/GHCR for Travel Warnings Microservice
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "feature/exercise8-leo" ]
     tags: [ "v*.*.*" ]
     paths:
       - "travel_warnings/**"
@@ -79,34 +79,95 @@ jobs:
         run: |
           gcloud container clusters get-credentials tripico-cluster --region europe-west1
 
-      # Create or update SMTP secret
-      - name: Create/Update SMTP Secret
-        run: |
-          kubectl delete secret smtp-secret --ignore-not-found
-          kubectl create secret generic smtp-secret \
-            --from-literal=SMTP_USER="${{ secrets.SMTP_USER }}" \
-            --from-literal=SMTP_PASSWORD="${{ secrets.SMTP_PASSWORD }}"
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
 
-      # Apply any updated manifests
-      - name: Apply Kubernetes Manifests
-        working-directory: ./travel_warnings/k8s
+      - name: Install NGINX Ingress Controller (if not exists)
         run: |
-          kubectl apply -f app-config.yaml
-          kubectl apply -f postgres-pvc.yaml
-          kubectl apply -f postgres.yaml
-          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml
-          kubectl apply -f travel-warnings-api.yaml
-          kubectl apply -f ingress-prod.yaml
-          kubectl apply -f certificate.yaml
+          # Check if ingress-nginx namespace exists
+          if ! kubectl get namespace ingress-nginx &>/dev/null; then
+            echo "Installing NGINX Ingress Controller..."
+            helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+            helm repo update
+            helm install ingress-nginx ingress-nginx/ingress-nginx \
+              --namespace ingress-nginx \
+              --create-namespace \
+              --wait --timeout 5m
+          else
+            echo "NGINX Ingress Controller already installed"
+          fi
 
-      # Update deployment image dynamically
-      - name: Patch deployment with new image
+      - name: Install cert-manager (if not exists)
         run: |
-          kubectl set image deployment/travel-warnings-api travel-warnings-api=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-warnings:${{ needs.build-and-push.outputs.image-tag }} --record
+          # Check if cert-manager namespace exists
+          if ! kubectl get namespace cert-manager &>/dev/null; then
+            echo "Installing cert-manager..."
+            helm repo add jetstack https://charts.jetstack.io
+            helm repo update
+            helm install cert-manager jetstack/cert-manager \
+              --namespace cert-manager \
+              --create-namespace \
+              --version v1.13.0 \
+              --set installCRDs=true \
+              --wait --timeout 5m
+            
+            # Create ClusterIssuer for Let's Encrypt
+            echo "Creating Let's Encrypt ClusterIssuer..."
+            kubectl apply -f - <<EOF
+            apiVersion: cert-manager.io/v1
+            kind: ClusterIssuer
+            metadata:
+              name: letsencrypt-prod
+            spec:
+              acme:
+                server: https://acme-v02.api.letsencrypt.org/directory
+                email: ${{ secrets.LETSENCRYPT_EMAIL }}
+                privateKeySecretRef:
+                  name: letsencrypt-prod
+                solvers:
+                - http01:
+                    ingress:
+                      class: nginx
+            EOF
+          else
+            echo "cert-manager already installed"
+          fi
 
-      - name: Wait for rollout
+      - name: Deploy with Helm
+        working-directory: ./travel_warnings
         run: |
-          kubectl rollout status deployment/travel-warnings-api --timeout=240s
+          # Check if release exists
+          if helm list | grep -q "^travel-warnings"; then
+            echo "Upgrading existing release..."
+            helm upgrade travel-warnings ./travel-warnings-chart \
+              -f ./travel-warnings-chart/values-prod.yaml \
+              --set smtp.user="${{ secrets.SMTP_USER }}" \
+              --set smtp.password="${{ secrets.SMTP_PASSWORD }}" \
+              --set travelWarningsApi.image=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-warnings:${{ needs.build-and-push.outputs.image-tag }} \
+              --wait --timeout 5m
+          else
+            echo "Installing new release..."
+            helm install travel-warnings ./travel-warnings-chart \
+              -f ./travel-warnings-chart/values-prod.yaml \
+              --set smtp.user="${{ secrets.SMTP_USER }}" \
+              --set smtp.password="${{ secrets.SMTP_PASSWORD }}" \
+              --set travelWarningsApi.image=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-warnings:${{ needs.build-and-push.outputs.image-tag }} \
+              --create-namespace \
+              --wait --timeout 5m
+          fi
 
-      - name: Show pod status
-        run: kubectl get pods -o wide
+      - name: Verify Deployment
+        run: |
+          echo "=== Helm Release Status ==="
+          helm status travel-warnings
+          echo ""
+          echo "=== Pod Status ==="
+          kubectl get pods -l app.kubernetes.io/instance=travel-warnings -o wide
+          echo ""
+          echo "=== Service Status ==="
+          kubectl get svc -l app.kubernetes.io/instance=travel-warnings
+          echo ""
+          echo "=== Ingress Status ==="
+          kubectl get ingress

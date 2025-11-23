@@ -23,5 +23,3 @@
 .vscode/
 
 templates/deploy-local.sh
-templates/ingress-prod.yaml
-templates/certificate.yaml
