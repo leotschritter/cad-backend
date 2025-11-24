@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: warnings-postgres-data-pvc
+  name: {{ .Values.postgresPvc.name }}
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 4Gi
+      storage: {{ .Values.postgresPvc.storage }}
