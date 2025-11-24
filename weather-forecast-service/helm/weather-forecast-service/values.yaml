@@ -21,7 +21,6 @@ postgres:
     periodSeconds: 10
     timeoutSeconds: 5
     failureThreshold: 6
-    command: ["sh", "-c", "pg_isready -U weather_user -d weather_forecast"]
 
 postgresPvc:
   name: weather-postgres-data-pvc

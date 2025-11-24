@@ -31,9 +31,14 @@ spec:
               name: {{ .Values.postgres.volumeMounts.name }}
           readinessProbe:
             exec:
-              command: {{ .Values.postgres.readinessProbe.command }}
+              command:
+                - sh
+                - -c
+                - pg_isready -U {{ .Values.postgres.environmentVariables.user }} -d {{ .Values.postgres.environmentVariables.database }}
             initialDelaySeconds: {{ .Values.postgres.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.postgres.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.postgres.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.postgres.readinessProbe.failureThreshold }}
       volumes:
         - name: {{ .Values.postgres.volumeMounts.name }}
           persistentVolumeClaim:
