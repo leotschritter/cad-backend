@@ -24,6 +24,10 @@ public class Location {
 
     private String description;
 
+    private Double latitude;
+
+    private Double longitude;
+
     private LocalDate fromDate;
 
     private LocalDate toDate;

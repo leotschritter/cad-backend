@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.weatherForecastConfig.name }}
+data:
+  # Database URL
+  DB_URL: {{ .Values.weatherForecastConfig.db.url | quote }}
+
+  # Meteosource API Configuration
+  METEOSOURCE_API_SECTIONS: {{ .Values.weatherForecastConfig.meteosource.sections | quote }}
+  METEOSOURCE_API_LANGUAGE: {{ .Values.weatherForecastConfig.meteosource.language | quote }}
+  METEOSOURCE_API_UNITS: {{ .Values.weatherForecastConfig.meteosource.units | quote }}

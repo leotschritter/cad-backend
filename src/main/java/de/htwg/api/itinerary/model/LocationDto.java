@@ -12,6 +12,8 @@ public record LocationDto(
     Long id,
     String name,
     String description,
+    Double latitude,
+    Double longitude,
     LocalDate fromDate,
     LocalDate toDate,
     List<String> imageUrls,

@@ -100,6 +100,8 @@ public class LocationApi {
         @FormParam("description") String description,
         @FormParam("fromDate") LocalDate fromDate,
         @FormParam("toDate") LocalDate toDate,
+        @FormParam("latitude") Double latitude,
+        @FormParam("longitude") Double longitude,
         @Parameter(
             description = "Image files to upload (optional - can be omitted)"
         ) @FormParam("files") List<FileUpload> files,
@@ -165,6 +167,8 @@ public class LocationApi {
             LocationDto locationDto = LocationDto.builder()
                     .name(name)
                     .description(description)
+                    .latitude(latitude)
+                    .longitude(longitude)
                     .fromDate(fromDate)
                     .toDate(toDate)
                     .imageUrls(imageFileNames)
@@ -331,6 +335,8 @@ public class LocationApi {
                                 .id(location.id())
                                 .name(location.name())
                                 .description(location.description())
+                                .latitude(location.latitude())
+                                .longitude(location.longitude())
                                 .fromDate(location.fromDate())
                                 .toDate(location.toDate())
                                 .imageUrls(signedUrls)
@@ -414,6 +420,8 @@ public class LocationApi {
                     .id(location.id())
                     .name(location.name())
                     .description(location.description())
+                    .latitude(location.latitude())
+                    .longitude(location.longitude())
                     .fromDate(location.fromDate())
                     .toDate(location.toDate())
                     .imageUrls(signedUrls)

@@ -1,0 +1,43 @@
+# Production Environment Values
+# Use this for production deployment on GCP/GKE
+
+# Use production ingress with TLS
+ingress:
+  enabled: true
+  useProd: true
+
+# Higher availability and resources for production
+weatherForecastApi:
+  replicas: 2
+  image: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/weather-forecast-service:latest
+
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+  # Production-grade health checks
+  probes:
+    readiness:
+      path: /q/health/ready
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
+    liveness:
+      path: /q/health/live
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+
+# Use in-cluster postgres (or configure external DB)
+postgres:
+  replicas: 1
+
+# Meteosource API Key should be provided via --set
+meteosource:
+  apiKey: ""  # Set via --set meteosource.apiKey=XXX
