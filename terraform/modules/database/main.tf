@@ -15,7 +15,10 @@ resource "random_password" "db_password" {
 }
 
 locals {
-  db_password_value = var.db_password != null ? var.db_password : random_password.db_password[0].result
+  # Make sure both branches of the conditional return a sensitive value so
+  # Terraform does not attempt to mix marked and unmarked values during
+  # expression evaluation (which can cause a crash in some TF versions).
+  db_password_value = var.db_password != null ? var.db_password : sensitive(random_password.db_password[0].result)
 }
 
 # Store database password in Secret Manager
