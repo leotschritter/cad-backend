@@ -1,6 +1,7 @@
 package de.htwg.security;
 
 import com.google.firebase.auth.FirebaseToken;
+import de.htwg.filter.AuthorizationHeaderHolder;
 import jakarta.annotation.Priority;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Priorities;
@@ -33,6 +34,9 @@ public class AuthenticationFilter implements ContainerRequestFilter {
 
     @Inject
     SecurityContext securityContext;
+
+    @Inject
+    AuthorizationHeaderHolder authorizationHeaderHolder;
 
     @Override
     public void filter(ContainerRequestContext requestContext) {
@@ -89,6 +93,10 @@ public class AuthenticationFilter implements ContainerRequestFilter {
                 .build();
 
         securityContext.setCurrentUser(user);
+
+        // Store the authorization header for forwarding to other services
+        authorizationHeaderHolder.setAuthorizationHeader(authHeader);
+
         LOG.debug("Request authenticated for user: " + user.getEmail());
     }
 

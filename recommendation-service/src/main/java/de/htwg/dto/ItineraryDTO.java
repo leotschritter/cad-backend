@@ -9,26 +9,25 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 
 /**
- * DTO for a feed item representing an itinerary recommendation.
- * Exactly matches the structure of ItineraryDto from the Itinerary Service
- * so frontend can reuse the same components.
+ * DTO representing an itinerary from the Itinerary Service.
+ * Matches the structure of ItineraryDto from the itinerary service.
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class FeedItemDTO {
+public class ItineraryDTO {
     
     private Long id;
     private String title;
     private String destination;
-
+    
     @JsonProperty("startDate")
     private LocalDate startDate;
-
+    
     @JsonProperty("shortDescription")
     private String shortDescription;
-
+    
     @JsonProperty("detailedDescription")
     private String detailedDescription;
 }
