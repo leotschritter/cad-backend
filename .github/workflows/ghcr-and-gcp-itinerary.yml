@@ -263,6 +263,35 @@ jobs:
             sleep 5
           fi
 
+      - name: Remove legacy cert-manager Roles and RoleBindings across all namespaces
+        run: |
+          if helm list --namespace cert-manager | grep -q "^cert-manager"; then
+            echo "Helm already manages cert-manager; skipping namespace cleanup"
+          else
+            echo "Deleting cert-manager Roles and RoleBindings across all namespaces..."
+
+            # Get all namespaces and clean up cert-manager resources
+            for ns in $(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}'); do
+              echo "Checking namespace: $ns"
+
+              # Delete Roles
+              ROLES=$(kubectl get role -n "$ns" -o name 2>/dev/null | grep cert-manager || true)
+              if [ -n "$ROLES" ]; then
+                echo "  Deleting Roles in $ns: $ROLES"
+                echo "$ROLES" | xargs kubectl delete -n "$ns" --ignore-not-found || true
+              fi
+
+              # Delete RoleBindings
+              ROLEBINDINGS=$(kubectl get rolebinding -n "$ns" -o name 2>/dev/null | grep cert-manager || true)
+              if [ -n "$ROLEBINDINGS" ]; then
+                echo "  Deleting RoleBindings in $ns: $ROLEBINDINGS"
+                echo "$ROLEBINDINGS" | xargs kubectl delete -n "$ns" --ignore-not-found || true
+              fi
+            done
+
+            echo "Namespace cleanup complete"
+          fi
+
       - name: Create or Update cert-manager (if not exists)
         working-directory: ./kubernetes
         run: |
