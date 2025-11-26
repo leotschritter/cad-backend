@@ -11,6 +11,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
 
@@ -20,10 +21,11 @@ import org.jboss.logging.Logger;
  * in the Neo4j graph database for recommendation purposes.
  * All endpoints require authentication via Google Cloud Identity Platform.
  */
-@Path("/api/v1/graph")
+@Path("/graph")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Graph", description = "Graph database management for recommendations")
+@SecurityRequirement(name = "BearerAuth")
 @Authenticated
 public class GraphResource {
 

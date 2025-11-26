@@ -134,7 +134,7 @@ public class RecommendationService {
                 MATCH (u:User {id: $userId})
                 WHERE (u)-[:LIKES]->(i) OR (u)-[:CREATED]->(i)
             }
-            WITH i, SIZE((i)<-[:LIKES]-()) as likesCount
+            WITH i, size([(i)<-[:LIKES]-() | 1]) as likesCount
             WHERE likesCount > 0
             RETURN i.id as itineraryId,
                    likesCount
@@ -145,23 +145,27 @@ public class RecommendationService {
 
         List<Map<String, Object>> results = new ArrayList<>();
         try (Session session = neo4jDriver.session()) {
-            Result result = session.readTransaction(tx -> {
+            results = session.readTransaction(tx -> {
                 Map<String, Object> params = new HashMap<>();
                 params.put("userId", userId);
                 params.put("skip", page * count);
                 params.put("limit", count);
-                return tx.run(cypher, params);
-            });
 
-            while (result.hasNext()) {
-                Record record = result.next();
-                Map<String, Object> item = new HashMap<>();
-                item.put("itineraryId", record.get("itineraryId").asLong());
-                item.put("likesCount", record.get("likesCount").asInt(0));
-                item.put("matchReason", "Hot & Trending");
-                item.put("relevanceScore", (double) record.get("likesCount").asInt(0));
-                results.add(item);
-            }
+                Result result = tx.run(cypher, params);
+                List<Map<String, Object>> items = new ArrayList<>();
+
+                while (result.hasNext()) {
+                    Record record = result.next();
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("itineraryId", record.get("itineraryId").asLong());
+                    item.put("likesCount", record.get("likesCount").asInt(0));
+                    item.put("matchReason", "Hot & Trending");
+                    item.put("relevanceScore", (double) record.get("likesCount").asInt(0));
+                    items.add(item);
+                }
+
+                return items;
+            });
         } catch (Exception e) {
             LOG.errorf(e, "Error getting trending itineraries");
         }
@@ -233,7 +237,7 @@ public class RecommendationService {
             MATCH (other)-[:LIKES]->(recommendation:Itinerary)
             WHERE NOT (u)-[:LIKES]->(recommendation)
             WITH recommendation, COUNT(DISTINCT other) as commonUsers, 
-                 SIZE((recommendation)<-[:LIKES]-()) as totalLikes
+                 size([(recommendation)<-[:LIKES]-() | 1]) as totalLikes
             RETURN recommendation.id as itineraryId,
                    totalLikes,
                    commonUsers,
@@ -244,23 +248,28 @@ public class RecommendationService {
             """;
         List<Map<String, Object>> results = new ArrayList<>();
         try (Session session = neo4jDriver.session()) {
-            Result result = session.readTransaction(tx -> {
+            results = session.readTransaction(tx -> {
                 Map<String, Object> params = new HashMap<>();
                 params.put("userId", userId);
                 params.put("skip", page * pageSize);
                 params.put("limit", pageSize);
-                return tx.run(cypher, params);
+
+                Result result = tx.run(cypher, params);
+                List<Map<String, Object>> items = new ArrayList<>();
+
+                while (result.hasNext()) {
+                    Record record = result.next();
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("itineraryId", record.get("itineraryId").asLong());
+                    item.put("likesCount", record.get("totalLikes").asInt(0));
+                    item.put("matchReason", String.format("Liked by %d users with similar taste",
+                            record.get("commonUsers").asInt(0)));
+                    item.put("relevanceScore", record.get("relevanceScore").asDouble(0.0));
+                    items.add(item);
+                }
+
+                return items;
             });
-            while (result.hasNext()) {
-                Record record = result.next();
-                Map<String, Object> item = new HashMap<>();
-                item.put("itineraryId", record.get("itineraryId").asLong());
-                item.put("likesCount", record.get("totalLikes").asInt(0));
-                item.put("matchReason", String.format("Liked by %d users with similar taste",
-                        record.get("commonUsers").asInt(0)));
-                item.put("relevanceScore", record.get("relevanceScore").asDouble(0.0));
-                results.add(item);
-            }
         } catch (Exception e) {
             LOG.errorf(e, "Error getting collaborative filtering recommendations for user %s", userId);
         }
@@ -272,9 +281,9 @@ public class RecommendationService {
             MATCH (u:User {id: $userId})-[:VISITED]->(loc:Location)<-[:INCLUDES]-(i:Itinerary)
             WHERE NOT (u)-[:LIKES]->(i) AND NOT (u)-[:CREATED]->(i)
             WITH i, COUNT(DISTINCT loc) as commonLocations,
-                 SIZE((i)<-[:LIKES]-()) as totalLikes
+                 size([(i)<-[:LIKES]-() | 1]) as totalLikes
             OPTIONAL MATCH (i)-[:INCLUDES]->(location:Location)
-            WITH i, commonLocations, totalLikes, 
+            WITH i, commonLocations, totalLikes,
                  COLLECT(DISTINCT location.name) as locations
             RETURN i.id as itineraryId,
                    totalLikes,
@@ -287,25 +296,30 @@ public class RecommendationService {
             """;
         List<Map<String, Object>> results = new ArrayList<>();
         try (Session session = neo4jDriver.session()) {
-            Result result = session.readTransaction(tx -> {
+            results = session.readTransaction(tx -> {
                 Map<String, Object> params = new HashMap<>();
                 params.put("userId", userId);
                 params.put("skip", page * pageSize);
                 params.put("limit", pageSize);
-                return tx.run(cypher, params);
+
+                Result result = tx.run(cypher, params);
+                List<Map<String, Object>> items = new ArrayList<>();
+
+                while (result.hasNext()) {
+                    Record record = result.next();
+                    List<String> locations = record.get("locations").asList(v -> v.asString());
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("itineraryId", record.get("itineraryId").asLong());
+                    item.put("likesCount", record.get("totalLikes").asInt(0));
+                    item.put("matchReason", String.format("Includes %d location(s) you visited: %s",
+                            record.get("commonLocations").asInt(0),
+                            locations.stream().limit(2).collect(Collectors.joining(", "))));
+                    item.put("relevanceScore", record.get("relevanceScore").asDouble(0.0));
+                    items.add(item);
+                }
+
+                return items;
             });
-            while (result.hasNext()) {
-                Record record = result.next();
-                List<String> locations = record.get("locations").asList(v -> v.asString());
-                Map<String, Object> item = new HashMap<>();
-                item.put("itineraryId", record.get("itineraryId").asLong());
-                item.put("likesCount", record.get("totalLikes").asInt(0));
-                item.put("matchReason", String.format("Includes %d location(s) you visited: %s",
-                        record.get("commonLocations").asInt(0),
-                        locations.stream().limit(2).collect(Collectors.joining(", "))));
-                item.put("relevanceScore", record.get("relevanceScore").asDouble(0.0));
-                results.add(item);
-            }
         } catch (Exception e) {
             LOG.errorf(e, "Error getting location-based recommendations for user %s", userId);
         }
@@ -337,7 +351,7 @@ public class RecommendationService {
         LOG.debugf("Getting popular itineraries, page: %d, pageSize: %d", page, pageSize);
         String cypher = """
             MATCH (i:Itinerary)
-            WITH i, SIZE((i)<-[:LIKES]-()) as likesCount
+            WITH i, size([(i)<-[:LIKES]-() | 1]) as likesCount
             WHERE likesCount > 0
             RETURN i.id as itineraryId,
                    likesCount
@@ -347,21 +361,26 @@ public class RecommendationService {
             """;
         List<Map<String, Object>> results = new ArrayList<>();
         try (Session session = neo4jDriver.session()) {
-            Result result = session.readTransaction(tx -> {
+            results = session.readTransaction(tx -> {
                 Map<String, Object> params = new HashMap<>();
                 params.put("skip", page * pageSize);
                 params.put("limit", pageSize);
-                return tx.run(cypher, params);
+
+                Result result = tx.run(cypher, params);
+                List<Map<String, Object>> items = new ArrayList<>();
+
+                while (result.hasNext()) {
+                    Record record = result.next();
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("itineraryId", record.get("itineraryId").asLong());
+                    item.put("likesCount", record.get("likesCount").asInt(0));
+                    item.put("matchReason", "Popular itinerary");
+                    item.put("relevanceScore", (double) record.get("likesCount").asInt(0));
+                    items.add(item);
+                }
+
+                return items;
             });
-            while (result.hasNext()) {
-                Record record = result.next();
-                Map<String, Object> item = new HashMap<>();
-                item.put("itineraryId", record.get("itineraryId").asLong());
-                item.put("likesCount", record.get("likesCount").asInt(0));
-                item.put("matchReason", "Popular itinerary");
-                item.put("relevanceScore", (double) record.get("likesCount").asInt(0));
-                results.add(item);
-            }
         } catch (Exception e) {
             LOG.errorf(e, "Error getting popular itineraries");
         }

@@ -10,6 +10,7 @@ import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.parameters.Parameter;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.jboss.logging.Logger;
 
@@ -18,10 +19,11 @@ import org.jboss.logging.Logger;
  * Implements the Personalized Live Feed Epic user stories.
  * All endpoints require authentication via Google Cloud Identity Platform.
  */
-@Path("/api/v1/feed")
+@Path("/feed")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Feed", description = "Personalized travel feed recommendations")
+@SecurityRequirement(name = "BearerAuth")
 @Authenticated
 public class FeedResource {
 
