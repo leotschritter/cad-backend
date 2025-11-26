@@ -4,12 +4,13 @@ metadata:
   name: recommendation-service
   labels:
     app: recommendation-service
+    service: recommendation
 spec:
   type: ClusterIP
   ports:
-    - port: 8083
-      targetPort: 8083
-      protocol: TCP
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
       name: http
   selector:
     app: recommendation-service

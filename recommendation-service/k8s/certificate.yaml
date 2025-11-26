@@ -1,0 +1,13 @@
+apiVersion: cert-manager.io/v1
+    - recommendation.tripico.fun
+  dnsNames:
+    kind: ClusterIssuer
+    name: letsencrypt-prod
+  issuerRef:
+  secretName: recommendation-tls
+spec:
+  namespace: default
+  name: recommendation-tls-cert
+metadata:
+kind: Certificate
+

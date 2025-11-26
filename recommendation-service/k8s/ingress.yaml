@@ -1,25 +1,30 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: recommendation-service-ingress
+  name: recommendation-ingress
   annotations:
-    kubernetes.io/ingress.class: "nginx"
+    # Cert-manager annotation to automatically provision TLS certificate
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Force HTTPS redirect
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Enable HTTPS
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
+  ingressClassName: nginx
   tls:
     - hosts:
-        - api.yourdomain.com
-      secretName: recommendation-service-tls
+        - recommendation.tripico.fun
+      secretName: recommendation-tls
   rules:
-    - host: api.yourdomain.com
+    # Domain-based routing (primary)
+    - host: "recommendation.tripico.fun"
       http:
         paths:
-          - path: /api/v1/feed
-            pathType: Prefix
+          - pathType: Prefix
+            path: "/"
             backend:
               service:
                 name: recommendation-service
                 port:
-                  number: 8083
+                  number: 8080
 
