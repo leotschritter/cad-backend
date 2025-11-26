@@ -2,7 +2,7 @@ name: Docker push to GHCR, GCP Artifact Registry and deploy Backend Infrastructu
 
 on:
   push:
-    branches: [ "main", "feature/exercise8-leo" ]
+    branches: [ "main", "feature/exercise8-leo", "feature/itinerary-service-helm" ]
     tags: [ 'v*.*.*' ]
     paths:
       - 'kubernetes/**'
