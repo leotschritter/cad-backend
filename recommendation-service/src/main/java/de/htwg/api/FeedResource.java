@@ -1,6 +1,7 @@
 package de.htwg.api;
 
 import de.htwg.dto.FeedResponseDTO;
+import de.htwg.security.Authenticated;
 import de.htwg.service.RecommendationService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -15,11 +16,13 @@ import org.jboss.logging.Logger;
 /**
  * REST API for personalized travel feed recommendations.
  * Implements the Personalized Live Feed Epic user stories.
+ * All endpoints require authentication via Google Cloud Identity Platform.
  */
 @Path("/api/v1/feed")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Tag(name = "Feed", description = "Personalized travel feed recommendations")
+@Authenticated
 public class FeedResource {
 
     private static final Logger LOG = Logger.getLogger(FeedResource.class);
