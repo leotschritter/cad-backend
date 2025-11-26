@@ -323,22 +323,23 @@ jobs:
 
           for i in {1..30}; do
             echo "Testing webhook readiness (attempt $i/30)..."
-            if kubectl apply --dry-run=server -f - <<EOF 2>&1 | grep -q "created\|configured\|unchanged"; then
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: test-issuer
-spec:
-  acme:
-    server: https://acme-staging-v02.api.letsencrypt.org/directory
-    email: test@example.com
-    privateKeySecretRef:
-      name: test-issuer-key
-    solvers:
-    - http01:
-        ingress:
-          class: nginx
-EOF
+            if kubectl apply --dry-run=server -f - <<'EOF' 2>&1 | grep -q "created\|configured\|unchanged"
+          apiVersion: cert-manager.io/v1
+          kind: ClusterIssuer
+          metadata:
+            name: test-issuer
+          spec:
+            acme:
+              server: https://acme-staging-v02.api.letsencrypt.org/directory
+              email: test@example.com
+              privateKeySecretRef:
+                name: test-issuer-key
+              solvers:
+              - http01:
+                  ingress:
+                    class: nginx
+          EOF
+            then
               echo "Webhook is ready and responding!"
               break
             fi
