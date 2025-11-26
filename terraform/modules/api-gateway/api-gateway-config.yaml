@@ -289,5 +289,360 @@ paths:
         address: "${svc.ingress_url}"
         path_translation: APPEND_PATH_TO_ADDRESS
 
-%{ endfor ~}
+  ${svc.path_prefix}/{proxy}/{proxy2}/{proxy3}:
+    options:
+      summary: "Handle CORS preflight for ${svc.name} (nested3)"
+      operationId: "${svc.name}_options_proxy_nested_3"
+      security: []  # Override global security - OPTIONS doesn't need auth
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+        - name: proxy3
+          in: path
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+            Access-Control-Max-Age:
+              type: string
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
 
+    get:
+      summary: "Proxy GET to ${svc.name} (nested3)"
+      operationId: "${svc.name}_get_proxy_nested_3"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+        - name: proxy3
+          in: path
+          required: true
+          type: string
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    post:
+      summary: "Proxy POST to ${svc.name} (nested3)"
+      operationId: "${svc.name}_post_proxy_nested_3"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+        - name: proxy3
+          in: path
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: false
+          schema: {}
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    put:
+      summary: "Proxy PUT to ${svc.name} (nested3)"
+      operationId: "${svc.name}_put_proxy_nested_3"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+        - name: proxy3
+          in: path
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: false
+          schema: {}
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    patch:
+      summary: "Proxy PATCH to ${svc.name} (nested3)"
+      operationId: "${svc.name}_patch_proxy_nested_3"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+        - name: proxy3
+          in: path
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: false
+          schema: {}
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    delete:
+      summary: "Proxy DELETE to ${svc.name} (nested3)"
+      operationId: "${svc.name}_delete_proxy_nested_3"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+        - name: proxy3
+          in: path
+          required: true
+          type: string
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+  ${svc.path_prefix}/{proxy}/{proxy2}/{proxy3}/{proxy4}:
+    options:
+      summary: "Handle CORS preflight for ${svc.name} (nested4)"
+      operationId: "${svc.name}_options_proxy_nested_4"
+      security: []  # Override global security - OPTIONS doesn't need auth
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+        - name: proxy3
+          in: path
+          required: true
+          type: string
+        - name: proxy4
+          in: path
+          required: true
+          type: string
+      responses:
+        '200':
+          description: OK
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+            Access-Control-Max-Age:
+              type: string
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    get:
+      summary: "Proxy GET to ${svc.name} (nested4)"
+      operationId: "${svc.name}_get_proxy_nested_4"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+        - name: proxy3
+          in: path
+          required: true
+          type: string
+        - name: proxy4
+          in: path
+          required: true
+          type: string
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    post:
+      summary: "Proxy POST to ${svc.name} (nested4)"
+      operationId: "${svc.name}_post_proxy_nested_4"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+        - name: proxy3
+          in: path
+          required: true
+          type: string
+        - name: proxy4
+          in: path
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: false
+          schema: {}
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    put:
+      summary: "Proxy PUT to ${svc.name} (nested4)"
+      operationId: "${svc.name}_put_proxy_nested_4"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+        - name: proxy3
+          in: path
+          required: true
+          type: string
+        - name: proxy4
+          in: path
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: false
+          schema: {}
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    patch:
+      summary: "Proxy PATCH to ${svc.name} (nested4)"
+      operationId: "${svc.name}_patch_proxy_nested_4"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+        - name: proxy3
+          in: path
+          required: true
+          type: string
+        - name: proxy4
+          in: path
+          required: true
+          type: string
+        - in: body
+          name: body
+          required: false
+          schema: {}
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    delete:
+      summary: "Proxy DELETE to ${svc.name} (nested4)"
+      operationId: "${svc.name}_delete_proxy_nested_4"
+      security:
+        - firebase: []
+      parameters:
+        - name: proxy
+          in: path
+          required: true
+          type: string
+        - name: proxy2
+          in: path
+          required: true
+          type: string
+        - name: proxy3
+          in: path
+          required: true
+          type: string
+        - name: proxy4
+          in: path
+          required: true
+          type: string
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+%{ endfor ~}
