@@ -1,0 +1,14 @@
+{{- if gt (int .Values.replicaCount) 1 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "itinerary-service.fullname" . }}
+  labels:
+    {{- include "itinerary-service.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "itinerary-service.selectorLabels" . | nindent 6 }}
+{{- end }}
+

@@ -67,9 +67,43 @@ jobs:
       - name: Export app version
         id: export_app_version
         run: echo "app_version=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
-  deploy:
-    # needs: build-and-push
+
+  check-versions:
     runs-on: ubuntu-latest
+    outputs:
+      cert_manager_changed: ${{ steps.detect.outputs.cert_manager_changed }}
+      itinerary_service_changed: ${{ steps.detect.outputs.itinerary_service_changed }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect chart version changes
+        id: detect
+        run: |
+          check_chart() {
+            chart_dir=$1
+            chart_key=$2
+          
+            current=$(yq '.appVersion' "$chart_dir/Chart.yaml")
+            previous=$(git show HEAD^:"$chart_dir/Chart.yaml" 2>/dev/null | yq '.appVersion' || echo "none")
+          
+            if [ "$current" != "$previous" ]; then
+              echo "$chart_key=true" >> $GITHUB_OUTPUT
+            else
+              echo "$chart_key=false" >> $GITHUB_OUTPUT
+            fi
+          }
+          
+          check_chart kubernetes/cert-manager-chart cert_manager_changed
+          check_chart kubernetes/itinerary-service-chart itinerary_service_changed
+
+  deploy-cert-manager:
+    runs-on: ubuntu-latest
+    needs:
+      - build-and-push
+      - check-versions
+    if: ${{ needs.check-versions.outputs.cert_manager_changed == 'true' }}
+    environment: production
     permissions:
       id-token: write
       contents: read
@@ -99,69 +133,6 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Install NGINX Ingress Controller (if not exists)
-        run: |
-          # Check if ingress-nginx namespace exists
-          if ! kubectl get namespace ingress-nginx &>/dev/null; then
-            echo "Installing NGINX Ingress Controller..."
-            helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-            helm repo update
-            helm install ingress-nginx ingress-nginx/ingress-nginx \
-              --namespace ingress-nginx \
-              --create-namespace \
-              --wait --timeout 5m
-          else
-            echo "NGINX Ingress Controller already installed"
-          fi
-
-      # # Cleanup Step - Uncomment if needed (if anything in the cluster is not managed by Helm and must be replaced)
-      # - name: Clean up pre-existing resources (if not managed by Helm)
-      #   run: |
-      #     echo "Checking for non-Helm managed resources..."
-      #           # Function to check and delete resource if not managed by Helm
-      #     cleanup_resource() {
-      #       local resource_type=$1
-      #       local resource_name=$2
-      #       if kubectl get $resource_type $resource_name &>/dev/null; then
-      #         local managed_by=$(kubectl get $resource_type $resource_name -o jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}' 2>/dev/null || echo "")
-      #         if [ "$managed_by" != "Helm" ]; then
-      #           echo "Found $resource_type/$resource_name not managed by Helm, deleting..."
-      #           # Use --wait=false for PVC to avoid hanging, timeout for others
-      #           if [ "$resource_type" == "pvc" ]; then
-      #             kubectl delete $resource_type $resource_name --wait=false --timeout=30s 2>/dev/null || true
-      #           else
-      #             kubectl delete $resource_type $resource_name --timeout=30s 2>/dev/null || true
-      #           fi
-      #           echo "Deleted $resource_type/$resource_name"
-      #         else
-      #           echo "$resource_type/$resource_name is already managed by Helm"
-      #         fi
-      #       else
-      #         echo "No pre-existing $resource_type/$resource_name found"
-      #       fi
-      #     }
-      #     # Clean up all resources that might conflict
-      #     # IMPORTANT: Delete in correct order to avoid hanging
-      #     # 1. First delete ingress (no dependencies)
-      #     cleanup_resource "ingress" "travel-warnings-ingress"
-      #     # 2. Delete deployments (this releases PVC mounts)
-      #     cleanup_resource "deployment" "travel-warnings-api"
-      #     cleanup_resource "deployment" "warnings-postgres"
-      #     # 3. Wait for pods to terminate (important!)
-      #     echo "Waiting for pods to terminate..."
-      #     kubectl wait --for=delete pod -l app=travel-warnings-api --timeout=60s 2>/dev/null || true
-      #     kubectl wait --for=delete pod -l app=warnings-postgres --timeout=60s 2>/dev/null || true
-      #     # 4. Now safe to delete PVC (no longer mounted)
-      #     cleanup_resource "pvc" "warnings-postgres-data-pvc"
-      #     # 5. Delete services (no dependencies)
-      #     cleanup_resource "service" "travel-warnings-api"
-      #     cleanup_resource "service" "warnings-postgres"
-      #     # 6. Delete configmaps and secrets (no dependencies)
-      #     cleanup_resource "configmap" "travel-warnings-config"
-      #     cleanup_resource "secret" "smtp-secret"
-      #     # 7. Delete certificate resource (the Certificate CR, not cert-manager itself!)
-      #     cleanup_resource "certificate" "warnings-tls-cert"
-      #     echo "Cleanup complete!"
 
       - name: Reset cert-manager namespace when unmanaged leftovers exist
         run: |
@@ -419,6 +390,140 @@ jobs:
           echo ""
           echo "=== Service Status ==="
           kubectl get svc -l app.kubernetes.io/instance=cert-manager
+          echo ""
+          echo "=== Ingress Status ==="
+          kubectl get ingress
+
+  deploy-itinerary-service:
+    runs-on: ubuntu-latest
+    needs:
+      - build-and-push
+      - check-versions
+    if: ${{ needs.check-versions.outputs.itinerary_service_changed == 'true' }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Authenticate again for kubectl
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Configure kubectl for GKE
+        run: |
+          gcloud container clusters get-credentials tripico-cluster --region europe-west1
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Install NGINX Ingress Controller (if not exists)
+        run: |
+          # Check if ingress-nginx namespace exists
+          if ! kubectl get namespace ingress-nginx &>/dev/null; then
+            echo "Installing NGINX Ingress Controller..."
+            helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+            helm repo update
+            helm install ingress-nginx ingress-nginx/ingress-nginx \
+              --namespace ingress-nginx \
+              --create-namespace \
+              --wait --timeout 5m
+          else
+            echo "NGINX Ingress Controller already installed"
+          fi
+
+      # Cleanup Step - Uncomment if needed (if anything in the cluster is not managed by Helm and must be replaced)
+      - name: Clean up pre-existing resources (if not managed by Helm)
+        run: |
+          echo "Checking for non-Helm managed resources..."
+                # Function to check and delete resource if not managed by Helm
+          cleanup_resource() {
+            local resource_type=$1
+            local resource_name=$2
+            if kubectl get $resource_type $resource_name &>/dev/null; then
+              local managed_by=$(kubectl get $resource_type $resource_name -o jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}' 2>/dev/null || echo "")
+              if [ "$managed_by" != "Helm" ]; then
+                echo "Found $resource_type/$resource_name not managed by Helm, deleting..."
+                # Use --wait=false for PVC to avoid hanging, timeout for others
+                if [ "$resource_type" == "pvc" ]; then
+                  kubectl delete $resource_type $resource_name --wait=false --timeout=30s 2>/dev/null || true
+                else
+                  kubectl delete $resource_type $resource_name --timeout=30s 2>/dev/null || true
+                fi
+                echo "Deleted $resource_type/$resource_name"
+              else
+                echo "$resource_type/$resource_name is already managed by Helm"
+              fi
+            else
+              echo "No pre-existing $resource_type/$resource_name found"
+            fi
+          }
+          # Clean up all resources that might conflict
+          # IMPORTANT: Delete in correct order to avoid hanging
+          # 1. First delete ingress (no dependencies)
+          cleanup_resource "ingress" "itinerary-ingress"
+          # 2. Delete deployment
+          cleanup_resource "deployment" "itinerary-service"
+          # 3. Wait for pods to terminate (important!)
+          echo "Waiting for pods to terminate..."
+          kubectl wait --for=delete pod -l app=itinerary-service --timeout=60s 2>/dev/null || true
+          # 4. Delete services
+          cleanup_resource "service" "itinerary-service"
+          # 6. Delete configmap
+          cleanup_resource "configmap" "app-config"
+          # 7. Delete certificate resource (the Certificate CR, not cert-manager itself!)
+          cleanup_resource "certificate" "itinerary-tls-cert"
+          echo "Cleanup complete!"
+
+      - name: Verify cert-manager is ready
+        run: |
+          echo "Checking cert-manager status..."
+          kubectl wait --for=condition=ready pod -l app=cert-manager -n cert-manager --timeout=2m || true
+          kubectl get pods -n cert-manager
+
+      - name: Deploy with Helm
+        working-directory: ./kubernetes
+        run: |
+          # Check if release exists
+          if helm list | grep -q "^itinerary-service"; then
+            echo "Upgrading existing release..."
+            helm upgrade itinerary-service ./itinerary-service-chart \
+              -f ./itinerary-service-chart/values-prod.yaml \
+              --set database.url="${{ vars.DB_URL }}" \
+              --set database.password="${{ secrets.DB_PASSWORD }}" \
+              --wait --timeout 5m
+          else
+            echo "Installing new release..."
+            helm install itinerary-service ./itinerary-service-chart \
+              -f ./itinerary-service-chart/values-prod.yaml \
+              --set database.url="${{ vars.DB_URL }}" \
+              --set database.password="${{ secrets.DB_PASSWORD }}" \
+              --create-namespace \
+              --wait --timeout 5m
+          fi
+
+      - name: Verify Deployment
+        run: |
+          echo "=== Helm Release Status ==="
+          helm status itinerary-service
+          echo ""
+          echo "=== Pod Status ==="
+          kubectl get pods -l app.kubernetes.io/instance=itinerary-service -o wide
+          echo ""
+          echo "=== Service Status ==="
+          kubectl get svc -l app.kubernetes.io/instance=itinerary-service
           echo ""
           echo "=== Ingress Status ==="
           kubectl get ingress
