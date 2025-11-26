@@ -190,6 +190,32 @@ jobs:
             echo "cert-manager namespace does not exist yet; nothing to clean"
           fi
 
+      - name: Remove legacy cert-manager CRDs when release is absent
+        run: |
+          if helm list --namespace cert-manager | grep -q "^cert-manager"; then
+            echo "Helm already manages cert-manager; skipping CRD cleanup"
+          else
+            echo "Checking for unmanaged cert-manager CRDs to delete..."
+            CRDS=(
+              certificaterequests.cert-manager.io
+              certificates.cert-manager.io
+              challenges.acme.cert-manager.io
+              clusterissuers.cert-manager.io
+              issuers.cert-manager.io
+              orders.acme.cert-manager.io
+            )
+            for crd in "${CRDS[@]}"; do
+              if kubectl get crd "$crd" &>/dev/null; then
+                echo "Deleting CRD $crd"
+                kubectl delete crd "$crd" --wait=false || true
+              else
+                echo "CRD $crd already absent"
+              fi
+            done
+            echo "Giving Kubernetes time to finish CRD deletions"
+            sleep 10
+          fi
+
       - name: Create or Update cert-manager (if not exists)
         working-directory: ./kubernetes
         run: |
