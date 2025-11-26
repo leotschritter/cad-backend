@@ -92,29 +92,20 @@ jobs:
             chart_dir=$1
             chart_key=$2
           
-            # Check if chart file changed in this commit
-            if git diff --name-only HEAD^ HEAD 2>/dev/null | grep -q "^$chart_dir/"; then
-              echo "Changes detected in $chart_dir"
+            current=$(yq '.appVersion' "$chart_dir/Chart.yaml")
+            previous=$(git show HEAD^:"$chart_dir/Chart.yaml" 2>/dev/null | yq '.appVersion' || echo "none")
+          
+            if [ "$current" != "$previous" ]; then
+              echo "Changes detected in appVersion"
               echo "$chart_key=true" >> $GITHUB_OUTPUT
             else
-              echo "No changes in $chart_dir"
+              echo "No changes in appVersion"
               echo "$chart_key=false" >> $GITHUB_OUTPUT
             fi
           }
           
-          # For initial commit or manual trigger, deploy everything
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "Manual trigger - deploying all services"
-            echo "cert_manager_changed=true" >> $GITHUB_OUTPUT
-            echo "itinerary_service_changed=true" >> $GITHUB_OUTPUT
-          elif ! git rev-parse HEAD^ >/dev/null 2>&1; then
-            echo "Initial commit - deploying all services"
-            echo "cert_manager_changed=true" >> $GITHUB_OUTPUT
-            echo "itinerary_service_changed=true" >> $GITHUB_OUTPUT
-          else
-            check_chart kubernetes/cert-manager-chart cert_manager_changed
-            check_chart kubernetes/itinerary-service-chart itinerary_service_changed
-          fi
+          check_chart kubernetes/cert-manager-chart cert_manager_changed
+          check_chart kubernetes/itinerary-service-chart itinerary_service_changed
           
           echo "cert_manager_changed=$(cat $GITHUB_OUTPUT | grep cert_manager_changed | cut -d= -f2)"
           echo "itinerary_service_changed=$(cat $GITHUB_OUTPUT | grep itinerary_service_changed | cut -d= -f2)"
