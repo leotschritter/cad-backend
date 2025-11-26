@@ -1,0 +1,29 @@
+{{- if .Values.clusterIssuer.enabled }}
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ .Values.clusterIssuer.name }}
+  labels:
+    app.kubernetes.io/name: {{ include "cert-manager-setup.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  acme:
+    # Let's Encrypt ACME server URL
+    server: {{ .Values.clusterIssuer.server }}
+
+    # Email address used for ACME registration
+    email: {{ .Values.clusterIssuer.email }}
+
+    # Secret to store the ACME account private key
+    privateKeySecretRef:
+      name: {{ .Values.clusterIssuer.privateKeySecretRef }}
+
+    # ACME challenge solvers
+    solvers:
+{{- range .Values.clusterIssuer.solvers }}
+      - http01:
+          ingress:
+            class: {{ .http01.ingress.class }}
+{{- end }}
+{{- end }}
