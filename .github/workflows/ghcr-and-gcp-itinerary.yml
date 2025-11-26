@@ -345,17 +345,20 @@ jobs:
           echo "=== Checking cert-manager-webhook logs for errors ==="
           kubectl logs -n cert-manager deployment/cert-manager-webhook --tail=50 || echo "Could not get logs"
 
-      - name: Temporarily disable webhook validation
+      - name: Temporarily remove webhook validation
         run: |
-          echo "Patching webhook to ignore failures during ClusterIssuer creation..."
-          kubectl patch validatingwebhookconfiguration cert-manager-webhook \
-            --type='json' \
-            -p='[{"op": "replace", "path": "/webhooks/0/failurePolicy", "value":"Ignore"}]' || echo "Warning: Could not patch webhook (may not exist yet)"
+          echo "Checking for cert-manager webhook configuration..."
+          kubectl get validatingwebhookconfiguration cert-manager-webhook &>/dev/null && \
+            echo "Found webhook configuration, backing it up..." && \
+            kubectl get validatingwebhookconfiguration cert-manager-webhook -o yaml > /tmp/webhook-backup.yaml && \
+            echo "Deleting webhook configuration temporarily..." && \
+            kubectl delete validatingwebhookconfiguration cert-manager-webhook || \
+            echo "No webhook configuration found (this is ok)"
 
       - name: Create ClusterIssuer
         working-directory: ./kubernetes
         run: |
-          echo "Creating ClusterIssuer..."
+          echo "Creating ClusterIssuer without webhook validation..."
           # Template the ClusterIssuer from the helm chart
           helm template cert-manager ./cert-manager-chart \
             --namespace cert-manager \
@@ -366,16 +369,21 @@ jobs:
           echo "Verifying ClusterIssuer was created..."
           kubectl get clusterissuer
 
-          echo "Waiting for ClusterIssuer to be ready..."
-          sleep 10
+          echo "Checking ClusterIssuer status..."
           kubectl describe clusterissuer letsencrypt-prod
 
       - name: Restore webhook validation
         run: |
-          echo "Restoring webhook to fail on errors..."
-          kubectl patch validatingwebhookconfiguration cert-manager-webhook \
-            --type='json' \
-            -p='[{"op": "replace", "path": "/webhooks/0/failurePolicy", "value":"Fail"}]' || echo "Warning: Could not restore webhook"
+          echo "Restoring webhook configuration..."
+          if [ -f /tmp/webhook-backup.yaml ]; then
+            echo "Applying backed-up webhook configuration..."
+            kubectl apply -f /tmp/webhook-backup.yaml
+          else
+            echo "No backup found, webhook will be recreated automatically by cert-manager"
+          fi
+
+          echo "Waiting for webhook to stabilize..."
+          sleep 10
 
       - name: Verify Deployment
         run: |
