@@ -9,7 +9,6 @@ load/venv
 
 # Terraform
 terraform.tfvars
-terraform/backend-config.hcl
 *.tfstate
 *.tfstate.*
 .terraform/

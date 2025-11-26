@@ -38,7 +38,8 @@ resource "google_secret_manager_secret_version" "db_password" {
 resource "google_secret_manager_secret_iam_member" "kubernetes_secret_accessor" {
   secret_id = google_secret_manager_secret.db_password.id
   role      = "roles/secretmanager.secretAccessor"
-  member    = var.service_account_email
+  # Construct canonical IAM member string from the service account email
+  member    = "serviceAccount:${var.service_account_email}"
 }
 
 # Cloud SQL Instance
@@ -96,4 +97,3 @@ resource "google_sql_user" "user" {
 
   depends_on = [google_secret_manager_secret_version.db_password]
 }
-

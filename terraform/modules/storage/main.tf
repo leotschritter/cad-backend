@@ -22,5 +22,5 @@ resource "google_storage_bucket" "app_bucket" {
 resource "google_storage_bucket_iam_member" "kubernetes_storage_admin" {
   bucket = google_storage_bucket.app_bucket.name
   role   = "roles/storage.objectAdmin"
-  member = var.service_account_email
+  member = "serviceAccount:${var.service_account_email}"
 }

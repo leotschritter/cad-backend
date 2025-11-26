@@ -4,14 +4,13 @@ on:
   push:
     branches:
       - main
-      - develop
+      - refactor/*
     paths:
       - 'terraform/**'
       - '.github/workflows/terraform.yml'
   pull_request:
     branches:
       - main
-      - develop
     paths:
       - 'terraform/**'
       - '.github/workflows/terraform.yml'
@@ -29,9 +28,9 @@ on:
 
 env:
   TF_VERSION: '1.6.0'
-  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  GCP_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
-  TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+  GCP_PROJECT_ID: 'graphite-plane-474510-s9'
+  GCP_CREDENTIALS: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+  TF_STATE_BUCKET: graphite-plane-474510-s9-terraform-state
 
 jobs:
   terraform-validate:
@@ -78,7 +77,10 @@ jobs:
     name: Terraform Plan
     runs-on: ubuntu-latest
     needs: terraform-validate
-    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'plan')
+    # Run plan on PRs, on pushes (when terraform changed), or when manually
+    # dispatched with action == 'plan'. This produces a plan artifact for
+    # later manual apply.
+    if: github.event_name == 'pull_request' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'plan')
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -109,10 +111,17 @@ jobs:
         run: terraform init -backend-config=backend-config.hcl
 
       - name: Terraform Plan
+        id: tf-plan
         working-directory: terraform
         env:
           TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
-        run: terraform plan -out=tfplan
+        run: |
+          # produce a human-readable plan and save a binary plan for apply
+          terraform plan -no-color -out=tfplan | tee plan.txt
+          # expose the plan text as a step output for PR comments
+          echo "plan<<EOF" >> $GITHUB_OUTPUT
+          cat plan.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Upload Plan Artifact
         uses: actions/upload-artifact@v4
@@ -125,15 +134,15 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         env:
-          PLAN: "terraform\n${{ steps.tf-plan.outputs.stdout }}"
+          PLAN: "terraform\n${{ steps.tf-plan.outputs.plan }}"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const output = `#### Terraform Plan 📖
             <details><summary>Show Plan</summary>
-            \`\`\`
+            \`\`\`\n
             ${process.env.PLAN}
-            \`\`\`
+            \n\`\`\`
             </details>`;
             github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -145,11 +154,9 @@ jobs:
   terraform-apply:
     name: Terraform Apply
     runs-on: ubuntu-latest
-    needs: terraform-validate
-    if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
-    environment:
-      name: production
-      url: ${{ steps.tf-outputs.outputs.api_gateway_url }}
+    needs: terraform-plan
+    if: (github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -179,18 +186,28 @@ jobs:
         working-directory: terraform
         run: terraform init -backend-config=backend-config.hcl
 
-      - name: Terraform Plan
-        working-directory: terraform
-        id: tf-plan
-        env:
-          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
-        run: terraform plan -out=tfplan
+      # Try to download a plan artifact produced by the Plan job. If it's
+      # available we'll apply it. If not (e.g. a manual dispatch without a
+      # prior plan), fall back to creating a plan and applying it.
+      - name: Download Plan Artifact (if present)
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: terraform
+        continue-on-error: true
 
-      - name: Terraform Apply
+      - name: Apply plan (use artifact if present, otherwise create+apply)
         working-directory: terraform
-        env:
-          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
-        run: terraform apply -auto-approve tfplan
+        run: |
+          if [ -f tfplan ]; then          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
+
+            echo "Found uploaded plan artifact; applying it"
+            terraform apply -auto-approve tfplan
+          else
+            echo "No plan artifact found; running plan then apply"
+            terraform plan -out=tfplan
+            terraform apply -auto-approve tfplan
+          fi
 
       - name: Terraform Outputs
         id: tf-outputs
@@ -236,7 +253,4 @@ jobs:
 
       - name: Terraform Destroy
         working-directory: terraform
-        env:
-          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
         run: terraform destroy -auto-approve
-
