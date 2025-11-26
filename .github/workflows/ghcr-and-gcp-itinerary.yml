@@ -5,10 +5,8 @@ on:
     branches: [ "main", "feature/exercise8-leo", "feature/itinerary-service-helm" ]
     tags: [ 'v*.*.*' ]
     paths:
-      - 'kubernetes/**'
-      - 'Dockerfile'
-      - '.github/workflows/ghcr-and-gcp-itinerary.yml'
-      - 'src/**'
+      - 'kubernetes/cert-manager-chart/Chart.yaml'
+      - 'kubernetes/itinerary-service-chart/Chart.yaml'
   workflow_dispatch:
 
 jobs:
@@ -110,11 +108,10 @@ jobs:
       - name: Export app version
         id: export_app_version
         run: echo "app_version=${{ needs.check-versions.outputs.itinerary_service_app_version }}" >> "$GITHUB_OUTPUT"
+
   deploy-cert-manager:
     runs-on: ubuntu-latest
-    needs:
-      - build-and-push
-      - check-versions
+    needs: check-versions
     if: ${{ needs.check-versions.outputs.cert_manager_changed == 'true' || github.event_name == 'workflow_dispatch' }}
     environment: production
     permissions:
