@@ -1,18 +1,27 @@
-FROM registry.access.redhat.com/ubi9/openjdk-21:1.20
+# ===== builder =====
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /workspace
 
-ENV LANGUAGE='en_US:en'
+# cache deps
+COPY pom.xml .
+RUN mvn -q -DskipTests dependency:go-offline
 
-# We make four distinct layers so if there are application changes the library layers can be re-used
-COPY --chown=185 target/quarkus-app/lib/ /deployments/lib/
-COPY --chown=185 target/quarkus-app/*.jar /deployments/
-COPY --chown=185 target/quarkus-app/app/ /deployments/app/
-COPY --chown=185 target/quarkus-app/quarkus/ /deployments/quarkus/
+# build
+COPY src ./src
+RUN mvn -DskipTests package
 
-EXPOSE 8083
+# ===== runtime =====
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /opt/app
 
-USER 185
-ENV JAVA_OPTS_APPEND="-Dquarkus.http.host=0.0.0.0 -Djava.util.logging.manager=org.jboss.logmanager.LogManager"
-ENV JAVA_APP_JAR="/deployments/quarkus-run.jar"
+# copy fast-jar layout
+COPY --from=build /workspace/target/quarkus-app/ ./
 
-ENTRYPOINT [ "/opt/jboss/container/java/run/run-java.sh" ]
+# (optional) run as non-root
+RUN useradd -ms /bin/bash quarkus
+USER quarkus
 
+ENV JAVA_OPTS="-Dquarkus.http.host=0.0.0.0"
+EXPOSE 8080
+# fast-jar entrypoint
+CMD ["bash","-lc","java $JAVA_OPTS -jar /opt/app/quarkus-run.jar"]
