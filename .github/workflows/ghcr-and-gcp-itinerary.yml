@@ -313,28 +313,59 @@ jobs:
 
       - name: Wait for cert-manager webhook to be ready
         run: |
-          echo "Waiting for cert-manager webhook to be ready..."
+          echo "Waiting for cert-manager webhook deployment to be available..."
           kubectl wait --for=condition=Available --timeout=300s \
             deployment/cert-manager-webhook -n cert-manager
 
-          echo "Waiting additional 30 seconds for webhook to fully initialize..."
-          sleep 30
+          echo "Waiting for cert-manager webhook to fully initialize..."
+          # cert-manager webhook needs time to generate and trust its own certificate
+          # We'll test if the webhook is ready by attempting a dry-run
 
-          echo "Verifying webhook is responding..."
-          kubectl -n cert-manager get deployment cert-manager-webhook -o wide
+          for i in {1..30}; do
+            echo "Testing webhook readiness (attempt $i/30)..."
+            if kubectl apply --dry-run=server -f - <<EOF 2>&1 | grep -q "created\|configured\|unchanged"; then
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: test-issuer
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: test@example.com
+    privateKeySecretRef:
+      name: test-issuer-key
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+EOF
+              echo "Webhook is ready and responding!"
+              break
+            fi
+            echo "Webhook not ready yet, waiting 10 seconds..."
+            sleep 10
+          done
+
+          echo "Verifying webhook pods are running..."
+          kubectl get pods -n cert-manager -l app.kubernetes.io/name=webhook
 
       - name: Create ClusterIssuer
         working-directory: ./kubernetes
         run: |
-          echo "Creating ClusterIssuer..."
-          helm upgrade --install cert-manager ./cert-manager-chart \
+          echo "Creating ClusterIssuer using kubectl apply..."
+          # Template the ClusterIssuer from the helm chart
+          helm template cert-manager ./cert-manager-chart \
             --namespace cert-manager \
             --set clusterIssuer.enabled=true \
-            --reuse-values \
-            --wait --timeout 5m
+            --show-only templates/clusterissuer-prod.yaml \
+            | kubectl apply -f -
 
           echo "Verifying ClusterIssuer was created..."
           kubectl get clusterissuer
+
+          echo "Waiting for ClusterIssuer to be ready..."
+          sleep 10
+          kubectl describe clusterissuer letsencrypt-prod
 
       - name: Verify Deployment
         run: |
