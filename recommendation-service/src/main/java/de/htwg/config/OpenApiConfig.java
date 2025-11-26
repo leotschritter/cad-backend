@@ -7,12 +7,13 @@ import org.eclipse.microprofile.openapi.annotations.enums.SecuritySchemeType;
 import org.eclipse.microprofile.openapi.annotations.info.Contact;
 import org.eclipse.microprofile.openapi.annotations.info.Info;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityScheme;
-import org.eclipse.microprofile.openapi.annotations.servers.Server;
 
 /**
  * OpenAPI configuration for the Recommendation Service API.
  * Defines the Bearer token authentication scheme for Google Cloud Identity Platform.
  * This ensures that the Swagger UI will show an "Authorize" button for authentication.
+ *
+ * Server URL is configured via mp.openapi.servers property in application.properties.
  */
 @OpenAPIDefinition(
     info = @Info(
@@ -28,11 +29,7 @@ import org.eclipse.microprofile.openapi.annotations.servers.Server;
         contact = @Contact(
             name = "Recommendation Service Team"
         )
-    ),
-    servers = {
-        @Server(url = "http://localhost:8080", description = "Local development server"),
-        @Server(url = "https://api.tripico.fun/recommendation", description = "Production server")
-    }
+    )
 )
 @SecurityScheme(
     securitySchemeName = "BearerAuth",
