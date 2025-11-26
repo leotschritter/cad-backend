@@ -14,7 +14,7 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    if: false
+    if: ${{ github.event.head_commit.message != 'skip-build' }}
     permissions:
       contents: read
       packages: write
@@ -68,7 +68,7 @@ jobs:
         id: export_app_version
         run: echo "app_version=${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
   deploy:
-    needs: build-and-push
+    # needs: build-and-push
     runs-on: ubuntu-latest
     permissions:
       id-token: write
