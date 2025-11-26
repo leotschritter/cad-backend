@@ -42,7 +42,7 @@ resource "google_secret_manager_secret_iam_member" "kubernetes_secret_accessor" 
   secret_id = google_secret_manager_secret.db_password.id
   role      = "roles/secretmanager.secretAccessor"
   # Construct canonical IAM member string from the service account email
-  member    = "serviceAccount:${var.service_account_email}"
+  member = "serviceAccount:${var.service_account_email}"
 }
 
 # Cloud SQL Instance
