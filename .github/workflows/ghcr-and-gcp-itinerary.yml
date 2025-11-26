@@ -292,7 +292,7 @@ jobs:
             echo "Namespace cleanup complete"
           fi
 
-      - name: Create or Update cert-manager (if not exists)
+      - name: Create or Update cert-manager (without ClusterIssuer)
         working-directory: ./kubernetes
         run: |
           helm repo add jetstack https://charts.jetstack.io
@@ -304,10 +304,37 @@ jobs:
           else
             echo "Installing cert-manager release..."
           fi
+          # Install cert-manager without ClusterIssuer first
           helm upgrade --install cert-manager ./cert-manager-chart \
             --namespace cert-manager \
             --create-namespace \
+            --set clusterIssuer.enabled=false \
             --wait --timeout 5m
+
+      - name: Wait for cert-manager webhook to be ready
+        run: |
+          echo "Waiting for cert-manager webhook to be ready..."
+          kubectl wait --for=condition=Available --timeout=300s \
+            deployment/cert-manager-webhook -n cert-manager
+
+          echo "Waiting additional 30 seconds for webhook to fully initialize..."
+          sleep 30
+
+          echo "Verifying webhook is responding..."
+          kubectl -n cert-manager get deployment cert-manager-webhook -o wide
+
+      - name: Create ClusterIssuer
+        working-directory: ./kubernetes
+        run: |
+          echo "Creating ClusterIssuer..."
+          helm upgrade --install cert-manager ./cert-manager-chart \
+            --namespace cert-manager \
+            --set clusterIssuer.enabled=true \
+            --reuse-values \
+            --wait --timeout 5m
+
+          echo "Verifying ClusterIssuer was created..."
+          kubectl get clusterissuer
 
       - name: Verify Deployment
         run: |

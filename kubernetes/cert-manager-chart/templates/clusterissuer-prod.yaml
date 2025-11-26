@@ -7,9 +7,6 @@ metadata:
     app.kubernetes.io/name: {{ include "cert-manager-setup.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
-  annotations:
-    "helm.sh/hook": post-install,post-upgrade
-    "helm.sh/hook-delete-policy": before-hook-creation
 spec:
   acme:
     # Let's Encrypt ACME server URL
