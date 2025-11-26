@@ -66,10 +66,59 @@ variable "db_availability_type" {
   default     = "ZONAL" # Use REGIONAL for high availability
 }
 
+variable "db_disk_size" {
+  description = "Disk size in GB for Cloud SQL instance"
+  type        = number
+  default     = 10
+}
+
+variable "deletion_protection" {
+  description = "Enable deletion protection for critical resources"
+  type        = bool
+  default     = false
+}
+
+variable "bucket_force_destroy" {
+  description = "Force destroy bucket even if it contains objects"
+  type        = bool
+  default     = false
+}
+
+variable "required_apis" {
+  description = "List of Google Cloud APIs to enable"
+  type        = list(string)
+  default = [
+    "sqladmin.googleapis.com",
+    "artifactregistry.googleapis.com",
+    "firestore.googleapis.com",
+    "storage-api.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "secretmanager.googleapis.com",
+    "compute.googleapis.com",
+    "container.googleapis.com",
+    "apigateway.googleapis.com",
+    "servicemanagement.googleapis.com",
+    "servicecontrol.googleapis.com",
+  ]
+}
+
+variable "authorized_domains" {
+  description = "List of authorized domains for Identity Platform"
+  type        = list(string)
+  default = [
+    "graphite-plane-474510-s9.firebaseapp.com",
+    "graphite-plane-474510-s9.web.app",
+    "tripico.fun",
+    "frontend.tripico.fun",
+    "api.tripico.fun",
+  ]
+}
+
 variable "db_password" {
-  description = "Fixed database password to use for the Cloud SQL user and Secret Manager (provide via terraform.tfvars)."
+  description = "Database password (optional - if not provided, will be auto-generated). Set via environment variable TF_VAR_db_password or CI/CD secrets. NEVER commit to version control."
   type        = string
   sensitive   = true
+  default     = null
 }
 
 # Cloud Storage Configuration
@@ -117,7 +166,7 @@ variable "firestore_location" {
 variable "firebase_project_id" {
   description = "Firebase Auth Project ID"
   type        = string
-  default = "graphite-plane-474510-s9"
+  default     = "graphite-plane-474510-s9"
 }
 
 
@@ -137,7 +186,7 @@ variable "labels" {
 variable "use_random_suffix" {
   description = "Add random suffix to resource names for uniqueness (useful for fresh deployments)"
   type        = bool
-  default     = false  # Changed to false - prefer using existing resources
+  default     = false # Changed to false - prefer using existing resources
 }
 
 variable "resource_suffix" {
@@ -149,7 +198,7 @@ variable "resource_suffix" {
 variable "import_existing_resources" {
   description = "Whether to use existing resources if they exist (true) or always create fresh (false)"
   type        = bool
-  default     = true  # Prefer using existing resources
+  default     = true # Prefer using existing resources
 }
 
 # Kubernetes/GKE Configuration
@@ -177,13 +226,13 @@ variable "gke_pods_cidr" {
 variable "microservices" {
   description = "Map of microservice configurations for API Gateway routing via ingress URLs"
   type = map(object({
-    name         = string  # Service name (for reference)
-    ingress_url  = string  # Ingress URL (e.g., https://itinerary.tripico.fun) - used by API Gateway
-    path_prefix  = string  # API Gateway path prefix (e.g., /comment)
+    name        = string # Service name (for reference)
+    ingress_url = string # Ingress URL (e.g., https://itinerary.tripico.fun) - used by API Gateway
+    path_prefix = string # API Gateway path prefix (e.g., /comment)
     # Legacy fields (kept for reference/documentation, not used in API Gateway routing)
-    service_name = string  # Kubernetes service name (for reference only)
-    namespace    = string  # Kubernetes namespace (for reference only)
-    port         = number  # Service port (for reference only)
+    service_name = string # Kubernetes service name (for reference only)
+    namespace    = string # Kubernetes namespace (for reference only)
+    port         = number # Service port (for reference only)
   }))
   default = {
     comment = {
@@ -239,6 +288,14 @@ variable "microservices" {
       ingress_url  = "https://weather.tripico.fun"
       path_prefix  = "/api/weather"
       service_name = "weather-service"
+      namespace    = "default"
+      port         = 8080
+    }
+    recommendation = {
+      name         = "recommendation-service"
+      ingress_url  = "https://recommendation.tripico.fun"
+      path_prefix  = "/recommendation"
+      service_name = "recommendation-service"
       namespace    = "default"
       port         = 8080
     }

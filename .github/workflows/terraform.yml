@@ -1,0 +1,240 @@
+name: Terraform
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/terraform.yml'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+          - validate
+
+env:
+  TF_VERSION: '1.14.0'
+  GCP_PROJECT_ID: 'graphite-plane-474510-s9'
+  GCP_CREDENTIALS: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+  TF_STATE_BUCKET: graphite-plane-474510-s9-terraform-state
+
+jobs:
+  terraform-validate:
+    name: Terraform Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ env.GCP_CREDENTIALS }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Terraform backend
+        working-directory: terraform
+        run: |
+          cat > backend-config.hcl << EOF
+          bucket = "${{ env.TF_STATE_BUCKET }}"
+          prefix = "terraform/state"
+          EOF
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init -backend-config=backend-config.hcl
+
+      - name: Terraform Validate
+        working-directory: terraform
+        run: terraform validate
+
+      - name: Terraform Format Check
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    needs: terraform-validate
+    # Run plan on PRs, on pushes (when terraform changed), or when manually
+    # dispatched with action == 'plan'. This produces a plan artifact for
+    # later manual apply.
+    if: github.event_name == 'pull_request' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'plan')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ env.GCP_CREDENTIALS }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Terraform backend
+        working-directory: terraform
+        run: |
+          cat > backend-config.hcl << EOF
+          bucket = "${{ env.TF_STATE_BUCKET }}"
+          prefix = "terraform/state"
+          EOF
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init -backend-config=backend-config.hcl
+
+      - name: Terraform Plan
+        id: tf-plan
+        working-directory: terraform
+        env:
+          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
+        run: |
+          # produce a human-readable plan and save a binary plan for apply
+          terraform plan -no-color -out=tfplan | tee plan.txt
+          # expose the plan text as a step output for PR comments
+          echo "plan<<EOF" >> $GITHUB_OUTPUT
+          cat plan.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: terraform/tfplan
+          retention-days: 5
+
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: terraform-plan
+    # Run apply only when a push to main happens (after plan) OR when
+    # manually dispatched with action=apply. The job is protected by
+    # `environment: production` so you must configure environment approvals
+    # in GitHub to require manual approval before the job runs.
+    if: (github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply')
+    environment:
+      name: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ env.GCP_CREDENTIALS }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Terraform backend
+        working-directory: terraform
+        run: |
+          cat > backend-config.hcl << EOF
+          bucket = "${{ env.TF_STATE_BUCKET }}"
+          prefix = "terraform/state"
+          EOF
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init -backend-config=backend-config.hcl
+
+      # Try to download a plan artifact produced by the Plan job. If it's
+      # available we'll apply it. If not (e.g. a manual dispatch without a
+      # prior plan), fall back to creating a plan and applying it.
+      - name: Download Plan Artifact (if present)
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: terraform
+        continue-on-error: true
+
+      - name: Apply plan (use artifact if present, otherwise create+apply)
+        working-directory: terraform
+        env:
+          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
+        run: |
+          if [ -f tfplan ]; then
+            echo "Found uploaded plan artifact; applying it"
+            terraform apply -auto-approve tfplan
+          else
+            echo "No plan artifact found; running plan then apply"
+            terraform plan -out=tfplan
+            terraform apply -auto-approve tfplan
+          fi
+
+      - name: Terraform Outputs
+        id: tf-outputs
+        working-directory: terraform
+        run: |
+          echo "api_gateway_url=$(terraform output -raw api_gateway_url)" >> $GITHUB_OUTPUT
+          echo "gke_cluster_name=$(terraform output -raw gke_cluster_name)" >> $GITHUB_OUTPUT
+
+  terraform-destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
+    environment:
+      name: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ env.GCP_CREDENTIALS }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Terraform backend
+        working-directory: terraform
+        run: |
+          cat > backend-config.hcl << EOF
+          bucket = "${{ env.TF_STATE_BUCKET }}"
+          prefix = "terraform/state"
+          EOF
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init -backend-config=backend-config.hcl
+
+      - name: Terraform Destroy
+        working-directory: terraform
+        run: terraform destroy -auto-approve
