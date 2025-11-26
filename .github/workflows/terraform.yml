@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - refactor/*
     paths:
       - 'terraform/**'
       - '.github/workflows/terraform.yml'
