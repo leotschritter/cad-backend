@@ -38,30 +38,50 @@ public class RecommendationService {
     @Inject
     de.htwg.filter.AuthorizationHeaderHolder authorizationHeaderHolder;
     public FeedResponseDTO getPersonalizedFeed(String travellerId, Integer page, Integer pageSize) {
-        LOG.infof("Generating personalized feed for traveller: %s", travellerId);
+        LOG.infof("Generating enhanced mixed feed for traveller: %s", travellerId);
 
-        // Get itinerary IDs with recommendation metadata from graph
-        List<Map<String, Object>> recommendations = getCollaborativeFilteringRecommendations(travellerId, page, pageSize);
+        // Always create a mixture of personalized + trending content
+        // Allocate 60% to personalized, 40% to trending (ensures feed is never empty)
+        int personalizedCount = (int) Math.ceil(pageSize * 0.6);
+        int trendingCount = pageSize - personalizedCount;
 
-        if (recommendations.size() < pageSize) {
-            LOG.infof("Supplementing with location-based recommendations for traveller %s", travellerId);
-            int remaining = pageSize - recommendations.size();
+        List<Map<String, Object>> allRecommendations = new ArrayList<>();
+
+        // 1. Get personalized recommendations (collaborative filtering + location-based)
+        List<Map<String, Object>> personalizedRecs = new ArrayList<>();
+
+        // Try collaborative filtering first
+        List<Map<String, Object>> collaborative = getCollaborativeFilteringRecommendations(travellerId, page, personalizedCount);
+        personalizedRecs.addAll(collaborative);
+
+        // Supplement with location-based if needed
+        if (personalizedRecs.size() < personalizedCount) {
+            int remaining = personalizedCount - personalizedRecs.size();
             List<Map<String, Object>> locationBased = getLocationBasedRecommendations(travellerId, page, remaining);
-            recommendations.addAll(locationBased);
+            personalizedRecs.addAll(locationBased);
         }
 
-        if (recommendations.isEmpty()) {
-            LOG.infof("No personalization data for traveller %s, using popular feed", travellerId);
-            recommendations = getPopularItineraries(page, pageSize);
-        }
+        LOG.infof("Got %d personalized recommendations for traveller %s", personalizedRecs.size(), travellerId);
 
-        // Extract itinerary IDs
-        List<Long> itineraryIds = recommendations.stream()
+        // 2. Get trending/popular itineraries (always included)
+        List<Map<String, Object>> trendingRecs = getTrendingItineraries(travellerId, page, trendingCount);
+        LOG.infof("Got %d trending itineraries", trendingRecs.size());
+
+        // 3. Interleave personalized and trending for better UX
+        // Pattern: P, P, T, P, T, P, P, T... (more personalized than trending)
+        List<Map<String, Object>> mixedFeed = interleaveRecommendations(personalizedRecs, trendingRecs);
+
+        // Extract itinerary IDs (removing duplicates)
+        List<Long> itineraryIds = mixedFeed.stream()
                 .map(rec -> (Long) rec.get("itineraryId"))
+                .distinct()
                 .collect(Collectors.toList());
 
         // Fetch full itinerary details from itinerary service
-        List<FeedItemDTO> feedItems = enrichWithItineraryDetails(itineraryIds, recommendations);
+        List<FeedItemDTO> feedItems = enrichWithItineraryDetails(itineraryIds, mixedFeed);
+
+        LOG.infof("Final mixed feed contains %d items (%d personalized + %d trending)",
+                feedItems.size(), personalizedRecs.size(), trendingRecs.size());
 
         long total = feedItems.size();
         return FeedResponseDTO.builder()
@@ -71,6 +91,82 @@ public class RecommendationService {
                 .totalItems(total)
                 .hasMore(feedItems.size() >= pageSize)
                 .build();
+    }
+
+    /**
+     * Interleaves personalized and trending recommendations for better user experience.
+     * Pattern: 2 personalized, 1 trending, 2 personalized, 1 trending...
+     */
+    private List<Map<String, Object>> interleaveRecommendations(
+            List<Map<String, Object>> personalized,
+            List<Map<String, Object>> trending) {
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        int pIndex = 0, tIndex = 0;
+        int personalizedBatch = 2; // Show 2 personalized items
+        int trendingBatch = 1;     // Then 1 trending item
+
+        while (pIndex < personalized.size() || tIndex < trending.size()) {
+            // Add personalized items
+            for (int i = 0; i < personalizedBatch && pIndex < personalized.size(); i++) {
+                result.add(personalized.get(pIndex++));
+            }
+
+            // Add trending items
+            for (int i = 0; i < trendingBatch && tIndex < trending.size(); i++) {
+                result.add(trending.get(tIndex++));
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Get trending/hot itineraries - most liked itineraries that the user hasn't interacted with.
+     * This ensures fresh users always see popular content.
+     */
+    private List<Map<String, Object>> getTrendingItineraries(String userId, Integer page, Integer count) {
+        LOG.debugf("Getting trending itineraries for user: %s, count: %d", userId, count);
+
+        String cypher = """
+            MATCH (i:Itinerary)
+            WHERE NOT EXISTS {
+                MATCH (u:User {id: $userId})
+                WHERE (u)-[:LIKES]->(i) OR (u)-[:CREATED]->(i)
+            }
+            WITH i, SIZE((i)<-[:LIKES]-()) as likesCount
+            WHERE likesCount > 0
+            RETURN i.id as itineraryId,
+                   likesCount
+            ORDER BY likesCount DESC
+            SKIP $skip
+            LIMIT $limit
+            """;
+
+        List<Map<String, Object>> results = new ArrayList<>();
+        try (Session session = neo4jDriver.session()) {
+            Result result = session.readTransaction(tx -> {
+                Map<String, Object> params = new HashMap<>();
+                params.put("userId", userId);
+                params.put("skip", page * count);
+                params.put("limit", count);
+                return tx.run(cypher, params);
+            });
+
+            while (result.hasNext()) {
+                Record record = result.next();
+                Map<String, Object> item = new HashMap<>();
+                item.put("itineraryId", record.get("itineraryId").asLong());
+                item.put("likesCount", record.get("likesCount").asInt(0));
+                item.put("matchReason", "Hot & Trending");
+                item.put("relevanceScore", (double) record.get("likesCount").asInt(0));
+                results.add(item);
+            }
+        } catch (Exception e) {
+            LOG.errorf(e, "Error getting trending itineraries");
+        }
+
+        return results;
     }
 
     /**
