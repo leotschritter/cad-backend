@@ -54,6 +54,19 @@ components:
           type: string
         comment:
           type: string
+    ImageUrlsDto:
+      type: object
+      required:
+        - imageUrls
+      properties:
+        imageUrls:
+          type: array
+          examples:
+            - - location-images/1/image1.jpg
+              - location-images/1/image2.jpg
+          items:
+            type: string
+          description: List of image URLs (filenames) to add to the location
     ItineraryDto:
       type: object
       properties:
@@ -1085,9 +1098,7 @@ paths:
         content:
           application/json:
             schema:
-              type: array
-              items:
-                type: string
+              $ref: "#/components/schemas/ImageUrlsDto"
         required: true
       responses:
         "200":
@@ -1096,10 +1107,14 @@ paths:
             application/json:
               example:
                 message: Image URLs added successfully
+        "400":
+          description: Bad request - Invalid data provided
+          content:
+            application/json:
+              example:
+                error: Image URLs are required
         "404":
           description: Location not found
-        "400":
-          description: Bad Request
       security:
         - BearerAuth: []
   /location/{locationId}/images:
