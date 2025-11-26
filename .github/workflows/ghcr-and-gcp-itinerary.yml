@@ -216,18 +216,51 @@ jobs:
             sleep 10
           fi
 
-      - name: Remove legacy cert-manager cluster roles
+      - name: Remove legacy cert-manager cluster-scoped resources
         run: |
           if helm list --namespace cert-manager | grep -q "^cert-manager"; then
-            echo "Helm already manages cert-manager; skipping cluster role cleanup"
+            echo "Helm already manages cert-manager; skipping cluster resource cleanup"
           else
-            echo "Deleting unmanaged cert-manager ClusterRoles and ClusterRoleBindings if they exist..."
-            for cr in cert-manager cert-manager-cainjector cert-manager-webhook; do
-              kubectl delete clusterrole $cr --ignore-not-found
-            done
-            for crb in cert-manager cert-manager-cainjector cert-manager-webhook; do
-              kubectl delete clusterrolebinding $crb --ignore-not-found
-            done
+            echo "Deleting ALL unmanaged cert-manager cluster-scoped resources..."
+
+            # Delete all ClusterRoles that start with cert-manager
+            CLUSTERROLES=$(kubectl get clusterrole -o name | grep cert-manager || true)
+            if [ -n "$CLUSTERROLES" ]; then
+              echo "Deleting ClusterRoles: $CLUSTERROLES"
+              echo "$CLUSTERROLES" | xargs kubectl delete --ignore-not-found || true
+            else
+              echo "No cert-manager ClusterRoles found"
+            fi
+
+            # Delete all ClusterRoleBindings that start with cert-manager
+            CLUSTERROLEBINDINGS=$(kubectl get clusterrolebinding -o name | grep cert-manager || true)
+            if [ -n "$CLUSTERROLEBINDINGS" ]; then
+              echo "Deleting ClusterRoleBindings: $CLUSTERROLEBINDINGS"
+              echo "$CLUSTERROLEBINDINGS" | xargs kubectl delete --ignore-not-found || true
+            else
+              echo "No cert-manager ClusterRoleBindings found"
+            fi
+
+            # Delete ValidatingWebhookConfigurations
+            VALIDATING_WEBHOOKS=$(kubectl get validatingwebhookconfiguration -o name | grep cert-manager || true)
+            if [ -n "$VALIDATING_WEBHOOKS" ]; then
+              echo "Deleting ValidatingWebhookConfigurations: $VALIDATING_WEBHOOKS"
+              echo "$VALIDATING_WEBHOOKS" | xargs kubectl delete --ignore-not-found || true
+            else
+              echo "No cert-manager ValidatingWebhookConfigurations found"
+            fi
+
+            # Delete MutatingWebhookConfigurations
+            MUTATING_WEBHOOKS=$(kubectl get mutatingwebhookconfiguration -o name | grep cert-manager || true)
+            if [ -n "$MUTATING_WEBHOOKS" ]; then
+              echo "Deleting MutatingWebhookConfigurations: $MUTATING_WEBHOOKS"
+              echo "$MUTATING_WEBHOOKS" | xargs kubectl delete --ignore-not-found || true
+            else
+              echo "No cert-manager MutatingWebhookConfigurations found"
+            fi
+
+            echo "Waiting for cleanup to complete..."
+            sleep 5
           fi
 
       - name: Create or Update cert-manager (if not exists)
