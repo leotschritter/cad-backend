@@ -10,6 +10,7 @@ import java.util.List;
 /**
  * DTO for recording itinerary creation or modification events.
  * When a user creates or modifies an itinerary, this should be sent to update the graph.
+ * The user email is automatically obtained from the security context.
  */
 @Data
 @Builder
@@ -17,7 +18,6 @@ import java.util.List;
 @AllArgsConstructor
 public class ItineraryEventDTO {
 
-    private String userId;
     private Long itineraryId;
     private String title;
     private String description;

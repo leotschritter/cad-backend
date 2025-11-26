@@ -10,6 +10,7 @@ import java.util.List;
 /**
  * DTO for recording location visits.
  * When a user adds a location to an itinerary, this tracks the visit in the graph.
+ * The user email is automatically obtained from the security context.
  */
 @Data
 @Builder
@@ -17,7 +18,6 @@ import java.util.List;
 @AllArgsConstructor
 public class LocationVisitDTO {
 
-    private String userId;
     private List<String> locationNames;
     private Long itineraryId;
 }

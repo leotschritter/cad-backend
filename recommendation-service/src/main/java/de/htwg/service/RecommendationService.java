@@ -7,6 +7,7 @@ import de.htwg.dto.ItineraryDTO;
 import de.htwg.security.SecurityContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 import org.neo4j.driver.Driver;
@@ -37,13 +38,17 @@ public class RecommendationService {
 
     @Inject
     de.htwg.filter.AuthorizationHeaderHolder authorizationHeaderHolder;
-    public FeedResponseDTO getPersonalizedFeed(String travellerId, Integer page, Integer pageSize) {
-        LOG.infof("Generating enhanced mixed feed for traveller: %s", travellerId);
+
+    @ConfigProperty(name = "recommendation.feed.max-items", defaultValue = "100")
+    int maxFeedItems;
+
+    public FeedResponseDTO getPersonalizedFeed(String userEmail) {
+        LOG.infof("Generating enhanced mixed feed for user: %s", userEmail);
 
         // Always create a mixture of personalized + trending content
         // Allocate 60% to personalized, 40% to trending (ensures feed is never empty)
-        int personalizedCount = (int) Math.ceil(pageSize * 0.6);
-        int trendingCount = pageSize - personalizedCount;
+        int personalizedCount = (int) Math.ceil(maxFeedItems * 0.6);
+        int trendingCount = maxFeedItems - personalizedCount;
 
         List<Map<String, Object>> allRecommendations = new ArrayList<>();
 
@@ -51,20 +56,20 @@ public class RecommendationService {
         List<Map<String, Object>> personalizedRecs = new ArrayList<>();
 
         // Try collaborative filtering first
-        List<Map<String, Object>> collaborative = getCollaborativeFilteringRecommendations(travellerId, page, personalizedCount);
+        List<Map<String, Object>> collaborative = getCollaborativeFilteringRecommendations(userEmail, personalizedCount);
         personalizedRecs.addAll(collaborative);
 
         // Supplement with location-based if needed
         if (personalizedRecs.size() < personalizedCount) {
             int remaining = personalizedCount - personalizedRecs.size();
-            List<Map<String, Object>> locationBased = getLocationBasedRecommendations(travellerId, page, remaining);
+            List<Map<String, Object>> locationBased = getLocationBasedRecommendations(userEmail, remaining);
             personalizedRecs.addAll(locationBased);
         }
 
-        LOG.infof("Got %d personalized recommendations for traveller %s", personalizedRecs.size(), travellerId);
+        LOG.infof("Got %d personalized recommendations for user %s", personalizedRecs.size(), userEmail);
 
         // 2. Get trending/popular itineraries (always included)
-        List<Map<String, Object>> trendingRecs = getTrendingItineraries(travellerId, page, trendingCount);
+        List<Map<String, Object>> trendingRecs = getTrendingItineraries(userEmail, trendingCount);
         LOG.infof("Got %d trending itineraries", trendingRecs.size());
 
         // 3. Interleave personalized and trending for better UX
@@ -83,13 +88,9 @@ public class RecommendationService {
         LOG.infof("Final mixed feed contains %d items (%d personalized + %d trending)",
                 feedItems.size(), personalizedRecs.size(), trendingRecs.size());
 
-        long total = feedItems.size();
         return FeedResponseDTO.builder()
                 .items(feedItems)
-                .page(page)
-                .pageSize(pageSize)
-                .totalItems(total)
-                .hasMore(feedItems.size() >= pageSize)
+                .totalItems(feedItems.size())
                 .build();
     }
 
@@ -125,13 +126,13 @@ public class RecommendationService {
      * Get trending/hot itineraries - most liked itineraries that the user hasn't interacted with.
      * This ensures fresh users always see popular content.
      */
-    private List<Map<String, Object>> getTrendingItineraries(String userId, Integer page, Integer count) {
-        LOG.debugf("Getting trending itineraries for user: %s, count: %d", userId, count);
+    private List<Map<String, Object>> getTrendingItineraries(String userEmail, Integer count) {
+        LOG.debugf("Getting trending itineraries for user: %s, count: %d", userEmail, count);
 
         String cypher = """
             MATCH (i:Itinerary)
             WHERE NOT EXISTS {
-                MATCH (u:User {id: $userId})
+                MATCH (u:User {email: $userEmail})
                 WHERE (u)-[:LIKES]->(i) OR (u)-[:CREATED]->(i)
             }
             WITH i, size([(i)<-[:LIKES]-() | 1]) as likesCount
@@ -139,7 +140,6 @@ public class RecommendationService {
             RETURN i.id as itineraryId,
                    likesCount
             ORDER BY likesCount DESC
-            SKIP $skip
             LIMIT $limit
             """;
 
@@ -147,8 +147,7 @@ public class RecommendationService {
         try (Session session = neo4jDriver.session()) {
             results = session.readTransaction(tx -> {
                 Map<String, Object> params = new HashMap<>();
-                params.put("userId", userId);
-                params.put("skip", page * count);
+                params.put("userEmail", userEmail);
                 params.put("limit", count);
 
                 Result result = tx.run(cypher, params);
@@ -230,10 +229,10 @@ public class RecommendationService {
         }
     }
 
-    private List<Map<String, Object>> getCollaborativeFilteringRecommendations(String userId, Integer page, Integer pageSize) {
-        LOG.debugf("Getting collaborative filtering recommendations for user: %s", userId);
+    private List<Map<String, Object>> getCollaborativeFilteringRecommendations(String userEmail, Integer limit) {
+        LOG.debugf("Getting collaborative filtering recommendations for user: %s", userEmail);
         String cypher = """
-            MATCH (u:User {id: $userId})-[:LIKES]->(i:Itinerary)<-[:LIKES]-(other:User)
+            MATCH (u:User {email: $userEmail})-[:LIKES]->(i:Itinerary)<-[:LIKES]-(other:User)
             MATCH (other)-[:LIKES]->(recommendation:Itinerary)
             WHERE NOT (u)-[:LIKES]->(recommendation)
             WITH recommendation, COUNT(DISTINCT other) as commonUsers, 
@@ -243,16 +242,14 @@ public class RecommendationService {
                    commonUsers,
                    (commonUsers * 2.0 + totalLikes * 0.5) as relevanceScore
             ORDER BY relevanceScore DESC
-            SKIP $skip
             LIMIT $limit
             """;
         List<Map<String, Object>> results = new ArrayList<>();
         try (Session session = neo4jDriver.session()) {
             results = session.readTransaction(tx -> {
                 Map<String, Object> params = new HashMap<>();
-                params.put("userId", userId);
-                params.put("skip", page * pageSize);
-                params.put("limit", pageSize);
+                params.put("userEmail", userEmail);
+                params.put("limit", limit);
 
                 Result result = tx.run(cypher, params);
                 List<Map<String, Object>> items = new ArrayList<>();
@@ -271,14 +268,14 @@ public class RecommendationService {
                 return items;
             });
         } catch (Exception e) {
-            LOG.errorf(e, "Error getting collaborative filtering recommendations for user %s", userId);
+            LOG.errorf(e, "Error getting collaborative filtering recommendations for user %s", userEmail);
         }
         return results;
     }
-    private List<Map<String, Object>> getLocationBasedRecommendations(String userId, Integer page, Integer pageSize) {
-        LOG.debugf("Getting location-based recommendations for user: %s", userId);
+    private List<Map<String, Object>> getLocationBasedRecommendations(String userEmail, Integer limit) {
+        LOG.debugf("Getting location-based recommendations for user: %s", userEmail);
         String cypher = """
-            MATCH (u:User {id: $userId})-[:VISITED]->(loc:Location)<-[:INCLUDES]-(i:Itinerary)
+            MATCH (u:User {email: $userEmail})-[:VISITED]->(loc:Location)<-[:INCLUDES]-(i:Itinerary)
             WHERE NOT (u)-[:LIKES]->(i) AND NOT (u)-[:CREATED]->(i)
             WITH i, COUNT(DISTINCT loc) as commonLocations,
                  size([(i)<-[:LIKES]-() | 1]) as totalLikes
@@ -291,16 +288,14 @@ public class RecommendationService {
                    commonLocations,
                    (commonLocations * 3.0 + totalLikes * 0.3) as relevanceScore
             ORDER BY relevanceScore DESC
-            SKIP $skip
             LIMIT $limit
             """;
         List<Map<String, Object>> results = new ArrayList<>();
         try (Session session = neo4jDriver.session()) {
             results = session.readTransaction(tx -> {
                 Map<String, Object> params = new HashMap<>();
-                params.put("userId", userId);
-                params.put("skip", page * pageSize);
-                params.put("limit", pageSize);
+                params.put("userEmail", userEmail);
+                params.put("limit", limit);
 
                 Result result = tx.run(cypher, params);
                 List<Map<String, Object>> items = new ArrayList<>();
@@ -321,14 +316,14 @@ public class RecommendationService {
                 return items;
             });
         } catch (Exception e) {
-            LOG.errorf(e, "Error getting location-based recommendations for user %s", userId);
+            LOG.errorf(e, "Error getting location-based recommendations for user %s", userEmail);
         }
         return results;
     }
-    public FeedResponseDTO getPopularFeed(Integer page, Integer pageSize) {
+    public FeedResponseDTO getPopularFeed() {
         LOG.info("Generating popular feed");
 
-        List<Map<String, Object>> popularRecommendations = getPopularItineraries(page, pageSize);
+        List<Map<String, Object>> popularRecommendations = getPopularItineraries();
 
         // Extract itinerary IDs
         List<Long> itineraryIds = popularRecommendations.stream()
@@ -340,15 +335,12 @@ public class RecommendationService {
 
         return FeedResponseDTO.builder()
                 .items(feedItems)
-                .page(page)
-                .pageSize(pageSize)
-                .totalItems((long) feedItems.size())
-                .hasMore(feedItems.size() >= pageSize)
+                .totalItems(feedItems.size())
                 .build();
     }
 
-    private List<Map<String, Object>> getPopularItineraries(Integer page, Integer pageSize) {
-        LOG.debugf("Getting popular itineraries, page: %d, pageSize: %d", page, pageSize);
+    private List<Map<String, Object>> getPopularItineraries() {
+        LOG.debugf("Getting popular itineraries, limit: %d", maxFeedItems);
         String cypher = """
             MATCH (i:Itinerary)
             WITH i, size([(i)<-[:LIKES]-() | 1]) as likesCount
@@ -356,15 +348,13 @@ public class RecommendationService {
             RETURN i.id as itineraryId,
                    likesCount
             ORDER BY likesCount DESC
-            SKIP $skip
             LIMIT $limit
             """;
         List<Map<String, Object>> results = new ArrayList<>();
         try (Session session = neo4jDriver.session()) {
             results = session.readTransaction(tx -> {
                 Map<String, Object> params = new HashMap<>();
-                params.put("skip", page * pageSize);
-                params.put("limit", pageSize);
+                params.put("limit", maxFeedItems);
 
                 Result result = tx.run(cypher, params);
                 List<Map<String, Object>> items = new ArrayList<>();

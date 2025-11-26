@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import java.util.List;
 
 /**
- * DTO for paginated feed response.
+ * DTO for feed response.
  */
 @Data
 @Builder
@@ -17,9 +17,6 @@ import java.util.List;
 public class FeedResponseDTO {
     
     private List<FeedItemDTO> items;
-    private Integer page;
-    private Integer pageSize;
-    private Long totalItems;
-    private Boolean hasMore;
+    private Integer totalItems;
 }
 

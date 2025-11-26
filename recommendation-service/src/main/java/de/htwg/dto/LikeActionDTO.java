@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 /**
  * DTO for recording a like action.
  * When a user likes an itinerary in the frontend, this should be sent to create a LIKES relationship.
+ * The user email is automatically obtained from the security context.
  */
 @Data
 @Builder
@@ -15,7 +16,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class LikeActionDTO {
     
-    private String userId;
     private Long itineraryId;
 }
 

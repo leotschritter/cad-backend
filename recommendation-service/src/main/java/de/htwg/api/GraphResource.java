@@ -34,10 +34,14 @@ public class GraphResource {
     @Inject
     GraphService graphService;
 
+    @Inject
+    de.htwg.security.SecurityContext securityContext;
+
     /**
      * Record a like action in the graph database.
      * When a user likes an itinerary in the frontend, this endpoint should be called
      * to create a LIKES relationship in the graph.
+     * The user email is automatically obtained from the authenticated session.
      *
      * @param likeAction The like action to record
      * @return Response indicating success or failure
@@ -46,19 +50,23 @@ public class GraphResource {
     @Path("/likes")
     @Operation(
             summary = "Record a like action",
-            description = "Creates a LIKES relationship between a user and an itinerary in the graph database"
+            description = "Creates a LIKES relationship between the authenticated user and an itinerary in the graph database"
     )
     @APIResponse(responseCode = "201", description = "Like recorded successfully")
     @APIResponse(responseCode = "400", description = "Invalid request data")
+    @APIResponse(responseCode = "401", description = "Not authenticated")
     @APIResponse(responseCode = "500", description = "Internal server error")
     public Response recordLike(LikeActionDTO likeAction) {
-        LOG.infof("Recording like: User %s likes Itinerary %d", likeAction.getUserId(), likeAction.getItineraryId());
+        String userEmail = securityContext.getCurrentUserEmail();
 
-        if (likeAction.getUserId() == null || likeAction.getUserId().isBlank()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("{\"error\": \"User ID is required\"}")
+        if (userEmail == null || userEmail.isBlank()) {
+            LOG.error("No authenticated user email found in security context");
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("{\"error\": \"Authentication required\"}")
                     .build();
         }
+
+        LOG.infof("Recording like: User %s likes Itinerary %d", userEmail, likeAction.getItineraryId());
 
         if (likeAction.getItineraryId() == null) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -67,7 +75,7 @@ public class GraphResource {
         }
 
         try {
-            graphService.recordLike(likeAction);
+            graphService.recordLike(userEmail, likeAction);
             return Response.status(Response.Status.CREATED)
                     .entity("{\"message\": \"Like recorded successfully\"}")
                     .build();
@@ -83,6 +91,7 @@ public class GraphResource {
      * Remove a like action from the graph database.
      * When a user unlikes an itinerary in the frontend, this endpoint should be called
      * to remove the LIKES relationship from the graph.
+     * The user email is automatically obtained from the authenticated session.
      *
      * @param likeAction The like action to remove
      * @return Response indicating success or failure
@@ -91,19 +100,23 @@ public class GraphResource {
     @Path("/likes")
     @Operation(
             summary = "Remove a like action",
-            description = "Removes a LIKES relationship between a user and an itinerary from the graph database"
+            description = "Removes a LIKES relationship between the authenticated user and an itinerary from the graph database"
     )
     @APIResponse(responseCode = "200", description = "Like removed successfully")
     @APIResponse(responseCode = "400", description = "Invalid request data")
+    @APIResponse(responseCode = "401", description = "Not authenticated")
     @APIResponse(responseCode = "500", description = "Internal server error")
     public Response removeLike(LikeActionDTO likeAction) {
-        LOG.infof("Removing like: User %s unlikes Itinerary %d", likeAction.getUserId(), likeAction.getItineraryId());
+        String userEmail = securityContext.getCurrentUserEmail();
 
-        if (likeAction.getUserId() == null || likeAction.getUserId().isBlank()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("{\"error\": \"User ID is required\"}")
+        if (userEmail == null || userEmail.isBlank()) {
+            LOG.error("No authenticated user email found in security context");
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("{\"error\": \"Authentication required\"}")
                     .build();
         }
+
+        LOG.infof("Removing like: User %s unlikes Itinerary %d", userEmail, likeAction.getItineraryId());
 
         if (likeAction.getItineraryId() == null) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -112,7 +125,7 @@ public class GraphResource {
         }
 
         try {
-            graphService.removeLike(likeAction);
+            graphService.removeLike(userEmail, likeAction);
             return Response.ok()
                     .entity("{\"message\": \"Like removed successfully\"}")
                     .build();
@@ -128,6 +141,7 @@ public class GraphResource {
      * Record an itinerary creation or update in the graph database.
      * When a user creates or modifies an itinerary, this endpoint should be called
      * to update the graph with the itinerary information and its locations.
+     * The user email is automatically obtained from the authenticated session.
      *
      * @param itineraryEvent The itinerary event to record
      * @return Response indicating success or failure
@@ -136,19 +150,23 @@ public class GraphResource {
     @Path("/itineraries")
     @Operation(
             summary = "Record an itinerary event",
-            description = "Creates or updates an itinerary node and its relationships in the graph database"
+            description = "Creates or updates an itinerary node and its relationships in the graph database for the authenticated user"
     )
     @APIResponse(responseCode = "201", description = "Itinerary recorded successfully")
     @APIResponse(responseCode = "400", description = "Invalid request data")
+    @APIResponse(responseCode = "401", description = "Not authenticated")
     @APIResponse(responseCode = "500", description = "Internal server error")
     public Response recordItinerary(ItineraryEventDTO itineraryEvent) {
-        LOG.infof("Recording itinerary: %d by user %s", itineraryEvent.getItineraryId(), itineraryEvent.getUserId());
+        String userEmail = securityContext.getCurrentUserEmail();
 
-        if (itineraryEvent.getUserId() == null || itineraryEvent.getUserId().isBlank()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("{\"error\": \"User ID is required\"}")
+        if (userEmail == null || userEmail.isBlank()) {
+            LOG.error("No authenticated user email found in security context");
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("{\"error\": \"Authentication required\"}")
                     .build();
         }
+
+        LOG.infof("Recording itinerary: %d by user %s", itineraryEvent.getItineraryId(), userEmail);
 
         if (itineraryEvent.getItineraryId() == null) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -163,7 +181,7 @@ public class GraphResource {
         }
 
         try {
-            graphService.recordItinerary(itineraryEvent);
+            graphService.recordItinerary(userEmail, itineraryEvent);
             return Response.status(Response.Status.CREATED)
                     .entity("{\"message\": \"Itinerary recorded successfully\"}")
                     .build();
@@ -179,6 +197,7 @@ public class GraphResource {
      * Record location visits in the graph database.
      * When a user adds locations to an itinerary, this endpoint should be called
      * to create VISITED relationships between the user and the locations.
+     * The user email is automatically obtained from the authenticated session.
      *
      * @param locationVisit The location visit data to record
      * @return Response indicating success or failure
@@ -187,19 +206,23 @@ public class GraphResource {
     @Path("/locations/visits")
     @Operation(
             summary = "Record location visits",
-            description = "Creates VISITED relationships between a user and locations in the graph database"
+            description = "Creates VISITED relationships between the authenticated user and locations in the graph database"
     )
     @APIResponse(responseCode = "201", description = "Location visits recorded successfully")
     @APIResponse(responseCode = "400", description = "Invalid request data")
+    @APIResponse(responseCode = "401", description = "Not authenticated")
     @APIResponse(responseCode = "500", description = "Internal server error")
     public Response recordLocationVisits(LocationVisitDTO locationVisit) {
-        LOG.infof("Recording location visits for user %s", locationVisit.getUserId());
+        String userEmail = securityContext.getCurrentUserEmail();
 
-        if (locationVisit.getUserId() == null || locationVisit.getUserId().isBlank()) {
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("{\"error\": \"User ID is required\"}")
+        if (userEmail == null || userEmail.isBlank()) {
+            LOG.error("No authenticated user email found in security context");
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("{\"error\": \"Authentication required\"}")
                     .build();
         }
+
+        LOG.infof("Recording location visits for user %s", userEmail);
 
         if (locationVisit.getLocationNames() == null || locationVisit.getLocationNames().isEmpty()) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -208,7 +231,7 @@ public class GraphResource {
         }
 
         try {
-            graphService.recordLocationVisits(locationVisit);
+            graphService.recordLocationVisits(userEmail, locationVisit);
             return Response.status(Response.Status.CREATED)
                     .entity("{\"message\": \"Location visits recorded successfully\"}")
                     .build();
@@ -220,4 +243,3 @@ public class GraphResource {
         }
     }
 }
-

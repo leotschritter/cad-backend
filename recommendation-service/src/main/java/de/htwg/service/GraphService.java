@@ -1,4 +1,5 @@
 package de.htwg.service;
+
 import de.htwg.dto.ItineraryEventDTO;
 import de.htwg.dto.LikeActionDTO;
 import de.htwg.dto.LocationVisitDTO;
@@ -7,59 +8,71 @@ import jakarta.inject.Inject;
 import org.jboss.logging.Logger;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Session;
+
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+
 @ApplicationScoped
 public class GraphService {
+
     private static final Logger LOG = Logger.getLogger(GraphService.class);
+
     @Inject
     Driver neo4jDriver;
-    public void recordLike(LikeActionDTO likeAction) {
-        LOG.infof("Recording like: User %s likes Itinerary %d", likeAction.getUserId(), likeAction.getItineraryId());
+
+    public void recordLike(String userEmail, LikeActionDTO likeAction) {
+        LOG.infof("Recording like: User %s likes Itinerary %d", userEmail, likeAction.getItineraryId());
+
         String cypher = """
-            MERGE (u:User {id: $userId})
+            MERGE (u:User {email: $userEmail})
             MERGE (i:Itinerary {id: $itineraryId})
             MERGE (u)-[r:LIKES {timestamp: $timestamp}]->(i)
             RETURN r
             """;
+
         try (Session session = neo4jDriver.session()) {
             session.writeTransaction(tx -> {
                 Map<String, Object> params = new HashMap<>();
-                params.put("userId", likeAction.getUserId());
+                params.put("userEmail", userEmail);
                 params.put("itineraryId", likeAction.getItineraryId());
                 params.put("timestamp", LocalDateTime.now().toString());
                 return tx.run(cypher, params).consume();
             });
-            LOG.infof("Successfully recorded like from user %s", likeAction.getUserId());
+            LOG.infof("Successfully recorded like from user %s", userEmail);
         } catch (Exception e) {
-            LOG.errorf(e, "Error recording like for user %s", likeAction.getUserId());
+            LOG.errorf(e, "Error recording like for user %s", userEmail);
             throw new RuntimeException("Failed to record like", e);
         }
     }
-    public void removeLike(LikeActionDTO likeAction) {
-        LOG.infof("Removing like: User %s unlikes Itinerary %d", likeAction.getUserId(), likeAction.getItineraryId());
+
+    public void removeLike(String userEmail, LikeActionDTO likeAction) {
+        LOG.infof("Removing like: User %s unlikes Itinerary %d", userEmail, likeAction.getItineraryId());
+
         String cypher = """
-            MATCH (u:User {id: $userId})-[r:LIKES]->(i:Itinerary {id: $itineraryId})
+            MATCH (u:User {email: $userEmail})-[r:LIKES]->(i:Itinerary {id: $itineraryId})
             DELETE r
             """;
+
         try (Session session = neo4jDriver.session()) {
             session.writeTransaction(tx -> {
                 Map<String, Object> params = new HashMap<>();
-                params.put("userId", likeAction.getUserId());
+                params.put("userEmail", userEmail);
                 params.put("itineraryId", likeAction.getItineraryId());
                 return tx.run(cypher, params).consume();
             });
-            LOG.infof("Successfully removed like from user %s", likeAction.getUserId());
+            LOG.infof("Successfully removed like from user %s", userEmail);
         } catch (Exception e) {
-            LOG.errorf(e, "Error removing like for user %s", likeAction.getUserId());
+            LOG.errorf(e, "Error removing like for user %s", userEmail);
             throw new RuntimeException("Failed to remove like", e);
         }
     }
-    public void recordItinerary(ItineraryEventDTO itineraryEvent) {
-        LOG.infof("Recording itinerary: %d by user %s", itineraryEvent.getItineraryId(), itineraryEvent.getUserId());
+
+    public void recordItinerary(String userEmail, ItineraryEventDTO itineraryEvent) {
+        LOG.infof("Recording itinerary: %d by user %s", itineraryEvent.getItineraryId(), userEmail);
+
         String cypher = """
-            MERGE (u:User {id: $userId})
+            MERGE (u:User {email: $userEmail})
             MERGE (i:Itinerary {id: $itineraryId})
             ON CREATE SET i.title = $title, i.description = $description, i.createdAt = $timestamp
             ON MATCH SET i.title = $title, i.description = $description, i.likesCount = $likesCount
@@ -69,10 +82,11 @@ public class GraphService {
             MERGE (l:Location {name: locationName})
             MERGE (i)-[:INCLUDES]->(l)
             """;
+
         try (Session session = neo4jDriver.session()) {
             session.writeTransaction(tx -> {
                 Map<String, Object> params = new HashMap<>();
-                params.put("userId", itineraryEvent.getUserId());
+                params.put("userEmail", userEmail);
                 params.put("itineraryId", itineraryEvent.getItineraryId());
                 params.put("title", itineraryEvent.getTitle());
                 params.put("description", itineraryEvent.getDescription());
@@ -87,27 +101,30 @@ public class GraphService {
             throw new RuntimeException("Failed to record itinerary", e);
         }
     }
-    public void recordLocationVisits(LocationVisitDTO locationVisit) {
-        LOG.infof("Recording location visits for user %s", locationVisit.getUserId());
+
+    public void recordLocationVisits(String userEmail, LocationVisitDTO locationVisit) {
+        LOG.infof("Recording location visits for user %s", userEmail);
+
         String cypher = """
-            MERGE (u:User {id: $userId})
+            MERGE (u:User {email: $userEmail})
             WITH u
             UNWIND $locations AS locationName
             MERGE (l:Location {name: locationName})
             MERGE (u)-[v:VISITED]->(l)
             ON CREATE SET v.timestamp = $timestamp
             """;
+
         try (Session session = neo4jDriver.session()) {
             session.writeTransaction(tx -> {
                 Map<String, Object> params = new HashMap<>();
-                params.put("userId", locationVisit.getUserId());
+                params.put("userEmail", userEmail);
                 params.put("locations", locationVisit.getLocationNames());
                 params.put("timestamp", LocalDateTime.now().toString());
                 return tx.run(cypher, params).consume();
             });
-            LOG.infof("Successfully recorded location visits for user %s", locationVisit.getUserId());
+            LOG.infof("Successfully recorded location visits for user %s", userEmail);
         } catch (Exception e) {
-            LOG.errorf(e, "Error recording location visits for user %s", locationVisit.getUserId());
+            LOG.errorf(e, "Error recording location visits for user %s", userEmail);
             throw new RuntimeException("Failed to record location visits", e);
         }
     }
