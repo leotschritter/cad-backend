@@ -166,7 +166,7 @@ jobs:
       - name: Clean legacy cert-manager resources
         run: |
           if kubectl get namespace cert-manager &>/dev/null; then
-            echo "Removing leftover cert-manager service accounts so Helm can own them..."
+            echo "Removing leftover cert-manager service accounts and configmaps so Helm can own them..."
             kubectl delete serviceaccount cert-manager -n cert-manager --ignore-not-found
             kubectl delete serviceaccount cert-manager-cainjector -n cert-manager --ignore-not-found
             kubectl delete serviceaccount cert-manager-webhook -n cert-manager --ignore-not-found
