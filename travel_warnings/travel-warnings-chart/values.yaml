@@ -1,0 +1,111 @@
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/part-of: travel-warnings-system
+  app.kubernetes.io/managed-by: helm
+
+postgres:
+  name: warnings-postgres
+  image: postgres:15-alpine
+  port: 5432
+  replicas: 1  # StatefulSet recommended for production
+  environmentVariables:
+    database: travel_warnings_db
+    user: postgres
+    password: postgres
+    pgdata: /var/lib/postgresql/data/pgdata
+  volumeMounts:
+    mountPath: /var/lib/postgresql/data
+    name: warnings-postgres-storage
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    command: ["sh", "-c", "pg_isready -U postgres -d travel_warnings_db"]
+
+postgresPvc:
+  name: warnings-postgres-data-pvc
+  storage: 4Gi
+
+travelWarningsApi:
+  name: travel-warnings-api
+  image: ghcr.io/leotschritter/cad-backend-travel-warnings:latest
+  port: 8080
+  replicas: 1  # Increase for high availability
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+  cors:
+    origins: "*"
+    methods: "GET,POST,PUT,DELETE,OPTIONS,HEAD,PATCH"
+    headers: "accept,authorization,content-type,x-requested-with,origin"
+    exposedHeaders: "Content-Disposition"
+    allowCredentials: "true"
+
+  quarkus:
+    acquisitionTimeout: "10"
+    backgroundValidationInterval: "2M"
+    idleRemovalInterval: "5M"
+    maxLifetime: "30M"
+
+  probes:
+    startup:
+      path: /q/health/started
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      failureThreshold: 30
+      timeoutSeconds: 3
+    readiness:
+      path: /q/health/ready
+      periodSeconds: 30
+      initialDelaySeconds: 0
+      failureThreshold: 3
+      timeoutSeconds: 5
+    liveness:
+      path: /q/health/live
+      periodSeconds: 30
+      initialDelaySeconds: 0
+      failureThreshold: 3
+      timeoutSeconds: 5
+
+smtp:
+  # SMTP credentials - should be provided via --set or separate values file
+  user: ""  # Set via: --set smtp.user=your-username
+  password: ""  # Set via: --set smtp.password=your-password
+
+travelWarningsConfig:
+  name: travel-warnings-config
+  smtp:
+    from: "noreply.travel-warning@htwg-konstanz.de"
+    host: "smtp.htwg-konstanz.de"
+    port: "587"
+    startTls: "REQUIRED"
+  db:
+    url: "jdbc:postgresql://warnings-postgres:5432/travel_warnings_db"
+
+ingress:
+  name: travel-warnings-ingress
+  enabled: true
+  useProd: false  # Set to true for production deployment
+  prod:
+    host: warnings.tripico.fun
+    tlsSecretName: warnings-tls
+    sslRedirect: "true"
+    forceSslRedirect: "true"
+  dev:
+    host: travel-warnings.local
+
+certificate:
+  name: warnings-tls-cert
+  secretName: warnings-tls
+  issuerName: letsencrypt-prod

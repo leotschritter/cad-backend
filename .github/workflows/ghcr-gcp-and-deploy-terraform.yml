@@ -1,14 +1,14 @@
 name: Docker push to GHCR, GCP Artifact Registry and deploy Backend Infrastructure
 
 on:
-  push:
-    branches: [ main ]
-    tags: [ 'v*.*.*' ]
-    paths:
-      - 'terraform/**'
-      - 'Dockerfile'
-      - '.github/workflows/ghcr-gcp-and-deploy-terraform.yml'
-      - 'src/**'
+  # push:
+  #   branches: [ main ]
+  #   tags: [ 'v*.*.*' ]
+  #   paths:
+  #     - 'terraform/**'
+  #     - 'Dockerfile'
+  #     - '.github/workflows/ghcr-gcp-and-deploy-terraform.yml'
+  #     - 'src/**'
   workflow_dispatch:
 
 jobs:

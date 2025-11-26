@@ -1,0 +1,30 @@
+# Development/Local Environment Values
+# Use this for local development with Minikube or Docker Desktop
+
+# Use development ingress (without TLS)
+ingress:
+  enabled: true
+  useProd: false
+
+# Lower resource requirements for local development
+travelWarningsApi:
+  replicas: 1
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "125m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Use local postgres
+postgres:
+  enabled: true
+  replicas: 1
+
+# SMTP can be set via --set or use mock
+smtp:
+  user: ""
+  password: ""
+

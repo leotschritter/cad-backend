@@ -2,6 +2,7 @@ package de.htwg.api.location;
 
 import de.htwg.api.itinerary.model.LocationDto;
 import de.htwg.api.location.model.AccommodationDto;
+import de.htwg.api.location.model.ImageUrlsDto;
 import de.htwg.api.location.model.LocationImageUploadResponseDto;
 import de.htwg.api.location.model.MessageResponseDto;
 import de.htwg.api.location.model.TransportDto;
@@ -100,6 +101,8 @@ public class LocationApi {
         @FormParam("description") String description,
         @FormParam("fromDate") LocalDate fromDate,
         @FormParam("toDate") LocalDate toDate,
+        @FormParam("latitude") Double latitude,
+        @FormParam("longitude") Double longitude,
         @Parameter(
             description = "Image files to upload (optional - can be omitted)"
         ) @FormParam("files") List<FileUpload> files,
@@ -165,6 +168,8 @@ public class LocationApi {
             LocationDto locationDto = LocationDto.builder()
                     .name(name)
                     .description(description)
+                    .latitude(latitude)
+                    .longitude(longitude)
                     .fromDate(fromDate)
                     .toDate(toDate)
                     .imageUrls(imageFileNames)
@@ -331,6 +336,8 @@ public class LocationApi {
                                 .id(location.id())
                                 .name(location.name())
                                 .description(location.description())
+                                .latitude(location.latitude())
+                                .longitude(location.longitude())
                                 .fromDate(location.fromDate())
                                 .toDate(location.toDate())
                                 .imageUrls(signedUrls)
@@ -414,6 +421,8 @@ public class LocationApi {
                     .id(location.id())
                     .name(location.name())
                     .description(location.description())
+                    .latitude(location.latitude())
+                    .longitude(location.longitude())
                     .fromDate(location.fromDate())
                     .toDate(location.toDate())
                     .imageUrls(signedUrls)
@@ -648,6 +657,14 @@ public class LocationApi {
             )
         ),
         @APIResponse(
+            responseCode = "400",
+            description = "Bad request - Invalid data provided",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Image URLs are required\"}"
+            )
+        ),
+        @APIResponse(
             responseCode = "404",
             description = "Location not found"
         )
@@ -657,7 +674,10 @@ public class LocationApi {
             description = "ID of the location to add image URLs to",
             required = true
         ) @PathParam("locationId") Long locationId,
-        List<String> imageUrls) {
+        @Parameter(
+            description = "Request body containing list of image URLs",
+            required = true
+        ) ImageUrlsDto imageUrlsDto) {
 
         if (locationId == null) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -665,14 +685,14 @@ public class LocationApi {
                     .build();
         }
 
-        if (imageUrls == null || imageUrls.isEmpty()) {
+        if (imageUrlsDto == null || imageUrlsDto.imageUrls() == null || imageUrlsDto.imageUrls().isEmpty()) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\": \"Image URLs are required\"}")
                     .build();
         }
 
         try {
-            locationService.addImagesToLocation(locationId, imageUrls);
+            locationService.addImagesToLocation(locationId, imageUrlsDto.imageUrls());
             return Response.ok("{\"message\": \"Image URLs added successfully\"}").build();
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.NOT_FOUND)

@@ -1,0 +1,28 @@
+{{- if and .Values.ingress.enabled .Values.ingress.useProd }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.ingress.name }}
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    cert-manager.io/cluster-issuer: {{ .Values.certificate.issuerName | quote }}
+    nginx.ingress.kubernetes.io/ssl-redirect: {{ .Values.ingress.prod.sslRedirect | quote }}
+    nginx.ingress.kubernetes.io/force-ssl-redirect: {{ .Values.ingress.prod.forceSslRedirect | quote }}
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - {{ .Values.ingress.prod.host }}
+      secretName: {{ .Values.ingress.prod.tlsSecretName }}
+  rules:
+    - host: {{ .Values.ingress.prod.host }}
+      http:
+        paths:
+          - path: /(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ .Values.travelWarningsApi.name }}
+                port:
+                  number: {{ .Values.travelWarningsApi.port }}
+{{- end }}
