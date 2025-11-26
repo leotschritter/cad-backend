@@ -11,9 +11,4 @@ spec:
     kind: ClusterIssuer
   dnsNames:
     - {{ .Values.ingress.prod.host }}
-  # Use HTTP01 challenge for faster issuance in GKE
-  privateKey:
-    rotationPolicy: Always
-  # Renew certificate 30 days before expiry
-  renewBefore: 720h
 {{- end }}
