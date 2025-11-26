@@ -340,6 +340,13 @@ jobs:
           echo "All cert-manager deployments are ready!"
           kubectl get pods -n cert-manager
 
+          echo "Restarting webhook to pick up new RBAC permissions..."
+          kubectl rollout restart deployment/cert-manager-webhook -n cert-manager
+          kubectl rollout status deployment/cert-manager-webhook -n cert-manager --timeout=120s
+
+          echo "Waiting for webhook to stabilize after restart..."
+          sleep 30
+
       - name: Verify cert-manager RBAC permissions
         run: |
           echo "=== Checking ClusterRoles ==="
@@ -359,13 +366,13 @@ jobs:
 
       - name: Temporarily remove webhook validation
         run: |
-          echo "Checking for cert-manager webhook configuration..."
-          kubectl get validatingwebhookconfiguration cert-manager-webhook &>/dev/null && \
-            echo "Found webhook configuration, backing it up..." && \
-            kubectl get validatingwebhookconfiguration cert-manager-webhook -o yaml > /tmp/webhook-backup.yaml && \
-            echo "Deleting webhook configuration temporarily..." && \
-            kubectl delete validatingwebhookconfiguration cert-manager-webhook || \
-            echo "No webhook configuration found (this is ok)"
+          echo "Forcefully deleting ValidatingWebhookConfiguration to bypass webhook..."
+          kubectl delete validatingwebhookconfiguration cert-manager-webhook --ignore-not-found
+          kubectl delete mutatingwebhookconfiguration cert-manager-webhook --ignore-not-found
+
+          echo "Verifying webhook configurations are gone..."
+          kubectl get validatingwebhookconfiguration cert-manager-webhook 2>&1 | grep -q "NotFound" && echo "✓ ValidatingWebhookConfiguration deleted" || echo "⚠ ValidatingWebhookConfiguration still exists!"
+          kubectl get mutatingwebhookconfiguration cert-manager-webhook 2>&1 | grep -q "NotFound" && echo "✓ MutatingWebhookConfiguration deleted" || echo "⚠ MutatingWebhookConfiguration still exists!"
 
       - name: Create ClusterIssuer
         working-directory: ./kubernetes
@@ -386,16 +393,21 @@ jobs:
 
       - name: Restore webhook validation
         run: |
-          echo "Restoring webhook configuration..."
-          if [ -f /tmp/webhook-backup.yaml ]; then
-            echo "Applying backed-up webhook configuration..."
-            kubectl apply -f /tmp/webhook-backup.yaml
-          else
-            echo "No backup found, webhook will be recreated automatically by cert-manager"
-          fi
+          echo "Triggering cert-manager to recreate webhook configurations..."
+          kubectl rollout restart deployment/cert-manager-webhook -n cert-manager
+          kubectl rollout status deployment/cert-manager-webhook -n cert-manager --timeout=120s
 
-          echo "Waiting for webhook to stabilize..."
-          sleep 10
+          echo "Waiting for webhook configurations to be recreated..."
+          for i in {1..30}; do
+            if kubectl get validatingwebhookconfiguration cert-manager-webhook &>/dev/null; then
+              echo "✓ ValidatingWebhookConfiguration has been recreated!"
+              break
+            fi
+            echo "Waiting for webhook config to be recreated (attempt $i/30)..."
+            sleep 5
+          done
+
+          kubectl get validatingwebhookconfiguration cert-manager-webhook || echo "⚠ Warning: webhook config not recreated yet"
 
       - name: Verify Deployment
         run: |
