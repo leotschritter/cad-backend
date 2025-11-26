@@ -292,6 +292,18 @@ jobs:
             echo "Namespace cleanup complete"
           fi
 
+      - name: Clean up conflicting webhook configurations
+        run: |
+          echo "Checking for existing cert-manager release..."
+          if helm list --namespace cert-manager | grep -q "^cert-manager"; then
+            echo "cert-manager release exists, cleaning up webhook configurations to avoid conflicts..."
+            kubectl delete validatingwebhookconfiguration cert-manager-webhook --ignore-not-found
+            kubectl delete mutatingwebhookconfiguration cert-manager-webhook --ignore-not-found
+            echo "Deleted webhook configurations (Helm will recreate them)"
+          else
+            echo "No existing cert-manager release, no cleanup needed"
+          fi
+
       - name: Create or Update cert-manager (without ClusterIssuer)
         working-directory: ./kubernetes
         run: |
