@@ -1,0 +1,76 @@
+{{ .Chart.Name }} was installed!
+
+Release name: {{ .Release.Name }}
+
+⚠️  IMPORTANT: Ensure NGINX Ingress Controller is installed!
+   Check with: kubectl get pods -n ingress-nginx
+   If not installed, see README.md
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }}
+  $ helm get all {{ .Release.Name }}
+
+===========================================
+📋 DEPLOYMENT INFORMATION
+===========================================
+
+{{- if .Values.smtp.user }}
+✅ SMTP Configuration: Configured
+{{- else }}
+⚠️  SMTP Configuration: NOT CONFIGURED
+   Please set SMTP credentials:
+   helm upgrade {{ .Release.Name }} {{ .Chart.Name }} \
+     --set smtp.user=your-username \
+     --set smtp.password=your-password
+{{- end }}
+
+🗄️  Database:
+   - Service: {{ .Values.postgres.name }}
+   - Port: {{ .Values.postgres.port }}
+   - Database: {{ .Values.postgres.environmentVariables.database }}
+
+🚀 API Service:
+   - Name: {{ .Values.travelWarningsApi.name }}
+   - Port: {{ .Values.travelWarningsApi.port }}
+   - Replicas: {{ .Values.travelWarningsApi.replicas }}
+
+{{- if .Release.IsInstall }}
+
+===========================================
+🌐 ACCESSING YOUR APPLICATION
+===========================================
+
+⚠️ for local Development:
+1. Ensure /etc/hosts has: 127.0.0.1 {{ .Values.ingress.dev.host }}
+2. Access at: http://{{ .Values.ingress.dev.host }}/swagger-ui
+
+⚠️ in Production:
+1. DNS should point {{ .Values.ingress.prod.host }} to the clusters external Ingress IP
+2. Access at: https://{{ .Values.ingress.prod.host }}/swagger-ui
+
+===========================================
+🔍 MONITORING
+===========================================
+
+Check pod status:
+  kubectl get pods -l app={{ .Values.travelWarningsApi.name }}
+
+View API logs:
+  kubectl logs -l app={{ .Values.travelWarningsApi.name }} -f
+
+View database logs:
+  kubectl logs -l app={{ .Values.postgres.name }} -f
+
+{{- end }}
+
+===========================================
+📚 USEFUL COMMANDS
+===========================================
+
+Trigger manual travel warning refresh:
+  curl -X POST http://{{ .Values.ingress.dev.host }}/warnings/travel-warnings/refresh
+
+List all travel warnings:
+  curl http://{{ .Values.ingress.dev.host }}/warnings/travel-warnings
+

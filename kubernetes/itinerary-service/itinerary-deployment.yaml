@@ -19,7 +19,7 @@ spec:
       serviceAccountName: itinerary-service-sa
       containers:
         - name: itinerary-service
-          image: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-backend:2.0.2
+          image: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-backend:2.0.5
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

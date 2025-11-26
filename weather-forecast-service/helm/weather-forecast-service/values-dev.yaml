@@ -1,0 +1,27 @@
+# Development/Local Environment Values
+# Use this for local development with Minikube or Docker Desktop
+
+# Use development ingress (without TLS)
+ingress:
+  enabled: true
+  useProd: false
+
+# Lower resource requirements for local development
+weatherForecastApi:
+  replicas: 1
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "125m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Use local postgres
+postgres:
+  replicas: 1
+
+# Meteosource API Key can be set via --set
+meteosource:
+  apiKey: ""

@@ -1,69 +1,377 @@
 ---
 openapi: 3.1.0
+tags:
+  - name: Weather Forecast
+    description: Operations for managing weather forecasts
+components:
+  schemas:
+    DailyForecastResponse:
+      type: object
+      properties:
+        date:
+          type: string
+        temperatureHigh:
+          type: number
+          format: double
+        temperatureLow:
+          type: number
+          format: double
+        weather:
+          type: string
+        weatherIcon:
+          type: string
+        precipitationProbability:
+          type: integer
+          format: int32
+        precipitationTotal:
+          type: number
+          format: double
+        windSpeed:
+          type: number
+          format: double
+        windDirection:
+          type: integer
+          format: int32
+        humidity:
+          type: integer
+          format: int32
+        uvIndex:
+          type: integer
+          format: int32
+        summary:
+          type: string
+    HourlyForecastResponse:
+      type: object
+      properties:
+        date:
+          type: string
+        temperature:
+          type: number
+          format: double
+        weather:
+          type: string
+        weatherIcon:
+          type: string
+        precipitationTotal:
+          type: number
+          format: double
+        precipitationType:
+          type: string
+        windSpeed:
+          type: number
+          format: double
+        windDirection:
+          type: integer
+          format: int32
+        cloudCover:
+          type: integer
+          format: int32
+        summary:
+          type: string
+    LocalDateTime:
+      type: string
+      format: date-time
+      examples:
+        - 2022-03-10T12:15:50
+    WeatherForecastResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        location:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        timezone:
+          type: string
+        lastUpdated:
+          $ref: "#/components/schemas/LocalDateTime"
+        dailyForecasts:
+          type: array
+          items:
+            $ref: "#/components/schemas/DailyForecastResponse"
+        hourlyForecasts:
+          type: array
+          items:
+            $ref: "#/components/schemas/HourlyForecastResponse"
 paths:
   /api/weather/forecast/coordinates:
     get:
-      parameters:
-      - name: lat
-        in: query
-        schema:
-          type: number
-          format: double
-      - name: lon
-        in: query
-        schema:
-          type: number
-          format: double
-      responses:
-        "200":
-          description: OK
       summary: Get Weather Forecast By Coordinates
+      description: Retrieves stored weather forecasts for specific geographic coordinates.
+        Returns all forecasts matching the latitude and longitude.
       tags:
-      - Weather Forecast Resource
+        - Weather Forecast
+      parameters:
+        - description: Latitude coordinate
+          name: lat
+          in: query
+          schema:
+            type: number
+            format: double
+        - description: Longitude coordinate
+          name: lon
+          in: query
+          schema:
+            type: number
+            format: double
+      responses:
+        "200":
+          description: Weather forecasts retrieved successfully
+          content:
+            application/json:
+              examples:
+                Forecast List by Coordinates Example:
+                  summary: Example of weather forecast list for coordinates
+                  value:
+                    - id: 1
+                      location: Berlin
+                      latitude: 52.52
+                      longitude: 13.405
+                      timezone: UTC
+                      lastUpdated: 2025-11-22T10:30:00
+                      dailyForecasts:
+                        - date: 2025-11-22
+                          temperatureHigh: 15.5
+                          temperatureLow: 8.2
+                          weather: Partly cloudy
+                          weatherIcon: partly_cloudy
+                          precipitationProbability: 20
+                          precipitationTotal: 0.0
+                          windSpeed: 12.5
+                          windDirection: 180
+                          humidity: 65
+                          uvIndex: 3
+                          summary: Mild temperatures with occasional clouds
+                      hourlyForecasts: []
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WeatherForecastResponse"
+        "400":
+          description: Bad request - Missing required parameters
+          content:
+            application/json:
+              example:
+                error: Latitude and longitude are required
+        "404":
+          description: No weather forecast found for the specified coordinates
+          content:
+            application/json:
+              example:
+                error: "Weather forecast not found for coordinates: 52.52, 13.405"
     post:
-      parameters:
-      - name: lat
-        in: query
-        schema:
-          type: number
-          format: double
-      - name: location
-        in: query
-        schema:
-          type: string
-      - name: lon
-        in: query
-        schema:
-          type: number
-          format: double
-      responses:
-        "200":
-          description: OK
       summary: Fetch Weather Forecast By Coordinates
+      description: Fetches weather forecast data from external API and stores it in
+        the database. Returns the forecast for the specified coordinates and location.
       tags:
-      - Weather Forecast Resource
-  /api/weather/forecast/location/{location}:
-    get:
+        - Weather Forecast
       parameters:
-      - name: location
-        in: path
-        required: true
-        schema:
-          type: string
+        - description: Latitude coordinate
+          name: lat
+          in: query
+          schema:
+            type: number
+            format: double
+        - description: Location name
+          name: location
+          in: query
+          schema:
+            type: string
+        - description: Longitude coordinate
+          name: lon
+          in: query
+          schema:
+            type: number
+            format: double
       responses:
         "200":
-          description: OK
+          description: Weather forecast fetched and stored successfully
+          content:
+            application/json:
+              examples:
+                Weather Forecast Example:
+                  summary: Example of a weather forecast response
+                  value:
+                    id: 1
+                    location: Berlin
+                    latitude: 52.52
+                    longitude: 13.405
+                    timezone: UTC
+                    lastUpdated: 2025-11-22T10:30:00
+                    dailyForecasts:
+                      - date: 2025-11-22
+                        temperatureHigh: 15.5
+                        temperatureLow: 8.2
+                        weather: Partly cloudy
+                        weatherIcon: partly_cloudy
+                        precipitationProbability: 20
+                        precipitationTotal: 0.0
+                        windSpeed: 12.5
+                        windDirection: 180
+                        humidity: 65
+                        uvIndex: 3
+                        summary: Mild temperatures with occasional clouds
+                    hourlyForecasts: []
+              schema:
+                $ref: "#/components/schemas/WeatherForecastResponse"
+        "400":
+          description: Bad request - Missing required parameters
+          content:
+            application/json:
+              example:
+                error: "Latitude, longitude and location are required"
+  /api/weather/forecast/location:
+    get:
       summary: Get Weather Forecast By Location
+      description: Retrieves stored weather forecasts for a specific location. Returns
+        all forecasts matching the location name (case-insensitive).
       tags:
-      - Weather Forecast Resource
+        - Weather Forecast
+      parameters:
+        - description: Location name
+          name: location
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Weather forecasts retrieved successfully
+          content:
+            application/json:
+              examples:
+                Forecast List Example:
+                  summary: Example of weather forecast list for a location
+                  value:
+                    - id: 1
+                      location: Berlin
+                      latitude: 52.52
+                      longitude: 13.405
+                      timezone: UTC
+                      lastUpdated: 2025-11-22T10:30:00
+                      dailyForecasts:
+                        - date: 2025-11-22
+                          temperatureHigh: 15.5
+                          temperatureLow: 8.2
+                          weather: Partly cloudy
+                          weatherIcon: partly_cloudy
+                          precipitationProbability: 20
+                          precipitationTotal: 0.0
+                          windSpeed: 12.5
+                          windDirection: 180
+                          humidity: 65
+                          uvIndex: 3
+                          summary: Mild temperatures with occasional clouds
+                      hourlyForecasts: []
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WeatherForecastResponse"
+        "404":
+          description: No weather forecast found for the specified location
+          content:
+            application/json:
+              example:
+                error: "Weather forecast not found for location: Berlin"
+    delete:
+      summary: Delete Weather Forecast By Location
+      description: Deletes all weather forecasts for a specific location. Returns
+        the number of deleted forecasts. Case-insensitive location matching.
+      tags:
+        - Weather Forecast
+      parameters:
+        - description: Location name to delete forecasts for
+          name: location
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Weather forecast(s) deleted successfully
+          content:
+            application/json:
+              examples:
+                Delete Success Example:
+                  summary: Example of successful deletion
+                  value: "\"Successfully deleted 1 weather forecast(s) for location:\
+                    \ Berlin\""
+        "400":
+          description: Bad request - Missing location parameter
+          content:
+            application/json:
+              example:
+                error: Location parameter is required
+        "404":
+          description: No weather forecast found for the specified location
+          content:
+            application/json:
+              example:
+                error: "No weather forecast found for location: Berlin"
   /api/weather/forecasts:
     get:
+      summary: Get All Weather Forecasts
+      description: Retrieves all stored weather forecasts from the database. Returns
+        a list of all available forecasts.
+      tags:
+        - Weather Forecast
       responses:
         "200":
-          description: OK
-      summary: Get All Weather Forecasts
-      tags:
-      - Weather Forecast Resource
+          description: All weather forecasts retrieved successfully
+          content:
+            application/json:
+              examples:
+                All Forecasts Example:
+                  summary: Example of all weather forecasts
+                  value:
+                    - id: 1
+                      location: Berlin
+                      latitude: 52.52
+                      longitude: 13.405
+                      timezone: UTC
+                      lastUpdated: 2025-11-22T10:30:00
+                      dailyForecasts:
+                        - date: 2025-11-22
+                          temperatureHigh: 15.5
+                          temperatureLow: 8.2
+                          weather: Partly cloudy
+                          weatherIcon: partly_cloudy
+                          precipitationProbability: 20
+                          precipitationTotal: 0.0
+                          windSpeed: 12.5
+                          windDirection: 180
+                          humidity: 65
+                          uvIndex: 3
+                          summary: Mild temperatures with occasional clouds
+                      hourlyForecasts: []
+                    - id: 2
+                      location: Munich
+                      latitude: 48.1351
+                      longitude: 11.582
+                      timezone: UTC
+                      lastUpdated: 2025-11-22T10:35:00
+                      dailyForecasts:
+                        - date: 2025-11-22
+                          temperatureHigh: 18.0
+                          temperatureLow: 10.5
+                          weather: Sunny
+                          weatherIcon: sunny
+                          precipitationProbability: 5
+                          precipitationTotal: 0.0
+                          windSpeed: 8.0
+                          windDirection: 90
+                          humidity: 55
+                          uvIndex: 4
+                          summary: Clear skies with warm temperatures
+                      hourlyForecasts: []
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WeatherForecastResponse"
 info:
   title: weather-forecast-service API
   version: 1.0.0-SNAPSHOT
