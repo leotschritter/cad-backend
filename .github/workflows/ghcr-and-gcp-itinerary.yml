@@ -1,8 +1,8 @@
-name: Docker push to GHCR, GCP Artifact Registry and deploy Backend Infrastructure
+name: Docker push to GHCR, GCP Artifact Registry and deploy Cert Manager/Itinerary Service
 
 on:
   push:
-    branches: [ "main", "feature/exercise8-leo", "feature/itinerary-service-helm" ]
+    branches: [ "main" ]
     tags: [ 'v*.*.*' ]
     paths:
       - 'kubernetes/cert-manager-chart/Chart.yaml'
