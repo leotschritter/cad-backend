@@ -216,6 +216,20 @@ jobs:
             sleep 10
           fi
 
+      - name: Remove legacy cert-manager cluster roles
+        run: |
+          if helm list --namespace cert-manager | grep -q "^cert-manager"; then
+            echo "Helm already manages cert-manager; skipping cluster role cleanup"
+          else
+            echo "Deleting unmanaged cert-manager ClusterRoles and ClusterRoleBindings if they exist..."
+            for cr in cert-manager cert-manager-cainjector cert-manager-webhook; do
+              kubectl delete clusterrole $cr --ignore-not-found
+            done
+            for crb in cert-manager cert-manager-cainjector cert-manager-webhook; do
+              kubectl delete clusterrolebinding $crb --ignore-not-found
+            done
+          fi
+
       - name: Create or Update cert-manager (if not exists)
         working-directory: ./kubernetes
         run: |
