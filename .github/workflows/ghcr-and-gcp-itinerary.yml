@@ -442,6 +442,11 @@ jobs:
         with:
           version: 'latest'
 
+      - name: Install jq
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y jq
+
       - name: Install NGINX Ingress Controller (if not exists)
         run: |
           # Check if ingress-nginx namespace exists
@@ -508,17 +513,43 @@ jobs:
           kubectl wait --for=condition=ready pod -l app=cert-manager -n cert-manager --timeout=2m || true
           kubectl get pods -n cert-manager
 
+      - name: Check for stuck Helm operations
+        working-directory: ./kubernetes
+        run: |
+          echo "Checking for stuck Helm operations..."
+          RELEASE_STATUS=$(helm status itinerary-service -o json 2>/dev/null | jq -r '.info.status' || echo "not-found")
+          
+          echo "Current release status: $RELEASE_STATUS"
+          
+          if [ "$RELEASE_STATUS" == "pending-install" ] || [ "$RELEASE_STATUS" == "pending-upgrade" ] || [ "$RELEASE_STATUS" == "pending-rollback" ]; then
+            echo "⚠️  Found stuck operation in status: $RELEASE_STATUS"
+            echo "Rolling back to recover..."
+            helm rollback itinerary-service 0 --wait --timeout 2m || {
+              echo "Rollback failed or no history available"
+              echo "Attempting to uninstall stuck release..."
+              helm uninstall itinerary-service --wait --timeout 2m || echo "Uninstall also failed, will try fresh install"
+            }
+          elif [ "$RELEASE_STATUS" == "failed" ]; then
+            echo "⚠️  Previous deployment failed, will retry with fresh deployment"
+          elif [ "$RELEASE_STATUS" == "deployed" ]; then
+            echo "✅ Current release is healthy"
+          else
+            echo "ℹ️  No existing release found"
+          fi
+
       - name: Deploy with Helm
         working-directory: ./kubernetes
         run: |
-          # Check if release exists
-          if helm list | grep -q "^itinerary-service"; then
+          # Check if release exists and is not in pending state
+          if helm list | grep -q "^itinerary-service" && ! helm status itinerary-service -o json 2>/dev/null | jq -r '.info.status' | grep -q "pending"; then
             echo "Upgrading existing release..."
             helm upgrade itinerary-service ./itinerary-service-chart \
               -f ./itinerary-service-chart/values-prod.yaml \
               --set database.url="${{ vars.DB_URL }}" \
               --set database.password="${{ secrets.DB_PASSWORD }}" \
-              --wait --timeout 5m
+              --cleanup-on-fail \
+              --atomic \
+              --timeout 5m
           else
             echo "Installing new release..."
             helm install itinerary-service ./itinerary-service-chart \
@@ -526,7 +557,8 @@ jobs:
               --set database.url="${{ vars.DB_URL }}" \
               --set database.password="${{ secrets.DB_PASSWORD }}" \
               --create-namespace \
-              --wait --timeout 5m
+              --atomic \
+              --timeout 5m
           fi
 
       - name: Verify Deployment
@@ -534,11 +566,45 @@ jobs:
           echo "=== Helm Release Status ==="
           helm status itinerary-service
           echo ""
-          echo "=== Pod Status ==="
-          kubectl get pods -l app.kubernetes.io/instance=itinerary-service -o wide
+          
+          echo "=== Deployment Status ==="
+          kubectl get deployment itinerary-service -o wide || echo "Deployment not found"
           echo ""
+          
+          echo "=== Pod Status ==="
+          kubectl get pods -l app=itinerary-service -o wide
+          echo ""
+          
+          echo "=== Pod Details (if any issues) ==="
+          PODS=$(kubectl get pods -l app=itinerary-service -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
+          if [ -n "$PODS" ]; then
+            for pod in $PODS; do
+              STATUS=$(kubectl get pod $pod -o jsonpath='{.status.phase}')
+              echo "Pod: $pod - Status: $STATUS"
+              if [ "$STATUS" != "Running" ]; then
+                echo "Describing pod $pod:"
+                kubectl describe pod $pod | tail -30
+                echo ""
+                echo "Recent logs from $pod:"
+                kubectl logs $pod --tail=50 || echo "Could not get logs"
+                echo ""
+              fi
+            done
+          else
+            echo "No pods found with label app=itinerary-service"
+          fi
+          
           echo "=== Service Status ==="
           kubectl get svc -l app.kubernetes.io/instance=itinerary-service
           echo ""
+          
           echo "=== Ingress Status ==="
           kubectl get ingress
+          echo ""
+          
+          echo "=== Certificate Status ==="
+          kubectl get certificate itinerary-tls-cert -o wide || echo "Certificate not found"
+          echo ""
+          
+          echo "=== Recent Events ==="
+          kubectl get events --sort-by='.lastTimestamp' | grep itinerary | tail -20 || echo "No recent events"

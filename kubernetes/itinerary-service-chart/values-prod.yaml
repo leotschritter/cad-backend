@@ -26,26 +26,26 @@ probes:
     httpGet:
       path: /q/health/started
       port: 8080
-    initialDelaySeconds: 15
-    periodSeconds: 10
-    timeoutSeconds: 5
-    failureThreshold: 40
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 30
   liveness:
     httpGet:
       path: /q/health/live
       port: 8080
-    initialDelaySeconds: 60
-    periodSeconds: 30
+    initialDelaySeconds: 5
+    periodSeconds: 10
     timeoutSeconds: 5
-    failureThreshold: 5
+    failureThreshold: 3
   readiness:
     httpGet:
       path: /q/health/ready
       port: 8080
-    initialDelaySeconds: 30
+    initialDelaySeconds: 5
     periodSeconds: 10
     timeoutSeconds: 5
-    failureThreshold: 5
+    failureThreshold: 3
 
 # Use production domain
 ingress:
