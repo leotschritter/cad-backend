@@ -413,6 +413,7 @@ jobs:
       # - build-and-push
       - check-versions
     if: ${{ needs.check-versions.outputs.itinerary_service_changed == 'true' || github.event_name == 'workflow_dispatch' }}
+    environment: production
     permissions:
       id-token: write
       contents: read
@@ -548,7 +549,7 @@ jobs:
               --set database.url="${{ vars.DB_URL }}" \
               --set database.password="${{ secrets.DB_PASSWORD }}" \
               --cleanup-on-fail \
-              --atomic \
+              --rollback-on-failure \
               --timeout 5m
           else
             echo "Installing new release..."
@@ -557,7 +558,7 @@ jobs:
               --set database.url="${{ vars.DB_URL }}" \
               --set database.password="${{ secrets.DB_PASSWORD }}" \
               --create-namespace \
-              --atomic \
+              --rollback-on-failure \
               --timeout 5m
           fi
 
