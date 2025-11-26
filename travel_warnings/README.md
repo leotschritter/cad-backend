@@ -57,6 +57,7 @@ A comprehensive travel warning microservice that integrates with the Auswärtige
 docker-compose up -d
 ```
 
+
 This starts:
 - PostgreSQL on port 5432
 - pgAdmin on port 5050 (http://localhost:5050)
