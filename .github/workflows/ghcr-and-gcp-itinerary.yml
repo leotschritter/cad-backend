@@ -163,6 +163,21 @@ jobs:
       #     cleanup_resource "certificate" "warnings-tls-cert"
       #     echo "Cleanup complete!"
 
+      - name: Reset cert-manager namespace when unmanaged leftovers exist
+        run: |
+          if kubectl get namespace cert-manager &>/dev/null; then
+            if helm list --namespace cert-manager | grep -q "^cert-manager"; then
+              echo "cert-manager release already managed by Helm; skipping namespace reset"
+            else
+              echo "Namespace cert-manager exists without a Helm release; removing namespace to clean leftovers..."
+              kubectl delete namespace cert-manager --wait=false || true
+              echo "Waiting up to 3 minutes for namespace deletion"
+              kubectl wait --for=delete namespace/cert-manager --timeout=180s || true
+            fi
+          else
+            echo "cert-manager namespace absent; nothing to reset"
+          fi
+
       - name: Clean legacy cert-manager resources
         run: |
           if kubectl get namespace cert-manager &>/dev/null; then
@@ -170,6 +185,7 @@ jobs:
             kubectl delete serviceaccount cert-manager -n cert-manager --ignore-not-found
             kubectl delete serviceaccount cert-manager-cainjector -n cert-manager --ignore-not-found
             kubectl delete serviceaccount cert-manager-webhook -n cert-manager --ignore-not-found
+            kubectl delete configmap cert-manager -n cert-manager --ignore-not-found
           else
             echo "cert-manager namespace does not exist yet; nothing to clean"
           fi
