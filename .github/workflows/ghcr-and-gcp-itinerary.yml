@@ -96,10 +96,10 @@ jobs:
             previous=$(git show HEAD^:"$chart_dir/Chart.yaml" 2>/dev/null | yq '.appVersion' || echo "none")
           
             if [ "$current" != "$previous" ]; then
-              echo "Changes detected in appVersion"
+              echo "Changes detected in appVersion for $chart_dir: $previous -> $current"
               echo "$chart_key=true" >> $GITHUB_OUTPUT
             else
-              echo "No changes in appVersion"
+              echo "No changes in appVersion for $chart_dir"
               echo "$chart_key=false" >> $GITHUB_OUTPUT
             fi
           }
@@ -494,6 +494,8 @@ jobs:
           kubectl wait --for=delete pod -l app=itinerary-service --timeout=60s 2>/dev/null || true
           # 4. Delete services
           cleanup_resource "service" "itinerary-service"
+          # 5. Delete ServiceAccount (after pods are gone, before configmap)
+          cleanup_resource "serviceaccount" "itinerary-service-sa"
           # 6. Delete configmap
           cleanup_resource "configmap" "app-config"
           # 7. Delete certificate resource (the Certificate CR, not cert-manager itself!)
