@@ -44,6 +44,7 @@ recommendationApi:
 neo4j:
   enabled: true
   replicas: 1
+  password: ""  # Set via --set neo4j.password=XXX
   resources:
     requests:
       memory: "1Gi"
@@ -51,8 +52,4 @@ neo4j:
     limits:
       memory: "2Gi"
       cpu: "1000m"
-
-# Neo4j password should be provided via --set or secrets
-neo4j:
-  password: ""  # Set via --set neo4j.password=XXX
 
