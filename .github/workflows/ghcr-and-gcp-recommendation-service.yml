@@ -5,6 +5,7 @@ on:
     branches:
         - "main"
         - "feature/recommendation-service"
+        - ".github/workflows/ghcr-and-gcp-recommendation-service.yml"
     tags: [ "v*.*.*" ]
     paths:
       - "recommendation-service/**"
