@@ -89,7 +89,7 @@ Get personalized feed for a traveller using collaborative filtering.
 }
 ```
 
-#### GET /api/v1/feed/popular
+#### GET /feed/popular
 Get popular feed with most liked itineraries.
 
 **Query Parameters:**
@@ -100,7 +100,7 @@ Get popular feed with most liked itineraries.
 
 These endpoints should be called from the frontend when users perform actions:
 
-#### POST /api/v1/graph/like
+#### POST /graph/like
 Record a like action. **Call this when a user likes an itinerary.**
 
 **Request Body:**
@@ -111,7 +111,7 @@ Record a like action. **Call this when a user likes an itinerary.**
 }
 ```
 
-#### DELETE /api/v1/graph/like
+#### DELETE /graph/like
 Remove a like action. **Call this when a user unlikes an itinerary.**
 
 **Request Body:**
@@ -122,7 +122,7 @@ Remove a like action. **Call this when a user unlikes an itinerary.**
 }
 ```
 
-#### POST /api/v1/graph/itinerary
+#### POST /graph/itinerary
 Record an itinerary creation or update. **Call this when a user creates/updates an itinerary.**
 
 **Request Body:**
@@ -137,7 +137,7 @@ Record an itinerary creation or update. **Call this when a user creates/updates 
 }
 ```
 
-#### POST /api/v1/graph/locations
+#### POST /graph/locations
 Record location visits. **Call this when a user adds locations to an itinerary.**
 
 **Request Body:**
@@ -249,7 +249,7 @@ export FIREBASE_CREDENTIALS_PATH=/path/to/firebase-credentials.json
 ```
 
 4. Access the application:
-- API: http://localhost:8083/api/v1/feed
+- API: http://localhost:8083/feed
 - Swagger UI: http://localhost:8083/swagger-ui
 - Health: http://localhost:8083/q/health
 - Neo4j Browser: http://localhost:7474
@@ -339,7 +339,7 @@ ORDER BY likes DESC
 
 ```javascript
 // POST to record the like in the graph
-await fetch('http://localhost:8083/api/v1/graph/like', {
+await fetch('http://localhost:8083/graph/like', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -353,7 +353,7 @@ await fetch('http://localhost:8083/api/v1/graph/like', {
 
 ```javascript
 // POST to record the itinerary
-await fetch('http://localhost:8083/api/v1/graph/itinerary', {
+await fetch('http://localhost:8083/graph/itinerary', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -371,7 +371,7 @@ await fetch('http://localhost:8083/api/v1/graph/itinerary', {
 
 ```javascript
 // POST to record visited locations
-await fetch('http://localhost:8083/api/v1/graph/locations', {
+await fetch('http://localhost:8083/graph/locations', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -386,7 +386,7 @@ await fetch('http://localhost:8083/api/v1/graph/locations', {
 ```javascript
 // GET personalized feed
 const response = await fetch(
-  `http://localhost:8083/api/v1/feed?travellerId=${currentUser.id}&page=0&pageSize=20`
+  `http://localhost:8083/feed?travellerId=${currentUser.id}&page=0&pageSize=20`
 );
 const feed = await response.json();
 ```
