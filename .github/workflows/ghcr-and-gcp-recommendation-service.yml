@@ -2,7 +2,9 @@ name: Build and Deploy Recommendation Service to GCP/GHCR
 
 on:
   push:
-    branches: [ "main" ]
+    branches:
+        - "main"
+        - "feature/recommendation-service"
     tags: [ "v*.*.*" ]
     paths:
       - "recommendation-service/**"
