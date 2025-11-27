@@ -63,6 +63,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Authenticate again for kubectl
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
@@ -73,8 +74,7 @@ jobs:
 
       - name: Install GKE Auth Plugin
         run: |
-          sudo apt-get update
-          sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin
+          gcloud components install gke-gcloud-auth-plugin --quiet
 
       - name: Get GKE Credentials
         run: |
