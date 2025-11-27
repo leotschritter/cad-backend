@@ -1,0 +1,135 @@
+name: Build and Deploy Recommendation Service to GCP/GHCR
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*.*.*" ]
+    paths:
+      - "recommendation-service/**"
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    outputs:
+      image-tag: ${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCP
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev
+
+      - name: Build and Push Images
+        uses: docker/build-push-action@v6
+        with:
+          context: ./recommendation-service
+          file: ./recommendation-service/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}-recommendation-service:latest
+            ghcr.io/${{ github.repository }}-recommendation-service:${{ github.sha }}
+            europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/recommendation-service:latest
+            europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/recommendation-service:${{ github.sha }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Configure kubectl for GKE
+        run: |
+          gcloud container clusters get-credentials tripico-cluster --region europe-west1
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Install NGINX Ingress Controller (if not exists)
+        run: |
+          # Check if ingress-nginx namespace exists
+          if ! kubectl get namespace ingress-nginx &>/dev/null; then
+            echo "Installing NGINX Ingress Controller..."
+            helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+            helm repo update
+            helm install ingress-nginx ingress-nginx/ingress-nginx \
+              --namespace ingress-nginx \
+              --create-namespace \
+              --wait --timeout 5m
+          else
+            echo "NGINX Ingress Controller already installed"
+          fi
+
+      - name: Deploy with Helm
+        working-directory: ./recommendation-service
+        run: |
+          # Check if release exists
+          if helm list | grep -q "^recommendation-service"; then
+            echo "Upgrading existing release..."
+            helm upgrade recommendation-service ./recommendation-service-chart \
+              -f ./recommendation-service-chart/values-prod.yaml \
+              --set neo4j.password="${{ secrets.NEO4J_PASSWORD }}" \
+              --set recommendationApi.image=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/recommendation-service:${{ needs.build-and-push.outputs.image-tag }} \
+              --wait --timeout 5m
+          else
+            echo "Installing new release..."
+            helm install recommendation-service ./recommendation-service-chart \
+              -f ./recommendation-service-chart/values-prod.yaml \
+              --set neo4j.password="${{ secrets.NEO4J_PASSWORD }}" \
+              --set recommendationApi.image=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/recommendation-service:${{ needs.build-and-push.outputs.image-tag }} \
+              --create-namespace \
+              --wait --timeout 5m
+          fi
+
+      - name: Verify Deployment
+        run: |
+          echo "=== Helm Release Status ==="
+          helm status recommendation-service
+          echo ""
+          echo "=== Pod Status ==="
+          kubectl get pods -l app.kubernetes.io/instance=recommendation-service -o wide
+          echo ""
+          echo "=== Service Status ==="
+          kubectl get svc -l app.kubernetes.io/instance=recommendation-service
+          echo ""
+          echo "=== Ingress Status ==="
+          kubectl get ingress
+
