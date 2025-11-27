@@ -63,13 +63,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Use composite action for GKE setup
-      - name: Setup GKE
-        uses: ./.github/actions/setup-gke
-        with:
-          gcp_credentials: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-          cluster_name: tripico-cluster
-          region: europe-west1
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
 
       - name: Install NGINX Ingress Controller (if not exists)
         run: |
