@@ -1,36 +1,35 @@
 # Development/Local Environment Values
-  password: ""
-neo4j:
-# Neo4j password should be provided via --set
-
-      cpu: "500m"
-      memory: "1Gi"
-    limits:
-      cpu: "250m"
-      memory: "512Mi"
-    requests:
-  resources:
-  replicas: 1
-  enabled: true
-neo4j:
-# Use local neo4j
-
-      cpu: "500m"
-      memory: "512Mi"
-    limits:
-      cpu: "125m"
-      memory: "256Mi"
-    requests:
-  resources:
-
-  replicas: 1
-recommendationApi:
-# Lower resource requirements for local development
-
-  useProd: false
-  enabled: true
-ingress:
-# Use development ingress (without TLS)
-
 # Use this for local development with Minikube or Docker Desktop
+
+# Use development ingress (without TLS)
+ingress:
+  enabled: true
+  useProd: false
+
+# Lower resource requirements for local development
+recommendationApi:
+  replicas: 1
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "125m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Use local neo4j
+neo4j:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+# Neo4j password should be provided via --set
+neo4j:
+  password: ""
 

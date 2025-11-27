@@ -107,6 +107,8 @@ ingress:
   name: recommendation-ingress
   enabled: true
   useProd: false  # Set to true for production deployment
+  dev:
+    host: recommendation-dev.tripico.fun
   prod:
     host: recommendation.tripico.fun
     tlsSecretName: recommendation-tls
