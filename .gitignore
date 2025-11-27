@@ -1,23 +1,42 @@
-.idea
-target
-.venv
-load/.venv
-load/venv
-.env
-*.log
+# Maven
+target/
+**/target/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
 .DS_Store
 
+# Environment
+.env
+*.log
+
 # Terraform
-terraform.tfvars
 *.tfstate
 *.tfstate.*
 .terraform/
 .terraform.lock.hcl
-crash.log
-crash.*.log
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
-.terraformrc
-terraform.rc
+terraform.tfvars
+
+# Build artifacts
+*.jar
+*.war
+*.ear
+
+# Python (for scripts)
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Temporary files
+*.tmp
+*.swp
+*~
+
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
