@@ -1,0 +1,608 @@
+name: Docker push to GHCR, GCP Artifact Registry and deploy Cert Manager/Itinerary Service
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ 'v*.*.*' ]
+    paths:
+      - 'kubernetes/cert-manager-chart/Chart.yaml'
+      - 'kubernetes/itinerary-service-chart/Chart.yaml'
+  workflow_dispatch:
+
+jobs:
+  check-versions:
+    runs-on: ubuntu-latest
+    outputs:
+      cert_manager_changed: ${{ steps.detect.outputs.cert_manager_changed }}
+      itinerary_service_changed: ${{ steps.detect.outputs.itinerary_service_changed }}
+      itinerary_service_app_version: ${{ steps.detect.outputs.itinerary_service_app_version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history to compare versions
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Detect chart version changes
+        id: detect
+        run: |
+          check_chart() {
+            chart_dir=$1
+            key_prefix=$2
+          
+            current=$(yq '.appVersion' "$chart_dir/Chart.yaml")
+            previous=$(git show HEAD^:"$chart_dir/Chart.yaml" 2>/dev/null | yq '.appVersion' || echo "none")
+          
+            echo "${key_prefix}_app_version=$current" >> $GITHUB_OUTPUT
+          
+            if [ "$current" != "$previous" ]; then
+              echo "Changes detected in appVersion for $chart_dir: $previous -> $current"
+              echo "${key_prefix}_changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "No changes in appVersion for $chart_dir"
+              echo "${key_prefix}_changed=false" >> $GITHUB_OUTPUT
+            fi
+          }
+          
+          check_chart kubernetes/cert-manager-chart cert_manager
+          check_chart kubernetes/itinerary-service-chart itinerary_service
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: check-versions
+    if: ${{ github.event.head_commit.message != 'skip-build' && needs.check-versions.outputs.itinerary_service_changed == 'true' }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write  # needed for GCP Workload Identity
+
+    outputs:
+      backend_image: ${{ steps.export_image.outputs.backend_image }}
+      app_version: ${{ steps.export_app_version.outputs.app_version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Login to GitHub Container Registry
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Login to Google Artifact Registry
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCP
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev
+
+      # Build and push to both registries
+      - name: Build and push to GHCR and GCP
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ needs.check-versions.outputs.itinerary_service_app_version }}
+            europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-backend:latest
+            europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-backend:${{ needs.check-versions.outputs.itinerary_service_app_version }}
+
+      - name: Export image reference
+        id: export_image
+        run: echo "backend_image=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-backend:${{ needs.check-versions.outputs.itinerary_service_app_version }}" >> "$GITHUB_OUTPUT"
+
+      - name: Export app version
+        id: export_app_version
+        run: echo "app_version=${{ needs.check-versions.outputs.itinerary_service_app_version }}" >> "$GITHUB_OUTPUT"
+
+  deploy-cert-manager:
+    runs-on: ubuntu-latest
+    needs: check-versions
+    if: ${{ needs.check-versions.outputs.cert_manager_changed == 'true' || github.event_name == 'workflow_dispatch' }}
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Authenticate again for kubectl
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Configure kubectl for GKE
+        run: |
+          gcloud container clusters get-credentials tripico-cluster --region europe-west1
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+
+      - name: Reset cert-manager namespace when unmanaged leftovers exist
+        run: |
+          if kubectl get namespace cert-manager &>/dev/null; then
+            if helm list --namespace cert-manager | grep -q "^cert-manager"; then
+              echo "cert-manager release already managed by Helm; skipping namespace reset"
+            else
+              echo "Namespace cert-manager exists without a Helm release; removing namespace to clean leftovers..."
+              kubectl delete namespace cert-manager --wait=false || true
+              echo "Waiting up to 3 minutes for namespace deletion"
+              kubectl wait --for=delete namespace/cert-manager --timeout=180s || true
+            fi
+          else
+            echo "cert-manager namespace absent; nothing to reset"
+          fi
+
+      - name: Clean legacy cert-manager resources
+        run: |
+          if kubectl get namespace cert-manager &>/dev/null; then
+            echo "Removing leftover cert-manager service accounts and configmaps so Helm can own them..."
+            kubectl delete serviceaccount cert-manager -n cert-manager --ignore-not-found
+            kubectl delete serviceaccount cert-manager-cainjector -n cert-manager --ignore-not-found
+            kubectl delete serviceaccount cert-manager-webhook -n cert-manager --ignore-not-found
+            kubectl delete configmap cert-manager -n cert-manager --ignore-not-found
+          else
+            echo "cert-manager namespace does not exist yet; nothing to clean"
+          fi
+
+      - name: Remove legacy cert-manager CRDs when release is absent
+        run: |
+          if helm list --namespace cert-manager | grep -q "^cert-manager"; then
+            echo "Helm already manages cert-manager; skipping CRD cleanup"
+          else
+            echo "Checking for unmanaged cert-manager CRDs to delete..."
+            CRDS=(
+              certificaterequests.cert-manager.io
+              certificates.cert-manager.io
+              challenges.acme.cert-manager.io
+              clusterissuers.cert-manager.io
+              issuers.cert-manager.io
+              orders.acme.cert-manager.io
+            )
+            for crd in "${CRDS[@]}"; do
+              if kubectl get crd "$crd" &>/dev/null; then
+                echo "Deleting CRD $crd"
+                kubectl delete crd "$crd" --wait=false || true
+              else
+                echo "CRD $crd already absent"
+              fi
+            done
+            echo "Giving Kubernetes time to finish CRD deletions"
+            sleep 10
+          fi
+
+      - name: Remove legacy cert-manager cluster-scoped resources
+        run: |
+          if helm list --namespace cert-manager | grep -q "^cert-manager"; then
+            echo "Helm already manages cert-manager; skipping cluster resource cleanup"
+          else
+            echo "Deleting ALL unmanaged cert-manager cluster-scoped resources..."
+
+            # Delete all ClusterRoles that start with cert-manager
+            CLUSTERROLES=$(kubectl get clusterrole -o name | grep cert-manager || true)
+            if [ -n "$CLUSTERROLES" ]; then
+              echo "Deleting ClusterRoles: $CLUSTERROLES"
+              echo "$CLUSTERROLES" | xargs kubectl delete --ignore-not-found || true
+            else
+              echo "No cert-manager ClusterRoles found"
+            fi
+
+            # Delete all ClusterRoleBindings that start with cert-manager
+            CLUSTERROLEBINDINGS=$(kubectl get clusterrolebinding -o name | grep cert-manager || true)
+            if [ -n "$CLUSTERROLEBINDINGS" ]; then
+              echo "Deleting ClusterRoleBindings: $CLUSTERROLEBINDINGS"
+              echo "$CLUSTERROLEBINDINGS" | xargs kubectl delete --ignore-not-found || true
+            else
+              echo "No cert-manager ClusterRoleBindings found"
+            fi
+
+            # Delete ValidatingWebhookConfigurations
+            VALIDATING_WEBHOOKS=$(kubectl get validatingwebhookconfiguration -o name | grep cert-manager || true)
+            if [ -n "$VALIDATING_WEBHOOKS" ]; then
+              echo "Deleting ValidatingWebhookConfigurations: $VALIDATING_WEBHOOKS"
+              echo "$VALIDATING_WEBHOOKS" | xargs kubectl delete --ignore-not-found || true
+            else
+              echo "No cert-manager ValidatingWebhookConfigurations found"
+            fi
+
+            # Delete MutatingWebhookConfigurations
+            MUTATING_WEBHOOKS=$(kubectl get mutatingwebhookconfiguration -o name | grep cert-manager || true)
+            if [ -n "$MUTATING_WEBHOOKS" ]; then
+              echo "Deleting MutatingWebhookConfigurations: $MUTATING_WEBHOOKS"
+              echo "$MUTATING_WEBHOOKS" | xargs kubectl delete --ignore-not-found || true
+            else
+              echo "No cert-manager MutatingWebhookConfigurations found"
+            fi
+
+            echo "Waiting for cleanup to complete..."
+            sleep 5
+          fi
+
+      - name: Remove legacy cert-manager Roles and RoleBindings across all namespaces
+        run: |
+          if helm list --namespace cert-manager | grep -q "^cert-manager"; then
+            echo "Helm already manages cert-manager; skipping namespace cleanup"
+          else
+            echo "Deleting cert-manager Roles and RoleBindings across all namespaces..."
+
+            # Get all namespaces and clean up cert-manager resources
+            for ns in $(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}'); do
+              echo "Checking namespace: $ns"
+
+              # Delete Roles
+              ROLES=$(kubectl get role -n "$ns" -o name 2>/dev/null | grep cert-manager || true)
+              if [ -n "$ROLES" ]; then
+                echo "  Deleting Roles in $ns: $ROLES"
+                echo "$ROLES" | xargs kubectl delete -n "$ns" --ignore-not-found || true
+              fi
+
+              # Delete RoleBindings
+              ROLEBINDINGS=$(kubectl get rolebinding -n "$ns" -o name 2>/dev/null | grep cert-manager || true)
+              if [ -n "$ROLEBINDINGS" ]; then
+                echo "  Deleting RoleBindings in $ns: $ROLEBINDINGS"
+                echo "$ROLEBINDINGS" | xargs kubectl delete -n "$ns" --ignore-not-found || true
+              fi
+            done
+
+            echo "Namespace cleanup complete"
+          fi
+
+      - name: Clean up conflicting webhook configurations
+        run: |
+          echo "Checking for existing cert-manager release..."
+          if helm list --namespace cert-manager | grep -q "^cert-manager"; then
+            echo "cert-manager release exists, cleaning up webhook configurations to avoid conflicts..."
+            kubectl delete validatingwebhookconfiguration cert-manager-webhook --ignore-not-found
+            kubectl delete mutatingwebhookconfiguration cert-manager-webhook --ignore-not-found
+            echo "Deleted webhook configurations (Helm will recreate them)"
+          else
+            echo "No existing cert-manager release, no cleanup needed"
+          fi
+
+      - name: Create or Update cert-manager (without ClusterIssuer)
+        working-directory: ./kubernetes
+        run: |
+          helm repo add jetstack https://charts.jetstack.io
+          helm repo update
+          helm dependency update ./cert-manager-chart
+          helm dependency build ./cert-manager-chart
+          if helm list --namespace cert-manager | grep -q "^cert-manager"; then
+            echo "Updating cert-manager release..."
+          else
+            echo "Installing cert-manager release..."
+          fi
+          # Install cert-manager without ClusterIssuer first
+          helm upgrade --install cert-manager ./cert-manager-chart \
+            --namespace cert-manager \
+            --create-namespace \
+            --set clusterIssuer.enabled=false \
+            --set cert-manager.global.rbac.create=true \
+            --set cert-manager.serviceAccount.create=true \
+            --set cert-manager.webhook.serviceAccount.create=true \
+            --set cert-manager.cainjector.serviceAccount.create=true \
+            --wait --timeout 5m
+
+      - name: Wait for cert-manager to be ready
+        run: |
+          echo "Waiting for cert-manager pods to be ready..."
+          kubectl wait --for=condition=Available --timeout=300s \
+            deployment/cert-manager -n cert-manager
+          kubectl wait --for=condition=Available --timeout=300s \
+            deployment/cert-manager-webhook -n cert-manager
+          kubectl wait --for=condition=Available --timeout=300s \
+            deployment/cert-manager-cainjector -n cert-manager
+
+          echo "All cert-manager deployments are ready!"
+          kubectl get pods -n cert-manager
+
+          echo "Restarting webhook to pick up new RBAC permissions..."
+          kubectl rollout restart deployment/cert-manager-webhook -n cert-manager
+          kubectl rollout status deployment/cert-manager-webhook -n cert-manager --timeout=120s
+
+          echo "Waiting for webhook to stabilize after restart..."
+          sleep 30
+
+      - name: Verify cert-manager RBAC permissions
+        run: |
+          echo "=== Checking ClusterRoles ==="
+          kubectl get clusterrole | grep cert-manager || echo "No cert-manager ClusterRoles found!"
+
+          echo ""
+          echo "=== Checking ClusterRoleBindings ==="
+          kubectl get clusterrolebinding | grep cert-manager || echo "No cert-manager ClusterRoleBindings found!"
+
+          echo ""
+          echo "=== Checking ServiceAccounts ==="
+          kubectl get serviceaccount -n cert-manager
+
+          echo ""
+          echo "=== Checking cert-manager-webhook logs for errors ==="
+          kubectl logs -n cert-manager deployment/cert-manager-webhook --tail=50 || echo "Could not get logs"
+
+      - name: Temporarily remove webhook validation
+        run: |
+          echo "Forcefully deleting ValidatingWebhookConfiguration to bypass webhook..."
+          kubectl delete validatingwebhookconfiguration cert-manager-webhook --ignore-not-found
+          kubectl delete mutatingwebhookconfiguration cert-manager-webhook --ignore-not-found
+
+          echo "Verifying webhook configurations are gone..."
+          kubectl get validatingwebhookconfiguration cert-manager-webhook 2>&1 | grep -q "NotFound" && echo "✓ ValidatingWebhookConfiguration deleted" || echo "⚠ ValidatingWebhookConfiguration still exists!"
+          kubectl get mutatingwebhookconfiguration cert-manager-webhook 2>&1 | grep -q "NotFound" && echo "✓ MutatingWebhookConfiguration deleted" || echo "⚠ MutatingWebhookConfiguration still exists!"
+
+      - name: Create ClusterIssuer
+        working-directory: ./kubernetes
+        run: |
+          echo "Creating ClusterIssuer without webhook validation..."
+          # Template the ClusterIssuer from the helm chart
+          helm template cert-manager ./cert-manager-chart \
+            --namespace cert-manager \
+            --set clusterIssuer.enabled=true \
+            --show-only templates/clusterissuer-prod.yaml \
+            | kubectl apply -f -
+
+          echo "Verifying ClusterIssuer was created..."
+          kubectl get clusterissuer
+
+          echo "Checking ClusterIssuer status..."
+          kubectl describe clusterissuer letsencrypt-prod
+
+      - name: Restore webhook validation
+        run: |
+          echo "Triggering cert-manager to recreate webhook configurations..."
+          kubectl rollout restart deployment/cert-manager-webhook -n cert-manager
+          kubectl rollout status deployment/cert-manager-webhook -n cert-manager --timeout=120s
+
+          echo "Waiting for webhook configurations to be recreated..."
+          for i in {1..30}; do
+            if kubectl get validatingwebhookconfiguration cert-manager-webhook &>/dev/null; then
+              echo "✓ ValidatingWebhookConfiguration has been recreated!"
+              break
+            fi
+            echo "Waiting for webhook config to be recreated (attempt $i/30)..."
+            sleep 5
+          done
+
+          kubectl get validatingwebhookconfiguration cert-manager-webhook || echo "⚠ Warning: webhook config not recreated yet"
+
+      - name: Verify Deployment
+        run: |
+          echo "=== Helm Release Status ==="
+          helm status cert-manager --namespace cert-manager
+          echo ""
+          echo "=== Pod Status ==="
+          kubectl get pods -l app.kubernetes.io/instance=cert-manager -o wide
+          echo ""
+          echo "=== Service Status ==="
+          kubectl get svc -l app.kubernetes.io/instance=cert-manager
+          echo ""
+          echo "=== Ingress Status ==="
+          kubectl get ingress
+
+  deploy-itinerary-service:
+    runs-on: ubuntu-latest
+    needs:
+      - build-and-push
+      - check-versions
+    if: ${{ needs.check-versions.outputs.itinerary_service_changed == 'true' || github.event_name == 'workflow_dispatch' }}
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Authenticate again for kubectl
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Configure kubectl for GKE
+        run: |
+          gcloud container clusters get-credentials tripico-cluster --region europe-west1
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Install jq
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y jq
+
+      - name: Install NGINX Ingress Controller (if not exists)
+        run: |
+          # Check if ingress-nginx namespace exists
+          if ! kubectl get namespace ingress-nginx &>/dev/null; then
+            echo "Installing NGINX Ingress Controller..."
+            helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+            helm repo update
+            helm install ingress-nginx ingress-nginx/ingress-nginx \
+              --namespace ingress-nginx \
+              --create-namespace \
+              --wait --timeout 5m
+          else
+            echo "NGINX Ingress Controller already installed"
+          fi
+
+      # Cleanup Step - Uncomment if needed (if anything in the cluster is not managed by Helm and must be replaced)
+      # - name: Clean up pre-existing resources (if not managed by Helm)
+      #   run: |
+      #     echo "Checking for non-Helm managed resources..."
+      #           # Function to check and delete resource if not managed by Helm
+      #     cleanup_resource() {
+      #       local resource_type=$1
+      #       local resource_name=$2
+      #       if kubectl get $resource_type $resource_name &>/dev/null; then
+      #         local managed_by=$(kubectl get $resource_type $resource_name -o jsonpath='{.metadata.labels.app\.kubernetes\.io/managed-by}' 2>/dev/null || echo "")
+      #         if [ "$managed_by" != "Helm" ]; then
+      #           echo "Found $resource_type/$resource_name not managed by Helm, deleting..."
+      #           # Use --wait=false for PVC to avoid hanging, timeout for others
+      #           if [ "$resource_type" == "pvc" ]; then
+      #             kubectl delete $resource_type $resource_name --wait=false --timeout=30s 2>/dev/null || true
+      #           else
+      #             kubectl delete $resource_type $resource_name --timeout=30s 2>/dev/null || true
+      #           fi
+      #           echo "Deleted $resource_type/$resource_name"
+      #         else
+      #           echo "$resource_type/$resource_name is already managed by Helm"
+      #         fi
+      #       else
+      #         echo "No pre-existing $resource_type/$resource_name found"
+      #       fi
+      #     }
+      #     # Clean up all resources that might conflict
+      #     # IMPORTANT: Delete in correct order to avoid hanging
+      #     # 1. First delete ingress (no dependencies)
+      #     cleanup_resource "ingress" "itinerary-ingress"
+      #     # 2. Delete deployment
+      #     cleanup_resource "deployment" "itinerary-service"
+      #     # 3. Wait for pods to terminate (important!)
+      #     echo "Waiting for pods to terminate..."
+      #     kubectl wait --for=delete pod -l app=itinerary-service --timeout=60s 2>/dev/null || true
+      #     # 4. Delete services
+      #     cleanup_resource "service" "itinerary-service"
+      #     # 5. Delete ServiceAccount (after pods are gone, before configmap)
+      #     cleanup_resource "serviceaccount" "itinerary-service-sa"
+      #     # 6. Delete configmap
+      #     cleanup_resource "configmap" "app-config"
+      #     # 7. Delete certificate resource (the Certificate CR, not cert-manager itself!)
+      #     cleanup_resource "certificate" "itinerary-tls-cert"
+      #     echo "Cleanup complete!"
+
+      - name: Verify cert-manager is ready
+        run: |
+          echo "Checking cert-manager status..."
+          kubectl wait --for=condition=ready pod -l app=cert-manager -n cert-manager --timeout=2m || true
+          kubectl get pods -n cert-manager
+
+      - name: Check for stuck Helm operations
+        working-directory: ./kubernetes
+        run: |
+          echo "Checking for stuck Helm operations..."
+          RELEASE_STATUS=$(helm status itinerary-service -o json 2>/dev/null | jq -r '.info.status' || echo "not-found")
+          
+          echo "Current release status: $RELEASE_STATUS"
+          
+          if [ "$RELEASE_STATUS" == "pending-install" ] || [ "$RELEASE_STATUS" == "pending-upgrade" ] || [ "$RELEASE_STATUS" == "pending-rollback" ]; then
+            echo "⚠️  Found stuck operation in status: $RELEASE_STATUS"
+            echo "Rolling back to recover..."
+            helm rollback itinerary-service 0 --wait --timeout 2m || {
+              echo "Rollback failed or no history available"
+              echo "Attempting to uninstall stuck release..."
+              helm uninstall itinerary-service --wait --timeout 2m || echo "Uninstall also failed, will try fresh install"
+            }
+          elif [ "$RELEASE_STATUS" == "failed" ]; then
+            echo "⚠️  Previous deployment failed, will retry with fresh deployment"
+          elif [ "$RELEASE_STATUS" == "deployed" ]; then
+            echo "✅ Current release is healthy"
+          else
+            echo "ℹ️  No existing release found"
+          fi
+
+      - name: Deploy with Helm
+        working-directory: ./kubernetes
+        run: |
+          # Check if release exists and is not in pending state
+          if helm list | grep -q "^itinerary-service" && ! helm status itinerary-service -o json 2>/dev/null | jq -r '.info.status' | grep -q "pending"; then
+            echo "Upgrading existing release..."
+            helm upgrade itinerary-service ./itinerary-service-chart \
+              -f ./itinerary-service-chart/values-prod.yaml \
+              --set database.url="${{ vars.DB_URL }}" \
+              --set database.password="${{ secrets.DB_PASSWORD }}" \
+              --cleanup-on-fail \
+              --rollback-on-failure \
+              --timeout 5m
+          else
+            echo "Installing new release..."
+            helm install itinerary-service ./itinerary-service-chart \
+              -f ./itinerary-service-chart/values-prod.yaml \
+              --set database.url="${{ vars.DB_URL }}" \
+              --set database.password="${{ secrets.DB_PASSWORD }}" \
+              --create-namespace \
+              --rollback-on-failure \
+              --timeout 5m
+          fi
+
+      - name: Verify Deployment
+        run: |
+          echo "=== Helm Release Status ==="
+          helm status itinerary-service
+          echo ""
+          
+          echo "=== Deployment Status ==="
+          kubectl get deployment itinerary-service -o wide || echo "Deployment not found"
+          echo ""
+          
+          echo "=== Pod Status ==="
+          kubectl get pods -l app=itinerary-service -o wide
+          echo ""
+          
+          echo "=== Pod Details (if any issues) ==="
+          PODS=$(kubectl get pods -l app=itinerary-service -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
+          if [ -n "$PODS" ]; then
+            for pod in $PODS; do
+              STATUS=$(kubectl get pod $pod -o jsonpath='{.status.phase}')
+              echo "Pod: $pod - Status: $STATUS"
+              if [ "$STATUS" != "Running" ]; then
+                echo "Describing pod $pod:"
+                kubectl describe pod $pod | tail -30
+                echo ""
+                echo "Recent logs from $pod:"
+                kubectl logs $pod --tail=50 || echo "Could not get logs"
+                echo ""
+              fi
+            done
+          else
+            echo "No pods found with label app=itinerary-service"
+          fi
+          
+          echo "=== Service Status ==="
+          kubectl get svc -l app.kubernetes.io/instance=itinerary-service
+          echo ""
+          
+          echo "=== Ingress Status ==="
+          kubectl get ingress
+          echo ""
+          
+          echo "=== Certificate Status ==="
+          kubectl get certificate itinerary-tls-cert -o wide || echo "Certificate not found"
+          echo ""
+          
+          echo "=== Recent Events ==="
+          kubectl get events --sort-by='.lastTimestamp' | grep itinerary | tail -20 || echo "No recent events"

@@ -52,7 +52,7 @@ public class TravelWarningMapper {
 
         // Generate official link
         detailDto.setOfficialLink("https://www.auswaertiges-amt.de/de/service/laender/" +
-                                 warning.getCountryCode().toLowerCase() + "-sicherheit");
+                                 warning.getCountryName().toLowerCase() + "-node");
 
         return detailDto;
     }

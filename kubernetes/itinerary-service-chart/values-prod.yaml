@@ -1,0 +1,63 @@
+# Production values for itinerary-service
+# Override default values for production deployment
+
+replicaCount: 2
+
+
+# Production resources
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 768Mi
+
+# Enable autoscaling in production
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# Production health checks - more conservative
+probes:
+  startup:
+    httpGet:
+      path: /q/health/started
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 30
+  liveness:
+    httpGet:
+      path: /q/health/live
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    httpGet:
+      path: /q/health/ready
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# Use production domain
+ingress:
+  enabled: true
+  hosts:
+    - host: itinerary.tripico.fun
+      paths:
+        - path: /
+          pathType: Prefix
+
+certificate:
+  enabled: true
+  dnsNames:
+    - itinerary.tripico.fun
+
