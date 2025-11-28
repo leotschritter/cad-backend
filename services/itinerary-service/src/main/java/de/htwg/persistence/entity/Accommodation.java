@@ -31,3 +31,4 @@ public class Accommodation {
     @OneToOne(mappedBy = "accommodation")
     private Location location;
 }
+
