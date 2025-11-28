@@ -20,7 +20,7 @@ variable "zone" {
 variable "app_name" {
   description = "The name of the application"
   type        = string
-  default     = "travel-backend"
+  default     = "tripico"
 }
 
 variable "app_version" {
@@ -176,7 +176,7 @@ variable "labels" {
   description = "Labels to apply to resources"
   type        = map(string)
   default = {
-    app         = "travel-backend"
+    app         = "tripico"
     managed-by  = "terraform"
     environment = "prod"
   }
