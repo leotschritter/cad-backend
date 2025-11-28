@@ -2,10 +2,11 @@ name: Build Docker Image and Deploy to GCP/GHCR for Travel Warnings Microservice
 
 on:
   push:
-    branches: [ "main", "feature/exercise8-leo" ]
+    branches: [ "main", "microservice-migration" ]
     tags: [ "v*.*.*" ]
     paths:
-      - "travel_warnings/**"
+      - "services/travel_warnings/**"
+      - ".github/workflows/ghcr-and-gcp-travel-warnings.yml"
   workflow_dispatch:
 
 jobs:
@@ -43,8 +44,8 @@ jobs:
       - name: Build and Push Images
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: TravelWarnings.Dockerfile
+          context: ./services/travel_warnings
+          file: ./services/travel_warnings/Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository }}-travel-warnings:latest
@@ -155,7 +156,7 @@ jobs:
           kubectl get pods -n cert-manager
 
       - name: Deploy with Helm
-        working-directory: ./travel_warnings
+        working-directory: ./services/travel_warnings
         run: |
           # Check if release exists
           if helm list | grep -q "^travel-warnings"; then
