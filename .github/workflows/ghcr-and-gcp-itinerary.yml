@@ -563,7 +563,7 @@ jobs:
               --set database.password="${{ secrets.DB_PASSWORD }}" \
               --cleanup-on-fail \
               --rollback-on-failure \
-              --timeout 5m
+              --wait --timeout 5m
           else
             echo "Installing new release..."
             helm install itinerary-service ./itinerary-service-chart \
@@ -572,7 +572,7 @@ jobs:
               --set database.password="${{ secrets.DB_PASSWORD }}" \
               --create-namespace \
               --rollback-on-failure \
-              --timeout 5m
+              --wait --timeout 5m
           fi
 
       - name: Debug - Show Pod Status on Failure
