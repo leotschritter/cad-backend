@@ -2,11 +2,13 @@ name: Docker push to GHCR, GCP Artifact Registry and deploy Cert Manager/Itinera
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "microservice-migration" ]
     tags: [ 'v*.*.*' ]
     paths:
-      - 'kubernetes/cert-manager-chart/Chart.yaml'
-      - 'kubernetes/itinerary-service-chart/Chart.yaml'
+      - 'services/itinerary-service/kubernetes/cert-manager-chart/Chart.yaml'
+      - 'services/itinerary-service/kubernetes/itinerary-service-chart/Chart.yaml'
+      - 'services/itinerary-service/**'
+      - '.github/workflows/ghcr-and-gcp-itinerary.yml'
   workflow_dispatch:
 
 jobs:
@@ -49,8 +51,8 @@ jobs:
             fi
           }
           
-          check_chart kubernetes/cert-manager-chart cert_manager
-          check_chart kubernetes/itinerary-service-chart itinerary_service
+          check_chart services/itinerary-service/kubernetes/cert-manager-chart cert_manager
+          check_chart services/itinerary-service/kubernetes/itinerary-service-chart itinerary_service
 
   build-and-push:
     runs-on: ubuntu-latest
@@ -92,8 +94,8 @@ jobs:
       - name: Build and push to GHCR and GCP
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./services/itinerary-service
+          file: ./services/itinerary-service/Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository }}:latest
@@ -286,7 +288,7 @@ jobs:
           fi
 
       - name: Create or Update cert-manager (without ClusterIssuer)
-        working-directory: ./kubernetes
+        working-directory: ./services/itinerary-service/kubernetes
         run: |
           helm repo add jetstack https://charts.jetstack.io
           helm repo update
@@ -356,7 +358,7 @@ jobs:
           kubectl get mutatingwebhookconfiguration cert-manager-webhook 2>&1 | grep -q "NotFound" && echo "✓ MutatingWebhookConfiguration deleted" || echo "⚠ MutatingWebhookConfiguration still exists!"
 
       - name: Create ClusterIssuer
-        working-directory: ./kubernetes
+        working-directory: ./services/itinerary-service/kubernetes
         run: |
           echo "Creating ClusterIssuer without webhook validation..."
           # Template the ClusterIssuer from the helm chart
@@ -512,7 +514,7 @@ jobs:
           kubectl get pods -n cert-manager
 
       - name: Check for stuck Helm operations
-        working-directory: ./kubernetes
+        working-directory: ./services/itinerary-service/kubernetes
         run: |
           echo "Checking for stuck Helm operations..."
           RELEASE_STATUS=$(helm status itinerary-service -o json 2>/dev/null | jq -r '.info.status' || echo "not-found")
@@ -536,7 +538,7 @@ jobs:
           fi
 
       - name: Deploy with Helm
-        working-directory: ./kubernetes
+        working-directory: ./services/itinerary-service/kubernetes
         run: |
           # Check if release exists and is not in pending state
           if helm list | grep -q "^itinerary-service" && ! helm status itinerary-service -o json 2>/dev/null | jq -r '.info.status' | grep -q "pending"; then
