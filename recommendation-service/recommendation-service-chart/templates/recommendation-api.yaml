@@ -23,6 +23,7 @@ spec:
         app: {{ .Values.recommendationApi.name }}
         service: recommendation
     spec:
+      enableServiceLinks: false
       serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
         - name: {{ .Values.recommendationApi.name }}

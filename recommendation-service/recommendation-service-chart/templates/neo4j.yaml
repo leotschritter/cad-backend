@@ -14,6 +14,7 @@ spec:
       labels:
         app: {{ .Values.neo4j.name }}
     spec:
+      enableServiceLinks: false
       containers:
         - name: {{ .Values.neo4j.name }}
           image: {{ .Values.neo4j.image }}
