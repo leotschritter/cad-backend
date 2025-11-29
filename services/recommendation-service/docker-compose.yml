@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  neo4j:
+    image: neo4j:5.25-community
+    container_name: recommendation-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/password
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+    networks:
+      - recommendation-network
+
+  recommendation-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: recommendation-service
+    environment:
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USERNAME: neo4j
+      NEO4J_PASSWORD: password
+      ITINERARY_SERVICE_URL: ${ITINERARY_SERVICE_URL:-http://host.docker.internal:8080}
+      FIREBASE_CREDENTIALS_PATH: ${FIREBASE_CREDENTIALS_PATH}
+    ports:
+      - "8083:8083"
+    depends_on:
+      - neo4j
+    networks:
+      - recommendation-network
+
+volumes:
+  neo4j-data:
+  neo4j-logs:
+
+networks:
+  recommendation-network:
+    driver: bridge
+

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.recommendationConfig.name }}
+data:
+  neo4j_uri: {{ .Values.recommendationConfig.neo4j.uri | quote }}
+  neo4j_username: {{ .Values.recommendationConfig.neo4j.username | quote }}
+  itinerary_service_url: {{ .Values.recommendationConfig.itineraryServiceUrl | quote }}
+  google_cloud_project: {{ .Values.recommendationConfig.googleCloudProject | quote }}
+  identity_platform_auth_enabled: {{ .Values.recommendationConfig.identityPlatform.authEnabled | quote }}
+  identity_platform_auth_primary_header: {{ .Values.recommendationConfig.identityPlatform.primaryHeader | quote }}
+  identity_platform_auth_fallback_header: {{ .Values.recommendationConfig.identityPlatform.fallbackHeader | quote }}
+  recommendation_feed_max_items: {{ .Values.recommendationConfig.recommendation.feedMaxItems | quote }}
+  openapi_server_url: {{ .Values.recommendationConfig.openapiServerUrl | quote }}
+

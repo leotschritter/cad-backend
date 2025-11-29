@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recommendation-service
+  labels:
+    app: recommendation-service
+    service: recommendation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recommendation-service
+  template:
+    metadata:
+      labels:
+        app: recommendation-service
+        service: recommendation
+    spec:
+      serviceAccountName: recommendation-service-sa
+      containers:
+        - name: recommendation-service
+          image: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/recommendation-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: QUARKUS_HTTP_PORT
+              value: "8080"
+            - name: QUARKUS_HTTP_HOST
+              value: "0.0.0.0"
+            - name: NEO4J_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: recommendation-service-config
+                  key: neo4j_uri
+            - name: NEO4J_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: recommendation-service-config
+                  key: neo4j_username
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-secret
+                  key: password
+            - name: ITINERARY_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: recommendation-service-config
+                  key: itinerary_service_url
+            - name: GOOGLE_CLOUD_PROJECT
+              valueFrom:
+                configMapKeyRef:
+                  name: recommendation-service-config
+                  key: google_cloud_project
+            - name: IDENTITY_PLATFORM_AUTH_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: recommendation-service-config
+                  key: identity_platform_auth_enabled
+            - name: IDENTITY_PLATFORM_AUTH_PRIMARY_HEADER
+              valueFrom:
+                configMapKeyRef:
+                  name: recommendation-service-config
+                  key: identity_platform_auth_primary_header
+            - name: IDENTITY_PLATFORM_AUTH_FALLBACK_HEADER
+              valueFrom:
+                configMapKeyRef:
+                  name: recommendation-service-config
+                  key: identity_platform_auth_fallback_header
+            - name: RECOMMENDATION_FEED_MAX_ITEMS
+              valueFrom:
+                configMapKeyRef:
+                  name: recommendation-service-config
+                  key: recommendation_feed_max_items
+            - name: OPENAPI_SERVER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: recommendation-service-config
+                  key: openapi_server_url
+            - name: QUARKUS_PROFILE
+              value: "prod"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          startupProbe:
+            httpGet:
+              path: /q/health/started
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /q/health/live
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /q/health/ready
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+

@@ -1,0 +1,141 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.recommendationApi.name }}
+  labels:
+    app: {{ .Values.recommendationApi.name }}
+    service: recommendation
+spec:
+  replicas: {{ .Values.recommendationApi.replicas }}
+  strategy:
+    type: {{ .Values.recommendationApi.strategy.type }}
+    {{- if eq .Values.recommendationApi.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      maxSurge: {{ .Values.recommendationApi.strategy.rollingUpdate.maxSurge }}
+      maxUnavailable: {{ .Values.recommendationApi.strategy.rollingUpdate.maxUnavailable }}
+    {{- end }}
+  selector:
+    matchLabels:
+      app: {{ .Values.recommendationApi.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.recommendationApi.name }}
+        service: recommendation
+    spec:
+      enableServiceLinks: false
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+        - name: {{ .Values.recommendationApi.name }}
+          image: {{ .Values.recommendationApi.image }}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: {{ .Values.recommendationApi.port }}
+              name: http
+          env:
+            - name: QUARKUS_HTTP_PORT
+              value: {{ .Values.recommendationApi.port | quote }}
+            - name: QUARKUS_HTTP_HOST
+              value: "0.0.0.0"
+            - name: NEO4J_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.recommendationConfig.name }}
+                  key: neo4j_uri
+            - name: NEO4J_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.recommendationConfig.name }}
+                  key: neo4j_username
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-secret
+                  key: password
+            - name: ITINERARY_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.recommendationConfig.name }}
+                  key: itinerary_service_url
+            - name: GOOGLE_CLOUD_PROJECT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.recommendationConfig.name }}
+                  key: google_cloud_project
+            - name: IDENTITY_PLATFORM_AUTH_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.recommendationConfig.name }}
+                  key: identity_platform_auth_enabled
+            - name: IDENTITY_PLATFORM_AUTH_PRIMARY_HEADER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.recommendationConfig.name }}
+                  key: identity_platform_auth_primary_header
+            - name: IDENTITY_PLATFORM_AUTH_FALLBACK_HEADER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.recommendationConfig.name }}
+                  key: identity_platform_auth_fallback_header
+            - name: RECOMMENDATION_FEED_MAX_ITEMS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.recommendationConfig.name }}
+                  key: recommendation_feed_max_items
+            - name: OPENAPI_SERVER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.recommendationConfig.name }}
+                  key: openapi_server_url
+            - name: QUARKUS_PROFILE
+              value: "prod"
+            # CORS configuration
+            - name: QUARKUS_HTTP_CORS_ORIGINS
+              value: {{ .Values.recommendationApi.cors.origins | quote }}
+            - name: QUARKUS_HTTP_CORS_METHODS
+              value: {{ .Values.recommendationApi.cors.methods | quote }}
+            - name: QUARKUS_HTTP_CORS_HEADERS
+              value: {{ .Values.recommendationApi.cors.headers | quote }}
+          resources:
+            requests:
+              memory: {{ .Values.recommendationApi.resources.requests.memory }}
+              cpu: {{ .Values.recommendationApi.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.recommendationApi.resources.limits.memory }}
+              cpu: {{ .Values.recommendationApi.resources.limits.cpu }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.recommendationApi.probes.startup.path }}
+              port: {{ .Values.recommendationApi.port }}
+            initialDelaySeconds: {{ .Values.recommendationApi.probes.startup.initialDelaySeconds }}
+            periodSeconds: {{ .Values.recommendationApi.probes.startup.periodSeconds }}
+            timeoutSeconds: {{ .Values.recommendationApi.probes.startup.timeoutSeconds }}
+            failureThreshold: {{ .Values.recommendationApi.probes.startup.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.recommendationApi.probes.liveness.path }}
+              port: {{ .Values.recommendationApi.port }}
+            initialDelaySeconds: {{ .Values.recommendationApi.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.recommendationApi.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.recommendationApi.probes.liveness.timeoutSeconds }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.recommendationApi.probes.readiness.path }}
+              port: {{ .Values.recommendationApi.port }}
+            initialDelaySeconds: {{ .Values.recommendationApi.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.recommendationApi.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.recommendationApi.probes.readiness.timeoutSeconds }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.recommendationApi.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.recommendationApi.name }}
+  ports:
+    - name: http
+      port: {{ .Values.recommendationApi.port }}
+      targetPort: {{ .Values.recommendationApi.port }}
+

@@ -72,6 +72,12 @@ public class ItineraryServiceImpl implements ItineraryService {
     }
 
     @Override
+    public List<ItineraryDto> getItinerariesByIds(List<Long> ids) {
+        List<Itinerary> itineraries = itineraryRepository.list("id in ?1", ids);
+        return itineraryMapper.toDtoList(itineraries);
+    }
+
+    @Override
     public List<ItinerarySearchResponseDto> searchItineraries(ItinerarySearchDto searchDto) {
         List<Itinerary> itineraries = itineraryRepository.searchItineraries(
             searchDto.userName(),

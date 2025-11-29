@@ -192,6 +192,84 @@ public class ItineraryApi {
     }
 
     @POST
+    @Path("/by-ids")
+    @Authenticated
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Operation(
+        summary = "Get itineraries by IDs",
+        description = "Retrieves a list of itineraries by their IDs. Used by the recommendation service to fetch itinerary details. Requires authentication."
+    )
+    @SecurityRequirement(name = "BearerAuth")
+    @APIResponses(value = {
+        @APIResponse(
+            responseCode = "200",
+            description = "Itineraries retrieved successfully",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                schema = @Schema(implementation = ItineraryDto[].class),
+                examples = @ExampleObject(
+                    name = "Itineraries by IDs Example",
+                    summary = "Example of returned itineraries",
+                    value = """
+                        [
+                          {
+                            "id": 1,
+                            "title": "Family Trip to Norway",
+                            "destination": "Norway",
+                            "startDate": "2024-06-15",
+                            "shortDescription": "Explore the fjords of southern Norway",
+                            "detailedDescription": "A wonderful family trip to explore the beautiful fjords of southern Norway."
+                          },
+                          {
+                            "id": 3,
+                            "title": "Summer in Paris",
+                            "destination": "France",
+                            "startDate": "2025-07-01",
+                            "shortDescription": "Romantic getaway in Paris",
+                            "detailedDescription": "A week-long romantic trip exploring the city of lights."
+                          }
+                        ]
+                        """
+                )
+            )
+        ),
+        @APIResponse(
+            responseCode = "401",
+            description = "Unauthorized - Missing or invalid token",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"Missing or invalid Authorization header\"}"
+            )
+        ),
+        @APIResponse(
+            responseCode = "500",
+            description = "Internal server error",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                example = "{\"error\": \"An error occurred while retrieving itineraries\"}"
+            )
+        )
+    })
+    public Response getItinerariesByIds(
+        @RequestBody(
+            description = "List of itinerary IDs",
+            required = true,
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                examples = @ExampleObject(
+                    name = "ID List Example",
+                    summary = "Example list of itinerary IDs",
+                    value = "[1, 3, 5, 7, 9]"
+                )
+            )
+        ) final List<Long> ids) {
+
+        final List<ItineraryDto> itineraryDtos = itineraryService.getItinerariesByIds(ids);
+        return Response.ok(itineraryDtos).build();
+    }
+
+    @POST
     @Path("/search")
     @Authenticated
     @Consumes(MediaType.APPLICATION_JSON)
