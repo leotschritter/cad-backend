@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: recommendation-service-config
+  labels:
+    app: recommendation-service
+data:
+  neo4j_uri: "bolt://neo4j-service:7687"
+  neo4j_username: "neo4j"
+  itinerary_service_url: "http://itinerary-service:8080"
+  google_cloud_project: "graphite-plane-474510-s9"
+  identity_platform_auth_enabled: "true"
+  identity_platform_auth_primary_header: "X-Forwarded-Authorization"
+  identity_platform_auth_fallback_header: "Authorization"
+  recommendation_feed_max_items: "100"
+  openapi_server_url: "https://recommendation.tripico.fun"
+

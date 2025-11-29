@@ -16,6 +16,8 @@ public interface ItineraryService {
 
     List<ItineraryDto> getItinerariesByEmail(String email);
 
+    List<ItineraryDto> getItinerariesByIds(List<Long> ids);
+
     List<ItinerarySearchResponseDto> searchItineraries(ItinerarySearchDto searchDto);
 
 }

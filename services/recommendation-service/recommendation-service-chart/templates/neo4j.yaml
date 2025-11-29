@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.neo4j.name }}
+  labels:
+    app: {{ .Values.neo4j.name }}
+spec:
+  replicas: {{ .Values.neo4j.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.neo4j.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.neo4j.name }}
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: {{ .Values.neo4j.name }}
+          image: {{ .Values.neo4j.image }}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: {{ .Values.neo4j.port.bolt }}
+              name: bolt
+            - containerPort: {{ .Values.neo4j.port.http }}
+              name: http
+          env:
+            - name: NEO4J_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-secret
+                  key: auth
+            - name: NEO4J_PLUGINS
+              value: {{ .Values.neo4j.environmentVariables.plugins | quote }}
+            - name: NEO4J_dbms_security_procedures_unrestricted
+              value: {{ .Values.neo4j.environmentVariables.dbmsSecurityProceduresUnrestricted | quote }}
+            - name: NEO4J_server_memory_heap_initial__size
+              value: {{ .Values.neo4j.environmentVariables.serverMemoryHeapInitialSize | quote }}
+            - name: NEO4J_server_memory_heap_max__size
+              value: {{ .Values.neo4j.environmentVariables.serverMemoryHeapMaxSize | quote }}
+            - name: NEO4J_server_memory_pagecache_size
+              value: {{ .Values.neo4j.environmentVariables.serverMemoryPagecacheSize | quote }}
+          volumeMounts:
+            - name: {{ .Values.neo4j.volumeMounts.name }}
+              mountPath: {{ .Values.neo4j.volumeMounts.mountPath }}
+          resources:
+            requests:
+              memory: {{ .Values.neo4j.resources.requests.memory }}
+              cpu: {{ .Values.neo4j.resources.requests.cpu }}
+            limits:
+              memory: {{ .Values.neo4j.resources.limits.memory }}
+              cpu: {{ .Values.neo4j.resources.limits.cpu }}
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.neo4j.port.bolt }}
+            initialDelaySeconds: {{ .Values.neo4j.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.neo4j.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.neo4j.probes.liveness.timeoutSeconds }}
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.neo4j.port.bolt }}
+            initialDelaySeconds: {{ .Values.neo4j.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.neo4j.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.neo4j.probes.readiness.timeoutSeconds }}
+      volumes:
+        - name: {{ .Values.neo4j.volumeMounts.name }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.neo4jPvc.name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: neo4j-service
+  labels:
+    app: {{ .Values.neo4j.name }}
+spec:
+  type: ClusterIP
+  selector:
+    app: {{ .Values.neo4j.name }}
+  ports:
+    - port: {{ .Values.neo4j.port.bolt }}
+      targetPort: {{ .Values.neo4j.port.bolt }}
+      protocol: TCP
+      name: bolt
+    - port: {{ .Values.neo4j.port.http }}
+      targetPort: {{ .Values.neo4j.port.http }}
+      protocol: TCP
+      name: http
+

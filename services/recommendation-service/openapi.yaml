@@ -1,0 +1,203 @@
+---
+openapi: 3.1.0
+info:
+  contact:
+    name: Recommendation Service Team
+  description: |
+    API for personalized travel itinerary recommendations and social graph management.
+
+    ## Authentication
+
+    All endpoints require authentication using Google Cloud Identity Platform (Firebase Authentication).
+  title: Recommendation Service API
+  version: 1.0.0
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      description: |
+        Firebase ID Token authentication (Google Cloud Identity Platform).
+
+        **How to use:**
+        1. Click the "Authorize" button (🔓) at the top of this page
+        2. Enter: `Bearer <your-firebase-id-token>`
+        3. Click "Authorize"
+
+        **Example:**
+        ```
+        Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6IjFlM...
+        ```
+
+        **Note:** The token must include the "Bearer " prefix.
+      in: header
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ItineraryEventDTO:
+      type: object
+      properties:
+        itineraryId:
+          type: integer
+          format: int64
+        title:
+          type: string
+        description:
+          type: string
+        locationNames:
+          type: array
+          items:
+            type: string
+        likesCount:
+          type: integer
+          format: int32
+        eventType:
+          type: string
+    LikeActionDTO:
+      type: object
+      properties:
+        itineraryId:
+          type: integer
+          format: int64
+    LocationVisitDTO:
+      type: object
+      properties:
+        locationNames:
+          type: array
+          items:
+            type: string
+        itineraryId:
+          type: integer
+          format: int64
+tags:
+- name: Feed
+  description: Personalized travel feed recommendations
+- name: Graph
+  description: Graph database management for recommendations
+paths:
+  /feed:
+    get:
+      summary: Get personalized feed
+      description: Returns a personalized feed of itinerary recommendations based
+        on the authenticated traveller's visited/planned destinations and social signals
+        (likes). Falls back to basic feed for new users.
+      tags:
+      - Feed
+      responses:
+        "200":
+          description: Feed retrieved successfully
+        "401":
+          description: Not authenticated
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+  /feed/popular:
+    get:
+      summary: Get popular feed
+      description: Returns a feed of the most popular itineraries based on likes
+      tags:
+      - Feed
+      responses:
+        "200":
+          description: Popular feed retrieved successfully
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+  /graph/itineraries:
+    post:
+      summary: Record an itinerary event
+      description: Creates or updates an itinerary node and its relationships in the
+        graph database for the authenticated user
+      tags:
+      - Graph
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ItineraryEventDTO"
+        required: true
+      responses:
+        "201":
+          description: Itinerary recorded successfully
+        "400":
+          description: Invalid request data
+        "401":
+          description: Not authenticated
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+  /graph/likes:
+    delete:
+      summary: Remove a like action
+      description: Removes a LIKES relationship between the authenticated user and
+        an itinerary from the graph database
+      tags:
+      - Graph
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LikeActionDTO"
+        required: true
+      responses:
+        "200":
+          description: Like removed successfully
+        "400":
+          description: Invalid request data
+        "401":
+          description: Not authenticated
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+    post:
+      summary: Record a like action
+      description: Creates a LIKES relationship between the authenticated user and
+        an itinerary in the graph database
+      tags:
+      - Graph
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LikeActionDTO"
+        required: true
+      responses:
+        "201":
+          description: Like recorded successfully
+        "400":
+          description: Invalid request data
+        "401":
+          description: Not authenticated
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+  /graph/locations/visits:
+    post:
+      summary: Record location visits
+      description: Creates VISITED relationships between the authenticated user and
+        locations in the graph database
+      tags:
+      - Graph
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LocationVisitDTO"
+        required: true
+      responses:
+        "201":
+          description: Location visits recorded successfully
+        "400":
+          description: Invalid request data
+        "401":
+          description: Not authenticated
+        "500":
+          description: Internal server error
+      security:
+      - BearerAuth: []
+servers:
+- url: http://localhost:8080
