@@ -8,7 +8,7 @@ on:
         - ".github/workflows/ghcr-and-gcp-recommendation-service.yml"
     tags: [ "v*.*.*" ]
     paths:
-      - "recommendation-service/**"
+      - "services/recommendation-service/**"
   workflow_dispatch:
 
 jobs:
