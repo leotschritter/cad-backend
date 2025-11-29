@@ -1,0 +1,57 @@
+# Development values for itinerary-service
+# Override default values for development/testing
+
+replicaCount: 1
+
+# Lower resources for dev
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+# Disable autoscaling in dev
+autoscaling:
+  enabled: false
+
+# Faster health checks for dev
+probes:
+  startup:
+    httpGet:
+      path: /q/health/started
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 20
+  liveness:
+    httpGet:
+      path: /q/health/live
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 20
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readiness:
+    httpGet:
+      path: /q/health/ready
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Use dev domain or disable ingress for local testing
+ingress:
+  enabled: true
+  hosts:
+    - host: cl-dev.tripico.fun
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Dev Quarkus profile
+quarkus:
+  profile: "prod"

@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "comments-likes-service.fullname" . }}
+  labels:
+    {{- include "comments-likes-service.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "comments-likes-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "comments-likes-service.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "comments-likes-service.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: {{ .Values.service.name }}
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          env:
+            - name: QUARKUS_HTTP_PORT
+              value: {{ .Values.quarkus.http.port | quote }}
+            - name: QUARKUS_HTTP_HOST
+              value: {{ .Values.quarkus.http.host | quote }}
+            - name: QUARKUS_PROFILE
+              value: {{ .Values.quarkus.profile | quote }}
+
+            - name: PROJECT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "comments-likes-service.fullname" . }}-config
+                  key: project_id
+            - name: SERVICE_ACCOUNT_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "comments-likes-service.fullname" . }}-config
+                  key: service_account_email
+            - name: IDENTITY_PLATFORM_AUTH_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "comments-likes-service.fullname" . }}-config
+                  key: identity_platform_auth_enabled
+            - name: IDENTITY_PLATFORM_AUTH_PRIMARY_HEADER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "comments-likes-service.fullname" . }}-config
+                  key: identity_platform_auth_primary_header
+            - name: IDENTITY_PLATFORM_AUTH_FALLBACK_HEADER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "comments-likes-service.fullname" . }}-config
+                  key: identity_platform_auth_fallback_header
+            - name: BACKEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "comments-likes-service.fullname" . }}-config
+                  key: backend_url
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.probes.startup }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.probes.liveness }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.probes.readiness }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
