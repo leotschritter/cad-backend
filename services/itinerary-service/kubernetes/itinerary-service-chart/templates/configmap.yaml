@@ -6,11 +6,7 @@ metadata:
     {{- include "itinerary-service.labels" . | nindent 4 }}
 data:
   db_user: {{ .Values.database.user | quote }}
-  {{- if .Values.cloudSqlProxy.enabled }}
-  db_url: {{ printf "jdbc:postgresql://%s:%s/%s" .Values.database.host .Values.database.port .Values.database.name | quote }}
-  {{- else }}
   db_url: {{ .Values.database.url | quote }}
-  {{- end }}
   bucket_name: {{ .Values.gcp.bucketName | quote }}
   project_id: {{ .Values.gcp.projectId | quote }}
   service_account_email: {{ .Values.gcp.serviceAccountEmail | quote }}

@@ -95,17 +95,6 @@ quarkus:
 database:
   user: "cad_db_user"
   password: "" #  provided via --set
-  url: "" # provided via --set (deprecated when using Cloud SQL Proxy)
-  name: "travel-db"  # Database name in Cloud SQL
-  host: "localhost"  # When using Cloud SQL Proxy
-  port: "5432"
-
-# Cloud SQL Proxy configuration
-cloudSqlProxy:
-  enabled: true
-  image: "gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0"
-  instanceConnectionName: "graphite-plane-474510-s9:europe-west1:cad-travel-db"
-  port: 5432
 
 # GCP configuration
 gcp:

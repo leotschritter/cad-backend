@@ -105,22 +105,6 @@ spec:
           readinessProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-        {{- if .Values.cloudSqlProxy.enabled }}
-        - name: cloud-sql-proxy
-          image: {{ .Values.cloudSqlProxy.image }}
-          args:
-            - "--port={{ .Values.cloudSqlProxy.port }}"
-            - "{{ .Values.cloudSqlProxy.instanceConnectionName }}"
-          securityContext:
-            runAsNonRoot: true
-          resources:
-            requests:
-              memory: "128Mi"
-              cpu: "100m"
-            limits:
-              memory: "256Mi"
-              cpu: "200m"
-        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
