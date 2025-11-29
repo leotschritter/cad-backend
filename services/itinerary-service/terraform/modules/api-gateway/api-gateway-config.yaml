@@ -27,6 +27,98 @@ security:
 # ---------------------------------------------------------
 paths:
 %{ for key, svc in services ~}
+  # Base path: ${svc.path_prefix} (no parameters)
+  ${svc.path_prefix}:
+    options:
+      summary: "Handle CORS preflight for ${svc.name} base path"
+      operationId: "${svc.name}_options_base"
+      security: []  # Override global security - OPTIONS doesn't need auth
+      responses:
+        '200':
+          description: OK
+          headers:
+            Access-Control-Allow-Origin:
+              type: string
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Allow-Headers:
+              type: string
+            Access-Control-Max-Age:
+              type: string
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    get:
+      summary: "Proxy GET to ${svc.name} base path"
+      operationId: "${svc.name}_get_base"
+      security:
+        - firebase: []
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    post:
+      summary: "Proxy POST to ${svc.name} base path"
+      operationId: "${svc.name}_post_base"
+      security:
+        - firebase: []
+      parameters:
+        - in: body
+          name: body
+          required: false
+          schema: {}
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    put:
+      summary: "Proxy PUT to ${svc.name} base path"
+      operationId: "${svc.name}_put_base"
+      security:
+        - firebase: []
+      parameters:
+        - in: body
+          name: body
+          required: false
+          schema: {}
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    patch:
+      summary: "Proxy PATCH to ${svc.name} base path"
+      operationId: "${svc.name}_patch_base"
+      security:
+        - firebase: []
+      parameters:
+        - in: body
+          name: body
+          required: false
+          schema: {}
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+    delete:
+      summary: "Proxy DELETE to ${svc.name} base path"
+      operationId: "${svc.name}_delete_base"
+      security:
+        - firebase: []
+      responses:
+        '200': { description: OK }
+      x-google-backend:
+        address: "${svc.ingress_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
   # Single segment path: ${svc.path_prefix}/{proxy}
   ${svc.path_prefix}/{proxy}:
     options:
