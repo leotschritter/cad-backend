@@ -1,0 +1,67 @@
+# Default values for cert-manager-setup
+
+# cert-manager subchart configuration
+cert-manager:
+  installCRDs: true
+
+  # Fix for GKE Autopilot - use cert-manager namespace for leader election
+  global:
+    leaderElection:
+      namespace: cert-manager
+
+  # Resource requests and limits for cert-manager pods
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+  webhook:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  cainjector:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  # Enable prometheus monitoring (optional)
+  prometheus:
+    enabled: false
+
+# ClusterIssuer configuration
+clusterIssuer:
+  # Enable ClusterIssuer creation
+  enabled: true
+
+  # Name of the ClusterIssuer
+  name: letsencrypt-prod
+
+  # Let's Encrypt server URL (production)
+  # Use staging for testing: https://acme-staging-v02.api.letsencrypt.org/directory
+  server: https://acme-v02.api.letsencrypt.org/directory
+
+  # Email address for ACME registration (required by Let's Encrypt)
+  email: benedikt.scheffel@gmail.com
+
+  # Secret name to store ACME account private key
+  privateKeySecretRef: letsencrypt-prod
+
+  # HTTP01 solver configuration for ingress
+  solvers:
+    - http01:
+        ingress:
+          class: nginx
+
+

@@ -1,10 +1,12 @@
-name: ghcr-and-gcp-weather-forecast.yml
+name: Deploy Weather Forecast Service
+
 on:
   push:
-    branches: [ "main" , "feature/wf-helm"]
+    branches: [ "main", "microservice-migration" ]
     tags: [ "v*.*.*" ]
     paths:
-      - "weather-forecast-service/**"
+      - "services/weather-forecast-service/**"
+      - ".github/workflows/ghcr-and-gcp-weather-forecast.yml"
   workflow_dispatch:
 
 jobs:
@@ -42,8 +44,8 @@ jobs:
       - name: Build and Push Images
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: Weather.Dockerfile
+          context: ./services/weather-forecast-service
+          file: ./services/weather-forecast-service/Dockerfile
           push: true
           tags: |
             ghcr.io/${{ github.repository }}-weather-forecast-service:latest
@@ -74,14 +76,9 @@ jobs:
         run: |
           gcloud components install gke-gcloud-auth-plugin --quiet
 
-      - name: Configure kubectl for GKE
+      - name: Get GKE Credentials
         run: |
           gcloud container clusters get-credentials tripico-cluster --region europe-west1
-          
-      - name: Install Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: 'latest'
 
       - name: Install NGINX Ingress Controller (if not exists)
         run: |
@@ -159,7 +156,7 @@ jobs:
 
 
       - name: Deploy with Helm
-        working-directory: ./weather-forecast-service
+        working-directory: ./services/weather-forecast-service
         run: |
           # Check if release exists
            if helm list | grep -q "weather-forecast-service"; then
@@ -169,7 +166,7 @@ jobs:
               --set meteosource.apiKey="${{ secrets.METEOSOURCE_API_KEY }}" \
               --set weatherForecastApi.image=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/weather-forecast-service:${{ needs.build-and-push.outputs.image-tag }} \
               --wait --timeout 5m
-          
+
           else
             echo "Installing new release..."
             helm install weather-forecast-service ./helm/weather-forecast-service \
