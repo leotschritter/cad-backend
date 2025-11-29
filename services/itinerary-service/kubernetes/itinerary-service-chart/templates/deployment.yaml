@@ -91,6 +91,11 @@ spec:
                 configMapKeyRef:
                   name: {{ include "itinerary-service.fullname" . }}-config
                   key: identity_platform_auth_fallback_header
+            - name: BACKEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "itinerary-service.fullname" . }}-config
+                  key: backend_url
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.probes.startup }}
