@@ -1,7 +1,7 @@
 package de.htwg.api.comment;
 
 import de.htwg.api.comment.model.MessageResponseDto;
-import de.htwg.api.itinerary.model.CommentDto;
+import de.htwg.api.comment.model.CommentDto;
 import de.htwg.security.Authenticated;
 import de.htwg.security.SecurityContext;
 import de.htwg.service.firestore.CommentService;

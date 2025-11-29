@@ -1,14 +1,16 @@
-package de.htwg.api.itinerary.model;
+package de.htwg.api.comment.model;
 
 import lombok.Builder;
 
 import java.time.LocalDateTime;
 
 @Builder
-public record LikeDto(
+public record CommentDto(
     String id,
     String userEmail,
     Long itineraryId,
+    String comment,
     LocalDateTime createdAt
 ) {
 }
+

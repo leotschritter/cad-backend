@@ -1,6 +1,6 @@
 package de.htwg.service.firestore;
 
-import de.htwg.api.itinerary.model.CommentDto;
+import de.htwg.api.comment.model.CommentDto;
 
 import java.util.List;
 

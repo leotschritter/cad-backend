@@ -1,7 +1,7 @@
 package de.htwg.service.firestore;
 
-import de.htwg.api.itinerary.model.LikeDto;
-import de.htwg.api.itinerary.model.LikeResponseDto;
+import de.htwg.api.like.model.LikeDto;
+import de.htwg.api.like.model.LikeResponseDto;
 
 import java.util.List;
 

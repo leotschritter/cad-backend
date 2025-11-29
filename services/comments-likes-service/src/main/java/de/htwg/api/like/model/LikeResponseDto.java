@@ -1,4 +1,4 @@
-package de.htwg.api.itinerary.model;
+package de.htwg.api.like.model;
 
 import lombok.Builder;
 

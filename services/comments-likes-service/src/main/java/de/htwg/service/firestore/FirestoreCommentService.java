@@ -1,7 +1,7 @@
 package de.htwg.service.firestore;
 
 import com.google.cloud.firestore.*;
-import de.htwg.api.itinerary.model.CommentDto;
+import de.htwg.api.comment.model.CommentDto;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.Getter;

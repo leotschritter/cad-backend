@@ -1,8 +1,8 @@
 package de.htwg.service.firestore;
 
 import com.google.cloud.firestore.*;
-import de.htwg.api.itinerary.model.LikeDto;
-import de.htwg.api.itinerary.model.LikeResponseDto;
+import de.htwg.api.like.model.LikeDto;
+import de.htwg.api.like.model.LikeResponseDto;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.Getter;

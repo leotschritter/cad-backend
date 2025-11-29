@@ -1,0 +1,6 @@
+google:
+  cloud:
+    projectId: ${PROJECT_ID:graphite-plane-474510-s9}
+  firestore:
+    use-emulator: true
+    emulator-host: ${FIRESTORE_EMULATOR_HOST:localhost:8200}
