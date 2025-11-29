@@ -42,8 +42,8 @@ import org.eclipse.microprofile.openapi.annotations.servers.Server;
         )
     ),
     servers = {
-        @Server(url = "http://localhost:8080", description = "Local development server"),
-        @Server(url = "https://api.tripico.fun", description = "Production server")
+        @Server(url = "https://itinerary.tripico.fun", description = "Production server"),
+        @Server(url = "http://localhost:8080", description = "Local development server")
     }
 )
 @SecurityScheme(
