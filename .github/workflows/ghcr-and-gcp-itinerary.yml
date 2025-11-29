@@ -2,11 +2,11 @@ name: Docker push to GHCR, GCP Artifact Registry and deploy Cert Manager/Itinera
 
 on:
   push:
-    branches: [ "main"]
+    branches: [ "main", "microservice-migration" ]
     tags: [ 'v*.*.*' ]
     paths:
-      - 'services/itinerary-service/**'
-      - '.github/workflows/ghcr-and-gcp-itinerary.yml'
+      - 'services/itinerary-service/kubernetes/cert-manager-chart/Chart.yaml'
+      - 'services/itinerary-service/kubernetes/itinerary-service-chart/Chart.yaml'
   workflow_dispatch:
 
 jobs:
