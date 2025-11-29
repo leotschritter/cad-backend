@@ -537,20 +537,6 @@ jobs:
             echo "ℹ️  No existing release found"
           fi
 
-      - name: Debug - Check cluster and existing resources
-        run: |
-          echo "=== Cluster Info ==="
-          kubectl cluster-info
-          echo ""
-          echo "=== Nodes ==="
-          kubectl get nodes
-          echo ""
-          echo "=== Existing Pods ==="
-          kubectl get pods --all-namespaces
-          echo ""
-          echo "=== Existing Deployments ==="
-          kubectl get deployments --all-namespaces
-
       - name: Deploy with Helm
         working-directory: ./services/itinerary-service/kubernetes
         run: |
@@ -573,34 +559,6 @@ jobs:
               --create-namespace \
               --rollback-on-failure \
               --wait --timeout 10m
-          fi
-
-      - name: Debug - Show Pod Status on Failure
-        if: failure()
-        run: |
-          echo "=== DEBUGGING FAILED DEPLOYMENT ==="
-          echo ""
-          echo "=== All Pods ==="
-          kubectl get pods --all-namespaces
-          echo ""
-          echo "=== Itinerary Service Pods (if any) ==="
-          kubectl get pods -l app=itinerary-service -o wide || echo "No pods found"
-          echo ""
-          echo "=== Pod Descriptions ==="
-          kubectl describe pods -l app=itinerary-service || echo "No pods to describe"
-          echo ""
-          echo "=== Recent Events ==="
-          kubectl get events --sort-by='.lastTimestamp' --all-namespaces | tail -50
-          echo ""
-          echo "=== Pod Logs (if pod exists) ==="
-          PODS=$(kubectl get pods -l app=itinerary-service -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
-          if [ -n "$PODS" ]; then
-            for pod in $PODS; do
-              echo "--- Logs from $pod ---"
-              kubectl logs $pod --tail=100 || echo "Could not get logs from $pod"
-            done
-          else
-            echo "No pods found to get logs from"
           fi
 
       - name: Verify Deployment
