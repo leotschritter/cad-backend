@@ -4,8 +4,6 @@ on:
   push:
     branches:
         - "main"
-        - "feature/recommendation-service"
-        - ".github/workflows/ghcr-and-gcp-recommendation-service.yml"
     tags: [ "v*.*.*" ]
     paths:
       - "services/recommendation-service/**"
