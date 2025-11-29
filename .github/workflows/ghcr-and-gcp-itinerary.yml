@@ -7,8 +7,6 @@ on:
     paths:
       - 'services/itinerary-service/kubernetes/cert-manager-chart/Chart.yaml'
       - 'services/itinerary-service/kubernetes/itinerary-service-chart/Chart.yaml'
-      - 'services/itinerary-service/**'
-      - '.github/workflows/ghcr-and-gcp-itinerary.yml'
   workflow_dispatch:
 
 jobs:
@@ -549,7 +547,7 @@ jobs:
               --set database.password="${{ secrets.DB_PASSWORD }}" \
               --cleanup-on-fail \
               --rollback-on-failure \
-              --wait --timeout 10m
+              --wait --timeout 5m
           else
             echo "Installing new release..."
             helm install itinerary-service ./itinerary-service-chart \
@@ -558,7 +556,7 @@ jobs:
               --set database.password="${{ secrets.DB_PASSWORD }}" \
               --create-namespace \
               --rollback-on-failure \
-              --wait --timeout 10m
+              --wait --timeout 5m
           fi
 
       - name: Verify Deployment
