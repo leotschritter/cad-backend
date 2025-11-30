@@ -44,3 +44,8 @@ resource "google_project_iam_member" "kubernetes_storage_admin_project" {
   member  = "serviceAccount:${google_service_account.kubernetes_sa.email}"
 }
 
+resource "google_service_account_iam_member" "workload_comment_like_user" {
+  service_account_id = google_service_account.kubernetes_sa.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[default/comments-likes-sa]"
+}

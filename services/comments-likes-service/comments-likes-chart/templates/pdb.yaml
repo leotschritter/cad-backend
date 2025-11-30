@@ -1,0 +1,14 @@
+{{- if gt (int .Values.replicaCount) 1 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "comments-likes-service.fullname" . }}
+  labels:
+    {{- include "comments-likes-service.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "comments-likes-service.selectorLabels" . | nindent 6 }}
+{{- end }}
+

@@ -1,0 +1,131 @@
+# Default values for itinerary-service
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/comments-likes-service
+  pullPolicy: Always
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations:
+    # This must match the GCP service account created by Terraform
+    iam.gke.io/gcp-service-account: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+  # The name of the service account to use.
+  # This MUST match the Kubernetes SA name in the Terraform Workload Identity binding
+  # Terraform binding: graphite-plane-474510-s9.svc.id.goog[default/comments-likes-sa]
+  name: "comments-likes-sa"
+
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+  name: http
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: cl.tripico.fun
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: comments-likes-tls
+      hosts:
+        - cl.tripico.fun
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 75
+  # targetMemoryUtilizationPercentage: 80
+
+# Quarkus application configuration
+quarkus:
+  http:
+    port: 8080
+    host: "0.0.0.0"
+  profile: "prod"
+
+# GCP configuration
+gcp:
+  projectId: "graphite-plane-474510-s9"
+  serviceAccountEmail: "comments-likes-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+
+# Backend URL
+backendUrl: "https://cl.tripico.fun"
+
+# Identity Platform Authentication Configuration
+identityPlatform:
+  authEnabled: "true"
+  primaryHeader: "X-Forwarded-Authorization"
+  fallbackHeader: "Authorization"
+
+# Health check probes
+probes:
+  startup:
+    httpGet:
+      path: /q/health/started
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+  liveness:
+    httpGet:
+      path: /q/health/live
+      port: 8080
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 5
+  readiness:
+    httpGet:
+      path: /q/health/ready
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+

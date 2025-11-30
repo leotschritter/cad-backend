@@ -237,7 +237,7 @@ variable "microservices" {
   default = {
     comment = {
       name         = "comment-service"
-      ingress_url  = "https://itinerary.tripico.fun"
+      ingress_url  = "https://cl.tripico.fun"
       path_prefix  = "/comment"
       service_name = "comment-service"
       namespace    = "default"
@@ -253,7 +253,7 @@ variable "microservices" {
     }
     like = {
       name         = "like-service"
-      ingress_url  = "https://itinerary.tripico.fun"
+      ingress_url  = "https://cl.tripico.fun"
       path_prefix  = "/like"
       service_name = "like-service"
       namespace    = "default"
