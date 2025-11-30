@@ -2,7 +2,7 @@ name: Docker push to GHCR, GCP Artifact Registry and deploy Comments/Likes Servi
 
 on:
   push:
-    branches: [ "main", "feature/comments-like-service" ]
+    branches: [ "main" ]
     tags: [ 'v*.*.*' ]
     paths:
       - 'services/comments-likes-service/comments-likes-chart/Chart.yaml'
