@@ -262,3 +262,4 @@ jobs:
           TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
         run: terraform destroy -auto-approve
+
