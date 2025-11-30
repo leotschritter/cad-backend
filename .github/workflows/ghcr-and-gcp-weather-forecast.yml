@@ -2,7 +2,7 @@ name: Deploy Weather Forecast Service
 
 on:
   push:
-    branches: [ "main", "microservice-migration", "feature/*" ]
+    branches: [ "main", "microservice-migration" ]
     tags: [ "v*.*.*" ]
     paths:
       - "services/weather-forecast-service/helm/weather-forecast-service/Chart.yaml"
