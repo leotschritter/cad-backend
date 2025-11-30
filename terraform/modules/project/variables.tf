@@ -30,6 +30,8 @@ variable "authorized_domains" {
     "tripico.fun",
     "frontend.tripico.fun",
     "api.tripico.fun",
+    "iaas-476910.firebaseapp.com",
+    "iaas-476910.web.app",
   ]
 }
 
