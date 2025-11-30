@@ -19,12 +19,15 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.logging.Logger;
 
 import java.util.List;
 
 @Path("/like")
 @Tag(name = "Like Management", description = "Operations for managing likes and comments on itineraries")
 public class LikeApi {
+
+    private static final Logger LOG = Logger.getLogger(LikeApi.class);
 
     private final LikeService likeService;
 
@@ -86,15 +89,19 @@ public class LikeApi {
 
         try {
             String userEmail = securityContext.getCurrentUserEmail();
+            LOG.infof("User %s attempting to like itinerary %d", userEmail, itineraryId);
             LikeDto createdLike = likeService.addLike(userEmail, itineraryId);
+            LOG.infof("Successfully added like for user %s on itinerary %d", userEmail, itineraryId);
             return Response.ok(createdLike).build();
         } catch (IllegalArgumentException e) {
+            LOG.warnf("Bad request while liking itinerary %d: %s", itineraryId, e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\": \"" + e.getMessage() + "\"}")
                     .build();
         } catch (Exception e) {
+            LOG.errorf(e, "Internal server error while liking itinerary %d", itineraryId);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("{\"error\": \"An error occurred while liking the itinerary\"}")
+                    .entity("{\"error\": \"An error occurred while liking the itinerary\", \"details\": \"" + e.getMessage() + "\"}")
                     .build();
         }
     }
@@ -150,12 +157,20 @@ public class LikeApi {
 
         try {
             String userEmail = securityContext.getCurrentUserEmail();
+            LOG.infof("User %s attempting to remove like from itinerary %d", userEmail, itineraryId);
             likeService.removeLike(userEmail, itineraryId);
+            LOG.infof("Successfully removed like for user %s from itinerary %d", userEmail, itineraryId);
             MessageResponseDto response = new MessageResponseDto("Like removed successfully");
             return Response.ok(response).build();
+        } catch (IllegalArgumentException e) {
+            LOG.warnf("Bad request while removing like from itinerary %d: %s", itineraryId, e.getMessage());
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"" + e.getMessage() + "\"}")
+                    .build();
         } catch (Exception e) {
+            LOG.errorf(e, "Internal server error while removing like from itinerary %d", itineraryId);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("{\"error\": \"An error occurred while removing the like\"}")
+                    .entity("{\"error\": \"An error occurred while removing the like\", \"details\": \"" + e.getMessage() + "\"}")
                     .build();
         }
     }
@@ -220,11 +235,25 @@ public class LikeApi {
         }
 
         try {
+            LOG.infof("Retrieving likes for itinerary %d", itineraryId);
             LikeResponseDto likes = likeService.getLikesForItinerary(itineraryId);
+            LOG.infof("Successfully retrieved %d likes for itinerary %d", likes.likeCount(), itineraryId);
             return Response.ok(likes).build();
+        } catch (IllegalArgumentException e) {
+            LOG.warnf("Bad request while retrieving likes for itinerary %d: %s", itineraryId, e.getMessage());
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"" + e.getMessage() + "\"}")
+                    .build();
+        } catch (IllegalStateException e) {
+            LOG.errorf(e, "Service not properly configured while retrieving likes for itinerary %d", itineraryId);
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                    .entity("{\"error\": \"Service is not properly configured\", \"details\": \"" + e.getMessage() + "\"}")
+                    .build();
         } catch (Exception e) {
+            LOG.errorf(e, "Internal server error while retrieving likes for itinerary %d. Error type: %s",
+                    itineraryId, e.getClass().getSimpleName());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("{\"error\": \"An error occurred while retrieving likes\"}")
+                    .entity("{\"error\": \"An error occurred while retrieving likes\", \"details\": \"" + e.getMessage() + "\", \"type\": \"" + e.getClass().getSimpleName() + "\"}")
                     .build();
         }
     }
@@ -275,11 +304,25 @@ public class LikeApi {
         }
 
         try {
+            LOG.infof("Retrieving likes for user %s", userEmail);
             List<LikeDto> likes = likeService.getLikesByUser(userEmail);
+            LOG.infof("Successfully retrieved %d likes for user %s", likes.size(), userEmail);
             return Response.ok(likes).build();
+        } catch (IllegalArgumentException e) {
+            LOG.warnf("Bad request while retrieving likes for user %s: %s", userEmail, e.getMessage());
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"" + e.getMessage() + "\"}")
+                    .build();
+        } catch (IllegalStateException e) {
+            LOG.errorf(e, "Service not properly configured while retrieving likes for user %s", userEmail);
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                    .entity("{\"error\": \"Service is not properly configured\", \"details\": \"" + e.getMessage() + "\"}")
+                    .build();
         } catch (Exception e) {
+            LOG.errorf(e, "Internal server error while retrieving user likes for %s. Error type: %s",
+                    userEmail, e.getClass().getSimpleName());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("{\"error\": \"An error occurred while retrieving user likes\"}")
+                    .entity("{\"error\": \"An error occurred while retrieving user likes\", \"details\": \"" + e.getMessage() + "\", \"type\": \"" + e.getClass().getSimpleName() + "\"}")
                     .build();
         }
     }
