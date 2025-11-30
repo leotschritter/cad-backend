@@ -71,9 +71,9 @@ resources:
 
 autoscaling:
   enabled: true
-  minReplicas: 1
+  minReplicas: 2
   maxReplicas: 10
-  targetCPUUtilizationPercentage: 75
+  targetCPUUtilizationPercentage: 70
   # targetMemoryUtilizationPercentage: 80
 
 # Quarkus application configuration

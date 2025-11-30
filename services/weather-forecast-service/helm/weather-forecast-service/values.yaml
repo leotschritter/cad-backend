@@ -99,10 +99,16 @@ ingress:
   prod:
     host: weather.tripico.fun
     tlsSecretName: weather-tls
-    sslRedirect: "true"
-    forceSslRedirect: "true"
   dev:
     host: weather-forecast.local
+
+# Autoscaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  # targetMemoryUtilizationPercentage: 80
 
 certificate:
   name: weather-tls-cert
