@@ -2,11 +2,10 @@ name: Build Docker Image and Deploy to GCP/GHCR for Travel Warnings Microservice
 
 on:
   push:
-    branches: [ "main", "microservice-migration", "feature/*" ]
+    branches: [ "main", "microservice-migration" ]
     tags: [ "v*.*.*" ]
     paths:
-      - "services/travel_warnings/**"
-      - ".github/workflows/ghcr-and-gcp-travel-warnings.yml"
+      - "services/travel_warnings/travel-warnings-chart/Chart.yaml"
   workflow_dispatch:
 
 jobs:

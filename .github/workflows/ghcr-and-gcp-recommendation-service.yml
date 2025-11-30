@@ -4,10 +4,9 @@ on:
   push:
     branches:
         - "main"
-        - "feature/*"
     tags: [ "v*.*.*" ]
     paths:
-      - "services/recommendation-service/**"
+      - "services/recommendation-service/recommendation-service-chart/Chart.yaml"
   workflow_dispatch:
 
 jobs:
