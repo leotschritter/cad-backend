@@ -254,9 +254,5 @@ jobs:
           kubectl get ingress
           echo ""
           
-          echo "=== Certificate Status ==="
-          kubectl get certificate itinerary-tls-cert -o wide || echo "Certificate not found"
-          echo ""
-          
           echo "=== Recent Events ==="
           kubectl get events --sort-by='.lastTimestamp' | grep itinerary | tail -20 || echo "No recent events"

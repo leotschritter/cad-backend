@@ -1,3 +1,7 @@
+quarkus:
+  log:
+    level: INFO
+
 google:
   cloud:
     projectId: ${PROJECT_ID}
