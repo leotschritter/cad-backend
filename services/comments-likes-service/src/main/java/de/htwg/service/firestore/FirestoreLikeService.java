@@ -1,5 +1,6 @@
 package de.htwg.service.firestore;
 
+import com.google.api.gax.rpc.UnauthenticatedException;
 import com.google.cloud.firestore.*;
 import de.htwg.api.like.model.LikeDto;
 import de.htwg.api.like.model.LikeResponseDto;
@@ -8,6 +9,7 @@ import jakarta.inject.Inject;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.jboss.logging.Logger;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -20,6 +22,7 @@ import java.util.concurrent.ExecutionException;
 @ApplicationScoped
 public class FirestoreLikeService implements LikeService {
 
+    private static final Logger LOG = Logger.getLogger(FirestoreLikeService.class);
     private static final String COLLECTION_NAME = "likes";
 
     @Inject
@@ -54,8 +57,18 @@ public class FirestoreLikeService implements LikeService {
                     .itineraryId(itineraryId)
                     .createdAt(now)
                     .build();
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException("Failed to add like", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof UnauthenticatedException) {
+                LOG.error("AUTHENTICATION ERROR: Cannot add like - Google Cloud credentials not configured.", e);
+                throw new IllegalStateException("Google Cloud authentication failed. Please configure credentials.", e);
+            }
+            LOG.error("Failed to add like for user " + userEmail + " on itinerary " + itineraryId, e);
+            throw new RuntimeException("Failed to add like: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOG.error("Interrupted while adding like", e);
+            throw new RuntimeException("Operation interrupted while adding like", e);
         }
     }
 
@@ -71,8 +84,18 @@ public class FirestoreLikeService implements LikeService {
             for (QueryDocumentSnapshot document : querySnapshot.getDocuments()) {
                 document.getReference().delete().get();
             }
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException("Failed to remove like", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof UnauthenticatedException) {
+                LOG.error("AUTHENTICATION ERROR: Cannot remove like - Google Cloud credentials not configured.", e);
+                throw new IllegalStateException("Google Cloud authentication failed. Please configure credentials.", e);
+            }
+            LOG.error("Failed to remove like for user " + userEmail + " from itinerary " + itineraryId, e);
+            throw new RuntimeException("Failed to remove like: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOG.error("Interrupted while removing like", e);
+            throw new RuntimeException("Operation interrupted while removing like", e);
         }
     }
 
@@ -90,8 +113,22 @@ public class FirestoreLikeService implements LikeService {
                     .itineraryId(itineraryId)
                     .likeCount(likeCount)
                     .build();
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException("Failed to get likes for itinerary", e);
+        } catch (ExecutionException e) {
+            // Check if the root cause is an authentication error
+            Throwable cause = e.getCause();
+            if (cause instanceof UnauthenticatedException) {
+                LOG.error("AUTHENTICATION ERROR: Google Cloud credentials not configured properly. " +
+                        "For Kubernetes deployment, you need to configure Workload Identity or provide service account credentials.", e);
+                throw new IllegalStateException("Google Cloud authentication failed. " +
+                        "The application cannot authenticate with Firestore. " +
+                        "Please configure service account credentials or Workload Identity for your deployment.", e);
+            }
+            LOG.error("Failed to get likes for itinerary " + itineraryId, e);
+            throw new RuntimeException("Failed to get likes for itinerary: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOG.error("Interrupted while getting likes for itinerary " + itineraryId, e);
+            throw new RuntimeException("Operation interrupted while getting likes for itinerary", e);
         }
     }
 
@@ -106,8 +143,18 @@ public class FirestoreLikeService implements LikeService {
 
             QuerySnapshot querySnapshot = query.get().get();
             return !querySnapshot.isEmpty();
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException("Failed to check if user liked itinerary", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof UnauthenticatedException) {
+                LOG.error("AUTHENTICATION ERROR: Cannot check if user liked itinerary - Google Cloud credentials not configured.", e);
+                throw new IllegalStateException("Google Cloud authentication failed. Please configure credentials.", e);
+            }
+            LOG.error("Failed to check if user " + userEmail + " liked itinerary " + itineraryId, e);
+            throw new RuntimeException("Failed to check if user liked itinerary: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOG.error("Interrupted while checking if user liked itinerary", e);
+            throw new RuntimeException("Operation interrupted while checking if user liked itinerary", e);
         }
     }
 
@@ -136,8 +183,18 @@ public class FirestoreLikeService implements LikeService {
             }
 
             return likes;
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException("Failed to get likes by user", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof UnauthenticatedException) {
+                LOG.error("AUTHENTICATION ERROR: Cannot get likes by user - Google Cloud credentials not configured.", e);
+                throw new IllegalStateException("Google Cloud authentication failed. Please configure credentials.", e);
+            }
+            LOG.error("Failed to get likes for user " + userEmail, e);
+            throw new RuntimeException("Failed to get likes by user: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOG.error("Interrupted while getting likes for user " + userEmail, e);
+            throw new RuntimeException("Operation interrupted while getting likes by user", e);
         }
     }
 

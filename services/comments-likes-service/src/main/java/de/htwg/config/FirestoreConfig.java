@@ -50,8 +50,10 @@ public class FirestoreConfig {
                 firestoreOptionsBuilder.setCredentials(credentials);
                 log.info("Application Default Credentials loaded successfully");
             } catch (IOException e) {
-                log.error("Failed to load Application Default Credentials", e);
-                throw e;
+                log.error("Failed to load Application Default Credentials.", e);
+                throw new IllegalStateException("Google Cloud credentials not configured. " +
+                        "Please set up authentication to access Firestore. " +
+                        "Error: " + e.getMessage(), e);
             }
         }
 

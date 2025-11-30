@@ -17,10 +17,12 @@ serviceAccount:
   create: true
   # Annotations to add to the service account
   annotations:
-    iam.gke.io/gcp-service-account: "comments-likes-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+    # This must match the GCP service account created by Terraform
+    iam.gke.io/gcp-service-account: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
   # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: "comments-likes-service-sa"
+  # This MUST match the Kubernetes SA name in the Terraform Workload Identity binding
+  # Terraform binding: graphite-plane-474510-s9.svc.id.goog[default/comments-likes-sa]
+  name: "comments-likes-sa"
 
 
 podAnnotations: {}
