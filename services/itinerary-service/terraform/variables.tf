@@ -291,10 +291,18 @@ variable "microservices" {
       namespace    = "default"
       port         = 8080
     }
-    recommendation = {
-      name         = "recommendation-service"
+    feed = {
+      name         = "recommendation-feed-service"
       ingress_url  = "https://recommendation.tripico.fun"
-      path_prefix  = "/recommendation"
+      path_prefix  = "/feed"
+      service_name = "recommendation-service"
+      namespace    = "default"
+      port         = 8080
+    }
+    graph = {
+      name         = "recommendation-graph-service"
+      ingress_url  = "https://recommendation.tripico.fun"
+      path_prefix  = "/graph"
       service_name = "recommendation-service"
       namespace    = "default"
       port         = 8080
