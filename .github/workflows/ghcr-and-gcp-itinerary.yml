@@ -2,7 +2,7 @@ name: Docker push to GHCR, GCP Artifact Registry and deploy Cert Manager/Itinera
 
 on:
   push:
-    branches: [ "main", "microservice-migration" ]
+    branches: [ "main", "microservice-migration", "feature/comments-like-service" ]
     tags: [ 'v*.*.*' ]
     paths:
       - 'services/itinerary-service/kubernetes/cert-manager-chart/Chart.yaml'

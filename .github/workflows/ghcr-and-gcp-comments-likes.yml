@@ -1,4 +1,4 @@
-name: Docker push to GHCR, GCP Artifact Registry and deploy Cert Manager/Itinerary Service
+name: Docker push to GHCR, GCP Artifact Registry and deploy Comments/Likes Service
 
 on:
   push:
