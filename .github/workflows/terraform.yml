@@ -209,7 +209,7 @@ jobs:
               terraform apply -auto-approve tfplan
             else
               terraform plan -var-file="dev-environment.tfvars" -out=tfplan
-              terraform apply -auto-approve tfplan
+              terraform apply -var-file="dev-environment.tfvars" -auto-approve tfplan
             fi
           fi
 

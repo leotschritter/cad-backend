@@ -27,5 +27,3 @@ microservices = {
     ingress_url = "https://dev-recommendation.tripico.fun"
   }
 }
-
-firebase_project_id = "iaas-476910"
