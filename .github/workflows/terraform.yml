@@ -174,10 +174,18 @@ jobs:
           prefix = "terraform/state"
           EOF
 
+      - name: Temporarly create SA
+        run: |
+          gcloud iam service-accounts create tripico-sa \
+            --project=iaas-476910 \
+            --display-name="Kubernetes SA for tripico"
+
       - name: Terraform Init
         working-directory: terraform
         run: |
           terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
+          terraform import module.iam.google_service_account.kubernetes_sa \
+            projects/iaas-476910/serviceAccounts/tripico-sa@iaas-476910.iam.gserviceaccount.com
 
       # Try to download a plan artifact produced by the Plan job. If it's
       # available we'll apply it. If not (e.g. a manual dispatch without a
