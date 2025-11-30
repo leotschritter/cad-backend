@@ -25,6 +25,11 @@ resource "google_identity_platform_config" "default" {
 
   authorized_domains = var.authorized_domains
 
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes  = all
+  }
+
   depends_on = [google_project_service.identitytoolkit]
 }
 
