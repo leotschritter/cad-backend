@@ -99,8 +99,15 @@ recommendationConfig:
     authEnabled: "true"
     primaryHeader: "X-Forwarded-Authorization"
     fallbackHeader: "Authorization"
-  recommendation:
-    feedMaxItems: "100"
+
+# Autoscaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  # targetMemoryUtilizationPercentage: 80
+
   openapiServerUrl: "https://recommendation.tripico.fun"
 
 ingress:
@@ -121,4 +128,3 @@ certificate:
   secretName: recommendation-tls
   dnsNames:
     - recommendation.tripico.fun
-
