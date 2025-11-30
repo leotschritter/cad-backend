@@ -34,6 +34,10 @@
 
 The application is built as a microservices architecture deployed on Google Cloud Platform (GCP), utilizing Kubernetes (GKE) for orchestration, Cloud SQL for relational data, Firestore for document storage, and Neo4j for graph-based recommendations.
 
+**Environments:**
+- **Production Environment:** Fully operational production deployment accessible at https://frontend.tripico.fun
+- **Development Environment:** Fully operational mirror environment deployed in a separate GCP project for testing and staging
+
 ### 1.1 System Context
 
 [//]: # (# TODO: Add System Context Diagram here showing Tripico and all neighboring systems)
@@ -271,10 +275,12 @@ The application uses multiple database technologies optimized for different data
 - Location → Transport (1:N) - Transport connects two locations
 
 **Database Configuration:**
-- **Production:** Google Cloud SQL PostgreSQL (Sandbox tier / db-f1-micro)
-- **Connection:** Private IP via VPC peering
+- **Production:** Google Cloud SQL PostgreSQL (Sandbox tier / db-f1-micro) in production GCP project
+- **Development:** Google Cloud SQL PostgreSQL (Sandbox tier / db-f1-micro) in development GCP project
+- **Connection:** Private IP via VPC peering in both environments
 - **High Availability:** Single zone (cost optimization)
-- **Backups:** Automated daily backups enabled
+- **Backups:** Automated daily backups enabled in production; configurable in development
+- **Isolation:** Completely separate database instances per environment prevent data mixing
 
 ---
 
@@ -319,6 +325,11 @@ The application uses multiple database technologies optimized for different data
 - Automatic scaling without infrastructure management
 - Strong consistency within document operations
 - Native Firebase Authentication integration
+
+**Environment Configuration:**
+- Separate Firestore databases per environment (different GCP projects)
+- Same indexes and schema structure in both environments
+- Development environment uses test data for safe experimentation
 
 ---
 
@@ -404,9 +415,10 @@ ORDER BY recommendation.likesCount DESC
 - Relationship-first data model fits social recommendations
 
 **Database Configuration:**
-- **Deployment:** Neo4j container in GKE cluster
-- **Persistence:** Kubernetes Persistent Volume
+- **Deployment:** Neo4j container in GKE cluster (separate deployments per environment)
+- **Persistence:** Kubernetes Persistent Volume (environment-specific PVCs)
 - **Access:** Internal cluster service (not publicly exposed)
+- **Isolation:** Separate Neo4j instances in production and development clusters
 
 ---
 
@@ -459,9 +471,10 @@ ORDER BY recommendation.likesCount DESC
 - WeatherForecast → HourlyForecast (1:N)
 
 **Database Configuration:**
-- **Deployment:** PostgreSQL container in GKE cluster
+- **Deployment:** PostgreSQL container in GKE cluster (separate per environment)
 - **Persistence:** Kubernetes Persistent Volume
 - **Data Retention:** Forecasts updated daily, old data pruned
+- **Isolation:** Separate database instances in production and development clusters
 
 ---
 
@@ -505,9 +518,10 @@ ORDER BY recommendation.likesCount DESC
 - TravelWarning → WarningNotification (1:N)
 
 **Database Configuration:**
-- **Deployment:** PostgreSQL container in GKE cluster
+- **Deployment:** PostgreSQL container in GKE cluster (separate per environment)
 - **Persistence:** Kubernetes Persistent Volume
 - **Scheduled Jobs:** Quarkus Scheduler checks API every 15 minutes
+- **Isolation:** Separate database instances in production and development clusters
 
 ---
 
@@ -519,33 +533,53 @@ ORDER BY recommendation.likesCount DESC
 
 #### Cloud Infrastructure
 
-**Google Cloud Platform (GCP) - Project:** `<project-id>`
+**Google Cloud Platform (GCP)**
 
-**Core Services:**
+Tripico operates in two separate GCP projects, each with identical infrastructure:
+
+**Production Environment:**
+- **GCP Project:** `<production-project-id>`
+- **Domain:** frontend.tripico.fun
+- **Purpose:** Live user-facing application
+
+**Development Environment:**
+- **GCP Project:** `<dev-project-id>`
+- **Domain:** frontend-dev.tripico.fun
+- **Purpose:** Testing, staging, and development with production-identical infrastructure
+
+**Core Services (Both Environments):**
+
 - **Google Kubernetes Engine (GKE)** - Primary container orchestration platform
-  - Cluster name: `tripico-cluster` (example)
+  - Cluster name: `tripico-cluster-prod` / `tripico-cluster-dev`
   - Region: `europe-west1` (Belgium)
+  - Node pool configuration: Auto-scaling enabled
+  - Machine type: Cost-optimized (e.g., e2-medium)
+  - Identical configuration across environments
   
 - **Google Cloud SQL** - Managed PostgreSQL (Itinerary Service only)
   - Instance tier: `db-f1-micro` (Sandbox mode - 0.6 GB RAM, shared CPU)
   - Version: PostgreSQL 15
   - Availability: Single zone (cost optimization)
+  - Separate instances per environment with identical schemas
   
 - **Google Firestore** - NoSQL document database (Comments & Likes Service)
   - Mode: Native mode
   - Location: Multi-region (automatic)
   - Billing: Pay-per-use
+  - Separate databases per environment
   
 - **Google Cloud Storage** - Object storage
-  - Bucket for user-uploaded media
+  - Separate buckets per environment for isolation
   
 - **Google Artifact Registry** - Container image registry
   - Repository: `<region>-docker.pkg.dev/<project-id>/tripico-images`
   - Stores Docker images for all microservices
+  - Shared across environments (different image tags)
  
 - **Firebase Authentication** - Identity platform
   - Authentication methods: Email/Password, Google OAuth
   - Token-based authentication for API requests
+  - Separate Firebase projects per environment
 
 #### Network Architecture
 
@@ -573,17 +607,29 @@ ORDER BY recommendation.likesCount DESC
 
 #### Running Application
 
+**Production Environment:**
 - **Frontend:** https://frontend.tripico.fun
 - **Backend APIs:** Accessible via Kubernetes Ingress (internal routing)
 - **Swagger UI:** Available on each service (e.g., `/q/swagger-ui`)
 - **Health Checks:** `/q/health` endpoints on all services
 
+**Development Environment:**
+- **Frontend:** https://frontend-dev.tripico.fun
+- **Backend APIs:** Accessible via Kubernetes Ingress in dev cluster
+- **Swagger UI:** Available on each service for testing
+- **Health Checks:** Same endpoint structure as production
+
 #### Configuration Management
 
 - **Kubernetes ConfigMaps** - Application configuration (non-sensitive)
+  - Separate ConfigMaps per environment
 - **Kubernetes Secrets** - Database passwords, API keys, Firebase credentials
+  - Environment-specific secrets for isolation
 - **Environment Variables** - Runtime configuration injection
 - **Quarkus Profiles** - Environment-specific configs (dev, prod)
+  - `application.yaml` (common)
+  - `application-dev.yaml` (development-specific)
+  - `application-prod.yaml` (production-specific)
 
 ### 3.2 Microservices
 
@@ -897,24 +943,85 @@ The Weather Forecast Service integrates with the Meteosource API to provide 7-da
 
 | Datastore | Technology | Location | Service(s) Using It | Data Model Link |
 |-----------|-----------|----------|---------------------|-----------------|
-| **Cloud SQL Instance** | PostgreSQL 15 | GCP Managed Service | Itinerary Service | [See Section 2.2 - Itinerary Service DB](#itinerary-service---postgresql-database) |
-| **Firestore Database** | Google Firestore | GCP Managed Service | Comments & Likes Service | [See Section 2.2 - Firestore](#comments--likes-service---firestore) |
-| **Neo4j Database** | Neo4j 5.x | GKE StatefulSet + PVC | Recommendation Service | [See Section 2.2 - Neo4j Graph DB](#recommendation-service---neo4j-graph-database) |
-| **PostgreSQL Container** | PostgreSQL 15 | GKE Deployment + PVC | Weather Forecast Service | [See Section 2.2 - Weather DB](#weather-forecast-service---postgresql-database) |
-| **PostgreSQL Container** | PostgreSQL 15 | GKE Deployment + PVC | Travel Warnings Service | [See Section 2.2 - Travel Warnings DB](#travel-warnings-service---postgresql-database) |
+| **Cloud SQL Instance** | PostgreSQL 15 | GCP Managed Service (per GCP project) | Itinerary Service | [See Section 2.2 - Itinerary Service DB](#itinerary-service---postgresql-database) |
+| **Firestore Database** | Google Firestore | GCP Managed Service (per GCP project) | Comments & Likes Service | [See Section 2.2 - Firestore](#comments--likes-service---firestore) |
+| **Neo4j Database** | Neo4j 5.x | GKE StatefulSet + PVC (per cluster) | Recommendation Service | [See Section 2.2 - Neo4j Graph DB](#recommendation-service---neo4j-graph-database) |
+| **PostgreSQL Container** | PostgreSQL 15 | GKE Deployment + PVC (per cluster) | Weather Forecast Service | [See Section 2.2 - Weather DB](#weather-forecast-service---postgresql-database) |
+| **PostgreSQL Container** | PostgreSQL 15 | GKE Deployment + PVC (per cluster) | Travel Warnings Service | [See Section 2.2 - Travel Warnings DB](#travel-warnings-service---postgresql-database) |
+
+**Environment Isolation:**
+All datastores are deployed in separate GCP projects (Production and Development), ensuring:
+- Complete data isolation between environments
+- Safe testing without production data corruption risk
+- Ability to reset development data without impact
+- Independent scaling and performance characteristics
+- Separate billing and cost tracking per environment
 
 **Storage Volumes:**
 - **Kubernetes Persistent Volumes (PVC)** - Used for Neo4j and containerized PostgreSQL databases
 - **Storage Class:** Standard persistent disk (pd-standard)
 - **Backup Strategy:** 
-  - Cloud SQL: Automated daily backups (7-day retention)
-  - Containerized databases: Manual backup via CronJobs (future implementation)
+  - **Production:**
+    - Cloud SQL: Automated daily backups (7-day retention)
+    - Containerized databases: Manual backup via CronJobs (planned)
+  - **Development:**
+    - Cloud SQL: Automated daily backups (7-day retention)
+    - Containerized databases: Periodic backups (lower frequency for cost optimization)
+    - Test data can be regenerated if needed
 
 ---
 
 ## 4 DevOps
 
+Tripico implements comprehensive DevOps practices with Infrastructure as Code (IaC) and a fully operational dual-environment architecture. Both production and development environments are deployed as mirror setups in separate GCP projects, ensuring safe testing and reliable deployments.
+
 ### 4.1 IaC (Infrastructure as Code)
+
+#### Environment Strategy
+
+Tripico implements a multi-environment deployment strategy with two fully operational environments to ensure reliable and safe software delivery:
+
+**Production Environment:**
+- **Purpose:** Live user-facing application
+- **GCP Project:** Dedicated production project with strict access controls
+- **Deployment:** Automated deployments from `main` branch with additional approval gates
+- **Database:** Separate Cloud SQL and Firestore instances with production data
+- **Monitoring:** Full observability stack with alerting
+- **Domain:** frontend.tripico.fun
+- **Status:** Fully operational
+
+**Development Environment:**
+- **Purpose:** Pre-production testing, staging, and development
+- **GCP Project:** Separate development project for complete isolation
+- **Deployment:** Automated deployments from `develop` branch
+- **Database:** Mirror of production schema with test data
+- **Infrastructure:** Identical configuration to production (enforced via IaC)
+- **Domain:** frontend-dev.tripico.fun
+- **Status:** Fully operational
+- **Benefits:**
+  - Safe testing of infrastructure changes before production rollout
+  - Validation of new features in production-identical environment
+  - Load testing without impacting production users
+  - Cost flexibility (can scale down or shut down when not in use)
+
+**Environment Isolation:**
+- Completely separate GCP projects prevent any cross-environment interference
+- Separate Firebase projects for authentication isolation
+- Separate Kubernetes clusters and namespaces
+- Independent CI/CD pipelines with environment-specific configurations
+- Different domain names and SSL certificates
+- No shared resources between environments
+
+**Infrastructure Parity:**
+Both environments use identical Terraform modules with only variable differences (project ID, domain names), ensuring:
+- Identical GKE cluster configurations (same node types, scaling rules)
+- Same database schemas and versions
+- Matching networking and security policies
+- Consistent application deployments via Helm charts
+- Eliminates "works in dev, breaks in prod" issues
+- Changes tested in dev environment before production deployment
+
+---
 
 #### Terraform Setup
 
@@ -966,19 +1073,10 @@ services/itinerary-service/terraform/
 - PostgreSQL 15 instance configuration
 - Instance tier: `db-f1-micro` (0.6 GB RAM, shared CPU)
 - Availability: Single zone (ZONAL)
-- Disk size: 10 GB SSD (auto-expandable)
-- Private IP configuration (VPC peering)
-- Automated backups enabled (7-day retention)
 - Database creation: `itinerary_db`
-- User creation with secure password (stored in Secret Manager)
-- Deletion protection configurable via variable
 
 **4. Google Cloud Storage (modules/storage)**
 - Bucket creation for file uploads (future feature)
-- Uniform bucket-level access
-- Versioning disabled (cost optimization)
-- Lifecycle policies (future implementation)
-- Service account access binding
 
 **5. Firestore Database (modules/firestore)**
 - Firestore Native mode initialization
@@ -991,20 +1089,15 @@ services/itinerary-service/terraform/
 - Docker repository creation
 - Repository name: `tripico-images`
 - Location: Same region as GKE cluster
-- IAM bindings for CI/CD pipelines
 
 **7. GKE Cluster (modules/gke)**
 - VPC network and subnet creation
 - GKE cluster configuration:
-  - Release channel: REGULAR
   - Node pool: Auto-scaling (1-5 nodes)
-  - Machine type: e2-medium (2 vCPU, 4 GB RAM)
   - Disk size: 50 GB per node
   - Workload Identity enabled
   - HTTP load balancing enabled
-  - Network policy enabled
 - Secondary IP ranges for pods and services
-- Cluster autoscaler configuration
 
 #### Terraform Workflow
 
@@ -1017,29 +1110,42 @@ terraform apply -var-file="terraform.tfvars"
 ```
 
 **2. Variable Configuration:**
-- `terraform.tfvars` file contains environment-specific values
+- Environment-specific `terraform.tfvars` files:
+  - `terraform.tfvars.prod` - Production environment configuration
+  - `terraform.tfvars.dev` - Development environment configuration
 - Sensitive values (passwords, API keys) passed via environment variables
 - Example variables:
-  - `project_id` - GCP project ID
+  - `project_id` - GCP project ID (different per environment)
   - `region` - Deployment region
   - `db_password` - Database password (from env var)
   - `deletion_protection` - Enable/disable resource protection
+  - `environment` - Environment tag (dev/prod) for resource naming
 
 **3. State Management:**
 - Terraform state stored in GCS bucket (remote backend)
+- Separate state files per environment to prevent conflicts:
+  - `terraform/state/prod/` - Production state
+  - `terraform/state/dev/` - Development state
 - State locking enabled to prevent concurrent modifications
 - Backend configuration:
   ```hcl
   terraform {
     backend "gcs" {
       bucket = "tripico-terraform-state"
-      prefix = "terraform/state"
+      prefix = "terraform/state/${var.environment}"
     }
   }
   ```
 
 **4. CI/CD Integration:**
 - Terraform runs in GitHub Actions pipeline
+- Separate workflows for dev and prod environments
+- Development environment:
+  - Automated deployment on merge to `develop` branch
+  - Used for testing infrastructure changes
+- Production environment:
+  - Automated deployment on merge to `main` branch
+  - Requires additional approval gates
 
 #### Kubernetes Configuration
 
@@ -1067,48 +1173,63 @@ helm-chart/
 
 **Helm Deployment:**
 ```bash
-# Install/upgrade chart
+# Production deployment
 helm upgrade --install <release-name> ./helm-chart \
   -f values-prod.yaml \
-  --namespace tripico \
+  --namespace tripico-prod \
   --create-namespace
 
-# Example for weather service
+# Development deployment
+helm upgrade --install <release-name> ./helm-chart \
+  -f values-dev.yaml \
+  --namespace tripico-dev \
+  --create-namespace
+
+# Example for weather service in production
 helm upgrade --install weather-forecast ./helm/weather-forecast-service \
   -f helm/weather-forecast-service/values-prod.yaml \
-  --namespace tripico
+  --namespace tripico-prod
+
+# Example for weather service in development
+helm upgrade --install weather-forecast ./helm/weather-forecast-service \
+  -f helm/weather-forecast-service/values-dev.yaml \
+  --namespace tripico-dev
 ```
 
-#### Docker Build & Push
-
-**Dockerfile Locations:**
-- `services/itinerary-service/Dockerfile`
-- `services/recommendation-service/Dockerfile`
-- `services/comments-likes-service/Dockerfile`
-- `services/travel_warnings/Dockerfile`
-- `services/weather-forecast-service/Dockerfile`
-
-**Build Process:**
-```bash
-# Build Docker image
-docker build -t <region>-docker.pkg.dev/<project-id>/tripico-images/<service>:<tag> .
-
-# Push to Artifact Registry
-docker push <region>-docker.pkg.dev/<project-id>/tripico-images/<service>:<tag>
-```
-
-**Multi-stage Builds:**
-All services use multi-stage Dockerfiles for optimized image size:
-1. Build stage: Maven build with full JDK
-2. Runtime stage: Distroless Java runtime with only the JAR file
+**Environment-Specific Configuration:**
+- `values-dev.yaml` - Development environment settings:
+  - Development-specific endpoints and credentials
+- `values-prod.yaml` - Production environment settings:
+  - Production endpoints and credentials
 
 #### Infrastructure Deployment Summary
 
-1. **Terraform** provisions GCP infrastructure (network, databases, GKE cluster)
-2. **Docker** builds containerized microservices
-3. **Artifact Registry** stores Docker images
-4. **Helm** deploys applications to GKE with environment-specific configurations
-5. **Kubernetes** manages container lifecycle, scaling, and networking
+**Multi-Environment Strategy:**
+Tripico maintains two fully operational, isolated environments (Production and Development) deployed in separate GCP projects with identical infrastructure configurations. This setup ensures:
+- Safe testing of infrastructure changes in development before production rollout
+- Validation of application updates in production-identical environment
+- Environment parity eliminates configuration-related issues
+- Independent resource scaling and cost management per environment
+- Complete isolation prevents any cross-environment interference
+
+**Deployment Pipeline:**
+1. **Terraform** provisions identical GCP infrastructure in both projects (network, databases, GKE cluster)
+2. **Docker** builds containerized microservices with environment-specific tags
+3. **Artifact Registry** stores Docker images (shared repository, environment-tagged images)
+4. **Helm** deploys applications to respective GKE clusters with environment-specific configurations
+5. **Kubernetes** manages container lifecycle, scaling, and networking in each cluster
+
+**Workflow:**
+- **Development Flow:** Feature branch → Deploy to dev environment → Test → Create PR
+- **Production Flow:** Merge to `main` branch → Automated deployment to production → Monitor
+- **Infrastructure Changes:** Test in dev project → Validate → Apply to prod project
+- **Rollback Strategy:** Both environments maintain previous stable versions for quick rollback
+
+**Current Status:**
+- ✅ Production environment: Fully operational, serving live users
+- ✅ Development environment: Fully operational, available for testing and staging
+- ✅ Infrastructure parity: Maintained via Infrastructure as Code (Terraform)
+- ✅ CI/CD pipelines: Configured for both environments
 
 ---
 
@@ -1120,12 +1241,18 @@ A comprehensive load testing suite has been developed using **Locust** (Python-b
 
 **Load Testing Repository:** https://github.com/leotschritter/cad-backend/tree/main/load
 
+**Test Environment:**
+- **Primary Target:** Production environment (https://api.tripico.fun)
+- **Alternative Target:** Development environment (https://api-dev.tripico.fun)
+- **Rationale:** Testing on production infrastructure provides realistic performance metrics and helps identify actual bottlenecks. The development environment serves as an alternative testing ground to avoid impacting production users during extensive load tests.
+
 **Key Features:**
 - Multi-service testing (all 5 microservices)
 - Coordinated operations (e.g., like updates both Comments service AND Recommendation graph)
 - Realistic transaction mixes
 - Automated test execution scripts
 - Firebase authentication integration
+- Configurable target environment (prod/dev)
 
 ---
 
