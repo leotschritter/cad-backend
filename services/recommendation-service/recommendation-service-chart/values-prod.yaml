@@ -45,6 +45,19 @@ neo4j:
   enabled: true
   replicas: 1
   password: ""  # Set via --set neo4j.password=XXX
+  
+  # Neo4j JVM memory configuration (CRITICAL for performance!)
+  environmentVariables:
+    plugins: '["apoc"]'
+    dbmsSecurityProceduresUnrestricted: "apoc.*"
+    serverMemoryHeapInitialSize: "1G"
+    serverMemoryHeapMaxSize: "2G"
+    serverMemoryPagecacheSize: "1500m"
+  
+  # Use Recreate strategy to avoid lock file issues during updates
+  strategy:
+    type: Recreate
+  
   resources:
     requests:
       memory: "2Gi"
