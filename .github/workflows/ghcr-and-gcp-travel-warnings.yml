@@ -90,8 +90,8 @@ jobs:
           file: ./services/travel_warnings/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}-travel-warnings:latest
-            ghcr.io/${{ github.repository }}-travel-warnings:${{ needs.check-versions.outputs.travel_warnings_service_app_version }}
+            ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}/travel-warnings:latest
+            ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}/travel-warnings:${{ needs.check-versions.outputs.travel_warnings_service_app_version }}
             europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/travel-warnings:latest
             europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/travel-warnings:${{ needs.check-versions.outputs.travel_warnings_service_app_version }}
 

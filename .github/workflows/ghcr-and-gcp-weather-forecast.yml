@@ -91,8 +91,8 @@ jobs:
           file: ./services/weather-forecast-service/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}-weather-forecast-service:latest
-            ghcr.io/${{ github.repository }}-weather-forecast-service:${{ needs.check-versions.outputs.weather_forecast_service_app_version }}
+            ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}/weather-forecast-service:latest
+            ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}/weather-forecast-service:${{ needs.check-versions.outputs.weather_forecast_service_app_version }}
             europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/weather-forecast-service:latest
             europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/weather-forecast-service:${{ needs.check-versions.outputs.weather_forecast_service_app_version }}
 

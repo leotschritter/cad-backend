@@ -94,8 +94,8 @@ jobs:
           file: ./services/comments-likes-service/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/comments-likes-service:latest
-            ghcr.io/${{ github.repository }}/comments-likes-service:${{ needs.check-versions.outputs.comments_likes_service_app_version }}
+            ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}/comments-likes-service:latest
+            ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}/comments-likes-service:${{ needs.check-versions.outputs.comments_likes_service_app_version }}
             europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/comments-likes-service:latest
             europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/comments-likes-service:${{ needs.check-versions.outputs.comments_likes_service_app_version }}
 
