@@ -2,7 +2,7 @@ name: Build Docker Image and Deploy to GCP/GHCR for Travel Warnings Microservice
 
 on:
   push:
-    branches: [ "main", "microservice-migration" ]
+    branches: [ "main", "develop" ]
     tags: [ "v*.*.*" ]
     paths:
       - "services/travel_warnings/travel-warnings-chart/Chart.yaml"
@@ -51,6 +51,7 @@ jobs:
 
   build-and-push:
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
     needs: check-versions
     if: ${{ github.event.head_commit.message != 'skip-build' && needs.check-versions.outputs.travel_warnings_service_changed == 'true' }}
     permissions:
@@ -91,14 +92,15 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}-travel-warnings:latest
             ghcr.io/${{ github.repository }}-travel-warnings:${{ needs.check-versions.outputs.travel_warnings_service_app_version }}
-            europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-warnings:latest
-            europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-warnings:${{ needs.check-versions.outputs.travel_warnings_service_app_version }}
+            europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/travel-warnings:latest
+            europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/travel-warnings:${{ needs.check-versions.outputs.travel_warnings_service_app_version }}
 
   deploy:
     needs:
       - build-and-push
       - check-versions
     if: ${{ needs.check-versions.outputs.travel_warnings_service_changed == 'true' || github.event_name == 'workflow_dispatch' }}
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -206,18 +208,18 @@ jobs:
           if helm list | grep -q "^travel-warnings"; then
             echo "Upgrading existing release..."
             helm upgrade travel-warnings ./travel-warnings-chart \
-              -f ./travel-warnings-chart/values-prod.yaml \
+              -f ./travel-warnings-chart/${{ vars.VALUES_FILENAME }} \
               --set smtp.user="${{ secrets.SMTP_USER }}" \
               --set smtp.password="${{ secrets.SMTP_PASSWORD }}" \
-              --set travelWarningsApi.image=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-warnings:${{ needs.build-and-push.outputs.image-tag }} \
+              --set travelWarningsApi.image=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/travel-warnings:${{ needs.build-and-push.outputs.image-tag }} \
               --wait --timeout 5m
           else
             echo "Installing new release..."
             helm install travel-warnings ./travel-warnings-chart \
-              -f ./travel-warnings-chart/values-prod.yaml \
+              -f ./travel-warnings-chart/${{ vars.VALUES_FILENAME }} \
               --set smtp.user="${{ secrets.SMTP_USER }}" \
               --set smtp.password="${{ secrets.SMTP_PASSWORD }}" \
-              --set travelWarningsApi.image=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-warnings:${{ needs.build-and-push.outputs.image-tag }} \
+              --set travelWarningsApi.image=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/travel-warnings:${{ needs.build-and-push.outputs.image-tag }} \
               --create-namespace \
               --wait --timeout 5m
           fi
