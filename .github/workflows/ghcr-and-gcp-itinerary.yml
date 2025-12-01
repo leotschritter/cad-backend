@@ -547,7 +547,7 @@ jobs:
               --set database.url="${{ vars.DB_URL }}" \
               --set database.password="${{ secrets.DB_PASSWORD }}" \
               --set image.repository="${{ needs.build-and-push.outputs.backend_image }}" \
-              --set serviceAccount.annotations.iam.gke.io/gcp-service-account="travel-backend-sa@${{ vars.PROJECT_ID }}.iam.gserviceaccount.com" \
+              --set-string serviceAccount.annotations."iam\.gke\.io/gcp-service-account"="travel-backend-sa@${{ vars.PROJECT_ID }}.iam.gserviceaccount.com" \
               --set gcp.projectId="${{ vars.PROJECT_ID }}" \
               --cleanup-on-fail \
               --rollback-on-failure \
@@ -559,7 +559,7 @@ jobs:
               --set database.url="${{ vars.DB_URL }}" \
               --set database.password="${{ secrets.DB_PASSWORD }}" \
               --set image.repository="${{ needs.build-and-push.outputs.backend_image }}" \
-              --set serviceAccount.annotations.iam.gke.io/gcp-service-account="travel-backend-sa@${{ vars.PROJECT_ID }}.iam.gserviceaccount.com" \
+              --set-string serviceAccount.annotations."iam\.gke\.io/gcp-service-account"="travel-backend-sa@${{ vars.PROJECT_ID }}.iam.gserviceaccount.com" \
               --set gcp.projectId="${{ vars.PROJECT_ID }}" \
               --create-namespace \
               --rollback-on-failure \
