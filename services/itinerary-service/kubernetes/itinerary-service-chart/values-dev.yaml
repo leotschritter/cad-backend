@@ -63,3 +63,7 @@ backendUrl: "https://dev-itinerary.tripico.fun"
 serviceAccount:
   annotations:
     iam.gke.io/gcp-service-account: "travel-backend-sa@iaas-476910.iam.gserviceaccount.com"
+
+gcp:
+  serviceAccountEmail: "travel-backend-sa@iaas-476910.iam.gserviceaccount.com"
+  bucketName: "iaas-476910-tripico-images"
