@@ -47,7 +47,7 @@ serviceAccount:
   gcpServiceAccount: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
 
 recommendationConfig:
-  googleCloudProject: "iaas-476910"
+  googleCloudProject: "graphite-plane-474510-s9"
   openapiServerUrl: "https://recommendation.tripico.fun"
 
 # Use in-cluster neo4j
