@@ -14,6 +14,7 @@ jobs:
     outputs:
       weather_forecast_service_changed: ${{ steps.detect.outputs.weather_forecast_service_changed }}
       weather_forecast_service_app_version: ${{ steps.detect.outputs.weather_forecast_service_app_version }}
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
 
     steps:
       - uses: actions/checkout@v4
