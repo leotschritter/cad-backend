@@ -1,9 +1,18 @@
 # Development values for itinerary-service
 # Override default values for development/testing
 
-replicaCount: 1
+replicaCount: 2
 
+image:
+  repository: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/comments-likes-service
+  pullPolicy: Always
 # Lower resources for dev
+
+serviceAccount:
+  annotations:
+    # This must match the GCP service account created by Terraform
+    iam.gke.io/gcp-service-account: "tripico-sa@iaas-476910.iam.gserviceaccount.com"
+
 resources:
   limits:
     cpu: 500m
@@ -43,15 +52,24 @@ probes:
     timeoutSeconds: 3
     failureThreshold: 3
 
-# Use dev domain or disable ingress for local testing
+# Use production domain
 ingress:
   enabled: true
+  useProd: true
   hosts:
-    - host: cl-dev.tripico.fun
+    - host: dev-cl.tripico.fun
       paths:
         - path: /
           pathType: Prefix
+  tls:
+    - secretName: comments-likes-tls
+      hosts:
+        - de-vcl.tripico.fun
 
-# Dev Quarkus profile
-quarkus:
-  profile: "prod"
+# GCP configuration
+gcp:
+  projectId: "iaas-476910"
+  serviceAccountEmail: "comments-likes-sa@iaas-476910.iam.gserviceaccount.com"
+
+# Backend URL
+backendUrl: "https://dev-cl.tripico.fun"
