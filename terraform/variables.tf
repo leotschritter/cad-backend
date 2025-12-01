@@ -147,7 +147,7 @@ variable "artifact_registry_name" {
 variable "create_artifact_registry" {
   description = "Whether to create GCP Artifact Registry (required for Kubernetes deployments)"
   type        = bool
-  default     = true # Registry already exists
+  default     = true # LEAVE 'false' ON main AND 'true' ON develop
 }
 
 # Docker Image Configuration
