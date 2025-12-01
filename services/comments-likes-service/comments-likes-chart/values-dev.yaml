@@ -64,7 +64,7 @@ ingress:
   tls:
     - secretName: comments-likes-tls
       hosts:
-        - de-vcl.tripico.fun
+        - dev-cl.tripico.fun
 
 # GCP configuration
 gcp:
