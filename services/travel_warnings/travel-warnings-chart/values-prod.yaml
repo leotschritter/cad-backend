@@ -5,6 +5,11 @@
 ingress:
   enabled: true
   useProd: true
+  prod:
+    host: warnings.tripico.fun
+    tlsSecretName: warnings-tls
+    sslRedirect: "true"
+    forceSslRedirect: "true"
 
 # Higher availability and resources for production
 travelWarningsApi:
@@ -39,6 +44,8 @@ travelWarningsApi:
       initialDelaySeconds: 30
       failureThreshold: 3
       timeoutSeconds: 5
+
+
 
 
 # Use in-cluster postgres (or configure external DB)

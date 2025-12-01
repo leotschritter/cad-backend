@@ -4,9 +4,7 @@
 
 replicaCount: 1
 
-image:
-  repository: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/comments-likes-service
-  pullPolicy: Always
+
 
 imagePullSecrets: []
 nameOverride: ""
@@ -18,7 +16,6 @@ serviceAccount:
   # Annotations to add to the service account
   annotations:
     # This must match the GCP service account created by Terraform
-    iam.gke.io/gcp-service-account: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
   # The name of the service account to use.
   # This MUST match the Kubernetes SA name in the Terraform Workload Identity binding
   # Terraform binding: graphite-plane-474510-s9.svc.id.goog[default/comments-likes-sa]
@@ -51,15 +48,6 @@ ingress:
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-  hosts:
-    - host: cl.tripico.fun
-      paths:
-        - path: /
-          pathType: Prefix
-  tls:
-    - secretName: comments-likes-tls
-      hosts:
-        - cl.tripico.fun
 
 resources:
   limits:
@@ -83,13 +71,6 @@ quarkus:
     host: "0.0.0.0"
   profile: "prod"
 
-# GCP configuration
-gcp:
-  projectId: "graphite-plane-474510-s9"
-  serviceAccountEmail: "comments-likes-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
-
-# Backend URL
-backendUrl: "https://cl.tripico.fun"
 
 # Identity Platform Authentication Configuration
 identityPlatform:
