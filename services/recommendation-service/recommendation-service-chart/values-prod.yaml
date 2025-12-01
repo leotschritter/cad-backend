@@ -55,13 +55,22 @@ neo4j:
   enabled: true
   replicas: 1
   password: ""  # Set via --set neo4j.password=XXX
+  
+  # Neo4j JVM memory configuration (CRITICAL for performance!)
+  environmentVariables:
+    plugins: '["apoc"]'
+    dbmsSecurityProceduresUnrestricted: "apoc.*"
+    serverMemoryHeapInitialSize: "1G"
+    serverMemoryHeapMaxSize: "2G"
+    serverMemoryPagecacheSize: "1500m"
+
   resources:
     requests:
-      memory: "1Gi"
-      cpu: "500m"
-    limits:
       memory: "2Gi"
       cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
 
 certificate:
   dnsNames:

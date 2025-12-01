@@ -6,6 +6,10 @@ metadata:
     app: {{ .Values.neo4j.name }}
 spec:
   replicas: {{ .Values.neo4j.replicas }}
+  {{- if .Values.neo4j.strategy }}
+  strategy:
+    type: {{ .Values.neo4j.strategy.type }}
+  {{- end }}
   selector:
     matchLabels:
       app: {{ .Values.neo4j.name }}

@@ -104,3 +104,11 @@ certificate:
   name: warnings-tls-cert
   secretName: warnings-tls
   issuerName: letsencrypt-prod
+
+# Autoscaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  # targetMemoryUtilizationPercentage: 80

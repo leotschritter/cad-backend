@@ -231,13 +231,20 @@ public class RecommendationService {
 
     private List<Map<String, Object>> getCollaborativeFilteringRecommendations(String userEmail, Integer limit) {
         LOG.debugf("Getting collaborative filtering recommendations for user: %s", userEmail);
+        // AGGRESSIVE OPTIMIZATION: Limit to top 15 most similar users to reduce combinatorial explosion
+        // With 68 likes/user average, looking at all users creates too many paths
         String cypher = """
             MATCH (u:User {email: $userEmail})-[:LIKES]->(i:Itinerary)<-[:LIKES]-(other:User)
-            MATCH (other)-[:LIKES]->(recommendation:Itinerary)
-            WHERE NOT (u)-[:LIKES]->(recommendation)
-            WITH recommendation, COUNT(DISTINCT other) as commonUsers, 
-                 size([(recommendation)<-[:LIKES]-() | 1]) as totalLikes
-            RETURN recommendation.id as itineraryId,
+            WHERE u <> other
+            WITH other, COUNT(DISTINCT i) as commonLikes
+            ORDER BY commonLikes DESC
+            LIMIT 15
+            MATCH (other)-[:LIKES]->(rec:Itinerary)
+            WHERE NOT EXISTS((u:User {email: $userEmail})-[:LIKES]->(rec))
+            WITH rec, COUNT(DISTINCT other) as commonUsers
+            MATCH (rec)<-[likes:LIKES]-()
+            WITH rec.id as itineraryId, commonUsers, COUNT(DISTINCT likes) as totalLikes
+            RETURN itineraryId,
                    totalLikes,
                    commonUsers,
                    (commonUsers * 2.0 + totalLikes * 0.5) as relevanceScore
@@ -274,15 +281,18 @@ public class RecommendationService {
     }
     private List<Map<String, Object>> getLocationBasedRecommendations(String userEmail, Integer limit) {
         LOG.debugf("Getting location-based recommendations for user: %s", userEmail);
+        // OPTIMIZED: Direct relationship counting + limited location collection
         String cypher = """
             MATCH (u:User {email: $userEmail})-[:VISITED]->(loc:Location)<-[:INCLUDES]-(i:Itinerary)
             WHERE NOT (u)-[:LIKES]->(i) AND NOT (u)-[:CREATED]->(i)
-            WITH i, COUNT(DISTINCT loc) as commonLocations,
-                 size([(i)<-[:LIKES]-() | 1]) as totalLikes
-            OPTIONAL MATCH (i)-[:INCLUDES]->(location:Location)
-            WITH i, commonLocations, totalLikes,
-                 COLLECT(DISTINCT location.name) as locations
-            RETURN i.id as itineraryId,
+            WITH i, COUNT(DISTINCT loc) as commonLocations
+            MATCH (i)<-[likes:LIKES]-()
+            MATCH (i)-[:INCLUDES]->(location:Location)
+            WITH i.id as itineraryId, 
+                 commonLocations,
+                 COUNT(DISTINCT likes) as totalLikes,
+                 COLLECT(DISTINCT location.name)[..3] as locations
+            RETURN itineraryId,
                    totalLikes,
                    locations,
                    commonLocations,
@@ -341,11 +351,12 @@ public class RecommendationService {
 
     private List<Map<String, Object>> getPopularItineraries() {
         LOG.debugf("Getting popular itineraries, limit: %d", maxFeedItems);
+        // OPTIMIZED: Direct relationship counting instead of pattern comprehension
         String cypher = """
-            MATCH (i:Itinerary)
-            WITH i, size([(i)<-[:LIKES]-() | 1]) as likesCount
+            MATCH (i:Itinerary)<-[likes:LIKES]-()
+            WITH i.id as itineraryId, COUNT(likes) as likesCount
             WHERE likesCount > 0
-            RETURN i.id as itineraryId,
+            RETURN itineraryId,
                    likesCount
             ORDER BY likesCount DESC
             LIMIT $limit

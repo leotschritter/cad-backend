@@ -22,11 +22,11 @@ neo4j:
     name: neo4j-data
   resources:
     requests:
-      memory: "1Gi"
-      cpu: "500m"
-    limits:
       memory: "2Gi"
       cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
   probes:
     liveness:
       initialDelaySeconds: 60
@@ -43,6 +43,7 @@ neo4jPvc:
 
 recommendationApi:
   name: recommendation-service
+  image: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/recommendation-service:latest
   port: 8080
   strategy:
     type: RollingUpdate
@@ -93,7 +94,17 @@ recommendationConfig:
     primaryHeader: "X-Forwarded-Authorization"
     fallbackHeader: "Authorization"
   recommendation:
-    feedMaxItems: "100"
+    feedMaxItems: "30"
+  openapiServerUrl: "https://recommendation.tripico.fun"
+
+# Autoscaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  # targetMemoryUtilizationPercentage: 80
+
 
 ingress:
   name: recommendation-ingress
@@ -113,4 +124,3 @@ certificate:
   name: recommendation-tls-cert
   issuerName: letsencrypt-prod
   secretName: recommendation-tls
-
