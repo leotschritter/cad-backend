@@ -6,7 +6,7 @@ ingress:
   enabled: true
   useProd: true
   prod:
-    host: dev-recommendation.tripico.fun
+    host: recommendation.tripico.fun
 
 # Higher availability and resources for production
 recommendationApi:
