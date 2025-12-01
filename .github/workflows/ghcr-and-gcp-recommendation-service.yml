@@ -4,6 +4,7 @@ on:
   push:
     branches:
         - "main"
+        - "develop"
     tags: [ "v*.*.*" ]
     paths:
       - "services/recommendation-service/recommendation-service-chart/Chart.yaml"
@@ -51,6 +52,7 @@ jobs:
           check_chart services/recommendation-service/recommendation-service-chart recommendation_service
   build-and-push:
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
     needs: check-versions
     if: ${{ github.event.head_commit.message != 'skip-build' && needs.check-versions.outputs.recommendation_service_changed == 'true' }}
     permissions:
@@ -91,14 +93,15 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}-recommendation-service:latest
             ghcr.io/${{ github.repository }}-recommendation-service:${{ needs.check-versions.outputs.recommendation_service_app_version }}
-            europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/recommendation-service:latest
-            europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/recommendation-service:${{ needs.check-versions.outputs.recommendation_service_app_version }}
+            europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/recommendation-service:latest
+            europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/recommendation-service:${{ needs.check-versions.outputs.recommendation_service_app_version }}
 
   deploy:
     needs:
       - build-and-push
       - check-versions
     if: ${{ needs.check-versions.outputs.recommendation_service_changed == 'true' || github.event_name == 'workflow_dispatch' }}
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -150,16 +153,16 @@ jobs:
           if helm list | grep -q "^recommendation-service"; then
             echo "Upgrading existing release..."
             helm upgrade recommendation-service ./recommendation-service-chart \
-              -f ./recommendation-service-chart/values-prod.yaml \
+              -f ./recommendation-service-chart/${{ vars.VALUES_FILENAME }} \
               --set neo4j.password="${{ secrets.NEO4J_PASSWORD }}" \
-              --set recommendationApi.image=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/recommendation-service:${{ needs.build-and-push.outputs.image-tag }} \
+              --set recommendationApi.image=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/recommendation-service:${{ needs.build-and-push.outputs.image-tag }} \
               --wait --timeout 5m
           else
             echo "Installing new release..."
             helm install recommendation-service ./recommendation-service-chart \
-              -f ./recommendation-service-chart/values-prod.yaml \
+              -f ./recommendation-service-chart/${{ vars.VALUES_FILENAME }} \
               --set neo4j.password="${{ secrets.NEO4J_PASSWORD }}" \
-              --set recommendationApi.image=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/recommendation-service:${{ needs.build-and-push.outputs.image-tag }} \
+              --set recommendationApi.image=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/recommendation-service:${{ needs.build-and-push.outputs.image-tag }} \
               --create-namespace \
               --wait --timeout 5m
           fi

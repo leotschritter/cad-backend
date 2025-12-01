@@ -43,10 +43,7 @@ neo4jPvc:
 
 recommendationApi:
   name: recommendation-service
-  image: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/recommendation-service:latest
   port: 8080
-  replicas: 1  # Increase for high availability
-
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -84,9 +81,6 @@ recommendationApi:
       periodSeconds: 30
       timeoutSeconds: 5
 
-serviceAccount:
-  name: recommendation-service-sa
-  gcpServiceAccount: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
 
 recommendationConfig:
   name: recommendation-service-config
@@ -94,14 +88,12 @@ recommendationConfig:
     uri: "bolt://neo4j-service:7687"
     username: "neo4j"
   itineraryServiceUrl: "http://itinerary-service:8080"
-  googleCloudProject: "graphite-plane-474510-s9"
   identityPlatform:
     authEnabled: "true"
     primaryHeader: "X-Forwarded-Authorization"
     fallbackHeader: "Authorization"
   recommendation:
     feedMaxItems: "100"
-  openapiServerUrl: "https://recommendation.tripico.fun"
 
 ingress:
   name: recommendation-ingress
@@ -109,8 +101,10 @@ ingress:
   useProd: false  # Set to true for production deployment
   dev:
     host: recommendation-dev.tripico.fun
+    tlsSecretName: recommendation-tls
+    sslRedirect: "true"
+    forceSslRedirect: "true"
   prod:
-    host: recommendation.tripico.fun
     tlsSecretName: recommendation-tls
     sslRedirect: "true"
     forceSslRedirect: "true"
@@ -119,6 +113,4 @@ certificate:
   name: recommendation-tls-cert
   issuerName: letsencrypt-prod
   secretName: recommendation-tls
-  dnsNames:
-    - recommendation.tripico.fun
 
