@@ -61,3 +61,6 @@ certificate:
   dnsNames:
     - itinerary.tripico.fun
 
+serviceAccount:
+  annotations:
+    iam.gke.io/gcp-service-account: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
