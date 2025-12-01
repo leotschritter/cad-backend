@@ -47,19 +47,15 @@ probes:
 ingress:
   enabled: true
   hosts:
-    - host: itinerary-dev.tripico.fun
+    - host: dev-itinerary.tripico.fun
       paths:
         - path: /
           pathType: Prefix
 
 certificate:
   enabled: true
-  name: itinerary-dev-tls-cert
-  secretName: itinerary-dev-tls
   dnsNames:
-    - itinerary-dev.tripico.fun
+    - dev-itinerary.tripico.fun
 
-# Dev Quarkus profile
-quarkus:
-  profile: "dev"
 
+backendUrl: "https://dev-itinerary.tripico.fun"
