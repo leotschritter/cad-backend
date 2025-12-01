@@ -23,7 +23,7 @@ public class Neo4jIndexInitializer {
     void onStart(@Observes StartupEvent ev) {
         LOG.info("🔧 Creating Neo4j indexes for optimal query performance...");
         
-        try (Session session = neo4jDriver.session()) {C
+        try (Session session = neo4jDriver.session()) {
             session.writeTransaction(tx -> {
                 // Index on User.email (used in all personalized queries)
                 tx.run("CREATE INDEX user_email IF NOT EXISTS FOR (u:User) ON (u.email)");
