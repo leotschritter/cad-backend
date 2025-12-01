@@ -3,4 +3,4 @@ name: weather-forecast-service
 description: A Helm chart for Kubernetes containing the whole deployment of the Weather Forecast Microservice from Tripico.
 type: application
 version: 0.1.0
-appVersion: "1.1.1"
+appVersion: "1.1.2"
