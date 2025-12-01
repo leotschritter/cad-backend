@@ -47,9 +47,9 @@ neo4j:
   password: ""  # Set via --set neo4j.password=XXX
   resources:
     requests:
-      memory: "1Gi"
-      cpu: "500m"
-    limits:
       memory: "2Gi"
       cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
 
