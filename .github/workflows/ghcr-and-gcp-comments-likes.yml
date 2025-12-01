@@ -2,7 +2,7 @@ name: Docker push to GHCR, GCP Artifact Registry and deploy Comments/Likes Servi
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
     tags: [ 'v*.*.*' ]
     paths:
       - 'services/comments-likes-service/comments-likes-chart/Chart.yaml'
@@ -51,6 +51,7 @@ jobs:
 
   build-and-push:
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
     needs: check-versions
     if: ${{ github.event.head_commit.message != 'skip-build' && needs.check-versions.outputs.comments_likes_service_changed == 'true' }}
     permissions:
@@ -95,12 +96,12 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}/comments-likes-service:latest
             ghcr.io/${{ github.repository }}/comments-likes-service:${{ needs.check-versions.outputs.comments_likes_service_app_version }}
-            europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/comments-likes-service:latest
-            europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/comments-likes-service:${{ needs.check-versions.outputs.comments_likes_service_app_version }}
+            europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/comments-likes-service:latest
+            europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/comments-likes-service:${{ needs.check-versions.outputs.comments_likes_service_app_version }}
 
       - name: Export image reference
         id: export_image
-        run: echo "image=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/comments-likes-service:${{ needs.check-versions.outputs.comments_likes_service_app_version }}" >> "$GITHUB_OUTPUT"
+        run: echo "image=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/comments-likes-service:${{ needs.check-versions.outputs.comments_likes_service_app_version }}" >> "$GITHUB_OUTPUT"
 
       - name: Export app version
         id: export_app_version
@@ -112,7 +113,7 @@ jobs:
       - build-and-push
       - check-versions
     if: ${{ needs.check-versions.outputs.comments_likes_service_changed == 'true' || github.event_name == 'workflow_dispatch' }}
-    environment: production
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
     permissions:
       id-token: write
       contents: read
@@ -200,14 +201,14 @@ jobs:
           if helm list | grep -q "^comments-likes-service" && ! helm status comments-likes-service -o json 2>/dev/null | jq -r '.info.status' | grep -q "pending"; then
             echo "Upgrading existing release..."
             helm upgrade comments-likes-service ./comments-likes-chart \
-              -f ./comments-likes-chart/values-prod.yaml \
+              -f ./comments-likes-chart/${{ vars.VALUES_FILENAME }} \
               --cleanup-on-fail \
               --rollback-on-failure \
               --wait --timeout 5m
           else
             echo "Installing new release..."
             helm install comments-likes-service ./comments-likes-chart \
-              -f ./comments-likes-chart/values-prod.yaml \
+              -f ./comments-likes-chart/${{ vars.VALUES_FILENAME }} \
               --create-namespace \
               --rollback-on-failure \
               --wait --timeout 5m
