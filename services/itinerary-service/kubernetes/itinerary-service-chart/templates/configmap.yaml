@@ -7,9 +7,9 @@ metadata:
 data:
   db_user: {{ .Values.database.user | quote }}
   db_url: {{ .Values.database.url | quote }}
-  bucket_name: {{ .Values.gcp.bucketName | quote }}
+  bucket_name: {{ "%s%s" .Values.gcp.projectId "-tripico-images" | quote }}
   project_id: {{ .Values.gcp.projectId | quote }}
-  service_account_email: {{ .Values.gcp.serviceAccountEmail | quote }}
+  service_account_email: {{ "%s%s%s" "travel-backend-sa@" .Values.gcp.projectId ".iam.gserviceaccount.com" | quote }}
   backend_url: {{ .Values.backendUrl | quote }}
   identity_platform_auth_enabled: {{ .Values.identityPlatform.authEnabled | quote }}
   identity_platform_auth_primary_header: {{ .Values.identityPlatform.primaryHeader | quote }}

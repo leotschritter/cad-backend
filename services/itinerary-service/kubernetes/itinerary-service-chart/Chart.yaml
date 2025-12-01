@@ -3,7 +3,7 @@ name: itinerary-service
 description: A Helm chart for the Itinerary Service - Travel Planning Application
 type: application
 version: 1.0.0
-appVersion: "2.1.9"
+appVersion: "2.2.0"
 keywords:
   - itinerary
   - travel
