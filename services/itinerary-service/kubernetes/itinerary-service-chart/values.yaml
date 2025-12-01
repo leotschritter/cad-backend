@@ -37,22 +37,12 @@ service:
 
 ingress:
   enabled: true
-  useProd: true
   className: "nginx"
   annotations:
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 
-
-# Certificate configuration
-certificate:
-  enabled: true
-  name: itinerary-tls-cert
-  secretName: itinerary-tls
-  issuerRef:
-    name: letsencrypt-prod
-    kind: ClusterIssuer
 
 resources:
   limits:

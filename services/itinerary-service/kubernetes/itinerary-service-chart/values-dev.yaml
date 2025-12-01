@@ -1,25 +1,22 @@
 # Development values for itinerary-service
 # Override default values for development/testing
 
-replicaCount: 2
+replicaCount: 1
 
-# Production resources
+# Lower resources for dev
 resources:
   limits:
-    cpu: 1000m
-    memory: 1Gi
-  requests:
     cpu: 500m
-    memory: 768Mi
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
 
-# Enable autoscaling in production
+# Disable autoscaling in dev
 autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 70
+  enabled: false
 
-# Production health checks - more conservative
+# Faster health checks for dev
 probes:
   startup:
     httpGet:
@@ -49,7 +46,6 @@ probes:
 # Use dev domain or disable ingress for local testing
 ingress:
   enabled: true
-  useProd: true
   hosts:
     - host: dev-itinerary.tripico.fun
       paths:
@@ -60,10 +56,6 @@ ingress:
       hosts:
         - dev-itinerary.tripico.fun
 
-certificate:
-  enabled: true
-  dnsNames:
-    - dev-itinerary.tripico.fun
 
 
 backendUrl: "https://dev-itinerary.tripico.fun"
