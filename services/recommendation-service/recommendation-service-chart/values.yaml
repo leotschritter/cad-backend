@@ -100,7 +100,7 @@ recommendationConfig:
     primaryHeader: "X-Forwarded-Authorization"
     fallbackHeader: "Authorization"
   recommendation:
-    feedMaxItems: "50"
+    feedMaxItems: "30"
   openapiServerUrl: "https://recommendation.tripico.fun"
 
 # Autoscaling configuration
