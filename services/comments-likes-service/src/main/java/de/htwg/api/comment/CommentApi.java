@@ -18,12 +18,15 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.logging.Logger;
 
 import java.util.List;
 
 @Path("/comment")
 @Tag(name = "Comment Management", description = "Operations for managing comments on itineraries")
 public class CommentApi {
+
+    private static final Logger LOG = Logger.getLogger(CommentApi.class);
 
     private final CommentService commentService;
 
@@ -319,8 +322,10 @@ public class CommentApi {
             List<CommentDto> comments = commentService.getCommentsByUser(userEmail);
             return Response.ok(comments).build();
         } catch (Exception e) {
+            LOG.errorf(e, "Internal server error while retrieving user likes for %s. Error type: %s",
+                    userEmail, e.getClass().getSimpleName());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("{\"error\": \"An error occurred while retrieving user comments\"}")
+                    .entity("{\"error\": \"An error occurred while retrieving user comments\", \"details\": \"" + e.getMessage() + "\", \"type\": \"" + e.getClass().getSimpleName() + "\"}")
                     .build();
         }
     }
