@@ -2,7 +2,7 @@ name: Deploy Weather Forecast Service
 
 on:
   push:
-    branches: [ "main", "microservice-migration" ]
+    branches: [ "main", "develop" ]
     tags: [ "v*.*.*" ]
     paths:
       - "services/weather-forecast-service/helm/weather-forecast-service/Chart.yaml"
@@ -14,6 +14,7 @@ jobs:
     outputs:
       weather_forecast_service_changed: ${{ steps.detect.outputs.weather_forecast_service_changed }}
       weather_forecast_service_app_version: ${{ steps.detect.outputs.weather_forecast_service_app_version }}
+
 
     steps:
       - uses: actions/checkout@v4
@@ -51,6 +52,7 @@ jobs:
 
   build-and-push:
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
     needs: check-versions
     if: ${{ github.event.head_commit.message != 'skip-build' && needs.check-versions.outputs.weather_forecast_service_changed == 'true' }}
     permissions:
@@ -89,16 +91,17 @@ jobs:
           file: ./services/weather-forecast-service/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}-weather-forecast-service:latest
-            ghcr.io/${{ github.repository }}-weather-forecast-service:${{ needs.check-versions.outputs.weather_forecast_service_app_version }}
-            europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/weather-forecast-service:latest
-            europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/weather-forecast-service:${{ needs.check-versions.outputs.weather_forecast_service_app_version }}
+            ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}/weather-forecast-service:latest
+            ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}/weather-forecast-service:${{ needs.check-versions.outputs.weather_forecast_service_app_version }}
+            europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/weather-forecast-service:latest
+            europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/weather-forecast-service:${{ needs.check-versions.outputs.weather_forecast_service_app_version }}
 
   deploy:
     needs:
       - build-and-push
       - check-versions
     if: ${{ needs.check-versions.outputs.weather_forecast_service_changed == 'true' || github.event_name == 'workflow_dispatch' }}
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -206,17 +209,17 @@ jobs:
            if helm list | grep -q "weather-forecast-service"; then
             echo "Upgrading existing release..."
             helm upgrade weather-forecast-service ./helm/weather-forecast-service \
-              -f ./helm/weather-forecast-service/values-prod.yaml \
+              -f ./helm/weather-forecast-service/${{ vars.VALUES_FILENAME }}\
               --set meteosource.apiKey="${{ secrets.METEOSOURCE_API_KEY }}" \
-              --set weatherForecastApi.image=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/weather-forecast-service:${{ needs.build-and-push.outputs.image-tag }} \
+              --set weatherForecastApi.image=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/weather-forecast-service:${{ needs.build-and-push.outputs.image-tag }} \
               --wait --timeout 5m
 
           else
             echo "Installing new release..."
             helm install weather-forecast-service ./helm/weather-forecast-service \
-              -f ./helm/weather-forecast-service/values-prod.yaml \
+              -f ./helm/weather-forecast-service/${{ vars.VALUES_FILENAME }} \
               --set meteosource.apiKey="${{ secrets.METEOSOURCE_API_KEY }}" \
-              --set weatherForecastApi.image=europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/weather-forecast-service:${{ needs.build-and-push.outputs.image-tag }} \
+              --set weatherForecastApi.image=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/weather-forecast-service:${{ needs.build-and-push.outputs.image-tag }} \
               --create-namespace \
               --wait --timeout 5m
           fi          

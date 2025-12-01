@@ -97,7 +97,6 @@ ingress:
   enabled: true
   useProd: false  # Set to true for production deployment
   prod:
-    host: weather.tripico.fun
     tlsSecretName: weather-tls
   dev:
     host: weather-forecast.local

@@ -18,12 +18,15 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.logging.Logger;
 
 import java.util.List;
 
 @Path("/comment")
 @Tag(name = "Comment Management", description = "Operations for managing comments on itineraries")
 public class CommentApi {
+
+    private static final Logger LOG = Logger.getLogger(CommentApi.class);
 
     private final CommentService commentService;
 
@@ -93,15 +96,19 @@ public class CommentApi {
 
         try {
             String userEmail = securityContext.getCurrentUserEmail();
+            LOG.infof("User %s attempting to add comment to itinerary %d", userEmail, itineraryId);
             CommentDto createdComment = commentService.addComment(userEmail, itineraryId, request.comment);
+            LOG.infof("Successfully added comment for user %s on itinerary %d", userEmail, itineraryId);
             return Response.ok(createdComment).build();
         } catch (IllegalArgumentException e) {
+            LOG.warnf("Bad request while adding comment to itinerary %d: %s", itineraryId, e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\": \"" + e.getMessage() + "\"}")
                     .build();
         } catch (Exception e) {
+            LOG.errorf(e, "Internal server error while adding comment to itinerary %d", itineraryId);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("{\"error\": \"An error occurred while adding the comment\"}")
+                    .entity("{\"error\": \"An error occurred while adding the comment\", \"details\": \"" + e.getMessage() + "\"}")
                     .build();
         }
     }
@@ -173,16 +180,20 @@ public class CommentApi {
 
         try {
             String userEmail = securityContext.getCurrentUserEmail();
+            LOG.infof("User %s attempting to delete comment %s", userEmail, commentId);
             commentService.deleteComment(commentId, userEmail);
+            LOG.infof("Successfully deleted comment %s for user %s", commentId, userEmail);
             MessageResponseDto response = new MessageResponseDto("Comment deleted successfully");
             return Response.ok(response).build();
         } catch (IllegalArgumentException e) {
+            LOG.warnf("Bad request while deleting comment %s: %s", commentId, e.getMessage());
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity("{\"error\": \"" + e.getMessage() + "\"}")
                     .build();
         } catch (Exception e) {
+            LOG.errorf(e, "Internal server error while deleting comment %s", commentId);
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("{\"error\": \"An error occurred while deleting the comment\"}")
+                    .entity("{\"error\": \"An error occurred while deleting the comment\", \"details\": \"" + e.getMessage() + "\"}")
                     .build();
         }
     }
@@ -258,11 +269,25 @@ public class CommentApi {
         }
 
         try {
+            LOG.infof("Retrieving comments for itinerary %d", itineraryId);
             List<CommentDto> comments = commentService.getCommentsForItinerary(itineraryId);
+            LOG.infof("Successfully retrieved %d comments for itinerary %d", comments.size(), itineraryId);
             return Response.ok(comments).build();
+        } catch (IllegalArgumentException e) {
+            LOG.warnf("Bad request while retrieving comments for itinerary %d: %s", itineraryId, e.getMessage());
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"" + e.getMessage() + "\"}")
+                    .build();
+        } catch (IllegalStateException e) {
+            LOG.errorf(e, "Service not properly configured while retrieving comments for itinerary %d", itineraryId);
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                    .entity("{\"error\": \"Service is not properly configured\", \"details\": \"" + e.getMessage() + "\"}")
+                    .build();
         } catch (Exception e) {
+            LOG.errorf(e, "Internal server error while retrieving comments for itinerary %d. Error type: %s",
+                    itineraryId, e.getClass().getSimpleName());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("{\"error\": \"An error occurred while retrieving comments\"}")
+                    .entity("{\"error\": \"An error occurred while retrieving comments\", \"details\": \"" + e.getMessage() + "\", \"type\": \"" + e.getClass().getSimpleName() + "\"}")
                     .build();
         }
     }
@@ -316,11 +341,25 @@ public class CommentApi {
         }
 
         try {
+            LOG.infof("Retrieving comments for user %s", userEmail);
             List<CommentDto> comments = commentService.getCommentsByUser(userEmail);
+            LOG.infof("Successfully retrieved %d comments for user %s", comments.size(), userEmail);
             return Response.ok(comments).build();
+        } catch (IllegalArgumentException e) {
+            LOG.warnf("Bad request while retrieving comments for user %s: %s", userEmail, e.getMessage());
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"" + e.getMessage() + "\"}")
+                    .build();
+        } catch (IllegalStateException e) {
+            LOG.errorf(e, "Service not properly configured while retrieving comments for user %s", userEmail);
+            return Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                    .entity("{\"error\": \"Service is not properly configured\", \"details\": \"" + e.getMessage() + "\"}")
+                    .build();
         } catch (Exception e) {
+            LOG.errorf(e, "Internal server error while retrieving user comments for %s. Error type: %s",
+                    userEmail, e.getClass().getSimpleName());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("{\"error\": \"An error occurred while retrieving user comments\"}")
+                    .entity("{\"error\": \"An error occurred while retrieving user comments\", \"details\": \"" + e.getMessage() + "\", \"type\": \"" + e.getClass().getSimpleName() + "\"}")
                     .build();
         }
     }

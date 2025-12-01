@@ -1,35 +1,69 @@
-# Development/Local Environment Values
-# Use this for local development with Minikube or Docker Desktop
+# Production Environment Values
+# Use this for production deployment on GCP/GKE
 
-# Use development ingress (without TLS)
+# Use production ingress with TLS
 ingress:
   enabled: true
-  useProd: false
+  useProd: true
+  prod:
+    host: dev-recommendation.tripico.fun
 
-# Lower resource requirements for local development
+# Higher availability and resources for production
 recommendationApi:
-  replicas: 1
-  resources:
-    requests:
-      memory: "256Mi"
-      cpu: "125m"
-    limits:
-      memory: "512Mi"
-      cpu: "500m"
+  replicas: 2
+  image: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/recommendation-service:latest
 
-# Use local neo4j
-neo4j:
-  enabled: true
-  replicas: 1
   resources:
     requests:
       memory: "512Mi"
       cpu: "250m"
     limits:
       memory: "1Gi"
-      cpu: "500m"
+      cpu: "1000m"
 
-# Neo4j password should be provided via --set
+  # Production-grade health checks
+  probes:
+    startup:
+      path: /q/health/started
+      initialDelaySeconds: 15
+      periodSeconds: 10
+      failureThreshold: 30
+      timeoutSeconds: 5
+    readiness:
+      path: /q/health/ready
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      failureThreshold: 3
+      timeoutSeconds: 5
+    liveness:
+      path: /q/health/live
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      failureThreshold: 3
+      timeoutSeconds: 5
+
+serviceAccount:
+  name: recommendation-service-sa
+  gcpServiceAccount: "travel-backend-sa@iaas-476910.iam.gserviceaccount.com"
+
+recommendationConfig:
+  googleCloudProject: "iaas-476910"
+  openapiServerUrl: "https://dev-recommendation.tripico.fun"
+
+# Use in-cluster neo4j
 neo4j:
-  password: ""
+  enabled: true
+  replicas: 1
+  password: ""  # Set via --set neo4j.password=XXX
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+
+certificate:
+  dnsNames:
+    - dev-recommendation.tripico.fun
 

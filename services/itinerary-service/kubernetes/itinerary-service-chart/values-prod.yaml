@@ -3,7 +3,6 @@
 
 replicaCount: 2
 
-
 # Production resources
 resources:
   limits:
@@ -55,9 +54,20 @@ ingress:
       paths:
         - path: /
           pathType: Prefix
+  tls:
+    - secretName: itinerary-tls
+      hosts:
+        - itinerary.tripico.fun
 
-certificate:
-  enabled: true
-  dnsNames:
-    - itinerary.tripico.fun
 
+serviceAccount:
+  annotations:
+    iam.gke.io/gcp-service-account: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+
+gcp:
+  projectId: "graphite-plane-474510-s9"
+  serviceAccountEmail: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+  bucketName: "graphite-plane-474510-s9-tripico-images"
+
+# Backend URL
+backendUrl: "https://itinerary.tripico.fun"

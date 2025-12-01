@@ -1,30 +1,59 @@
-# Development/Local Environment Values
-# Use this for local development with Minikube or Docker Desktop
+# Production Environment Values
+# Use this for production deployment on GCP/GKE
 
-# Use development ingress (without TLS)
+# Use production ingress with TLS
 ingress:
   enabled: true
-  useProd: false
+  useProd: true
+  prod:
+    host: dev-warnings.tripico.fun
+    tlsSecretName: warnings-tls
+    sslRedirect: "true"
+    forceSslRedirect: "true"
 
-# Lower resource requirements for local development
+# Higher availability and resources for production
 travelWarningsApi:
-  replicas: 1
+  replicas: 2
+  image: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/travel-warnings:latest
 
   resources:
     requests:
-      memory: "256Mi"
-      cpu: "125m"
-    limits:
       memory: "512Mi"
-      cpu: "500m"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
 
-# Use local postgres
+  # Production-grade health checks
+  probes:
+    startup:
+      path: /q/health/started
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      failureThreshold: 30
+      timeoutSeconds: 3
+    readiness:
+      path: /q/health/ready
+      periodSeconds: 10
+      initialDelaySeconds: 5
+      failureThreshold: 3
+      timeoutSeconds: 5
+    liveness:
+      path: /q/health/live
+      periodSeconds: 30
+      initialDelaySeconds: 30
+      failureThreshold: 3
+      timeoutSeconds: 5
+
+
+# Use in-cluster postgres (or configure external DB)
 postgres:
   enabled: true
   replicas: 1
 
-# SMTP can be set via --set or use mock
+# SMTP credentials should be provided via --set or secrets
 smtp:
-  user: ""
-  password: ""
+  user: ""  # Set via --set smtp.user=XXX
+  password: ""  # Set via --set smtp.password=XXX
+
 
