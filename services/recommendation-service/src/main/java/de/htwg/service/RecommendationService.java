@@ -231,13 +231,19 @@ public class RecommendationService {
 
     private List<Map<String, Object>> getCollaborativeFilteringRecommendations(String userEmail, Integer limit) {
         LOG.debugf("Getting collaborative filtering recommendations for user: %s", userEmail);
-        // OPTIMIZED: Single MATCH path + direct relationship counting for better performance
+        // AGGRESSIVE OPTIMIZATION: Limit to top 15 most similar users to reduce combinatorial explosion
+        // With 68 likes/user average, looking at all users creates too many paths
         String cypher = """
-            MATCH (u:User {email: $userEmail})-[:LIKES]->(:Itinerary)<-[:LIKES]-(other:User)-[:LIKES]->(rec:Itinerary)
-            WHERE NOT (u)-[:LIKES]->(rec) AND u <> other
+            MATCH (u:User {email: $userEmail})-[:LIKES]->(i:Itinerary)<-[:LIKES]-(other:User)
+            WHERE u <> other
+            WITH other, COUNT(DISTINCT i) as commonLikes
+            ORDER BY commonLikes DESC
+            LIMIT 15
+            MATCH (other)-[:LIKES]->(rec:Itinerary)
+            WHERE NOT EXISTS((u:User {email: $userEmail})-[:LIKES]->(rec))
             WITH rec, COUNT(DISTINCT other) as commonUsers
             MATCH (rec)<-[likes:LIKES]-()
-            WITH rec.id as itineraryId, commonUsers, COUNT(likes) as totalLikes
+            WITH rec.id as itineraryId, commonUsers, COUNT(DISTINCT likes) as totalLikes
             RETURN itineraryId,
                    totalLikes,
                    commonUsers,
