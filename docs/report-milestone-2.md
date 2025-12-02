@@ -1461,39 +1461,51 @@ Simulate normal daily traffic patterns with users browsing, creating content, an
 | **Recommendations** | 15% | View personalized feed, discover content |
 | **Content Creation** | 10% | Create itineraries, add locations, update trips |
 | **User Operations** | 5% | Profile updates, login, authentication |
+
 ![Requests per Seconds and Response Times](img/load/milestone-2/01-periodic/locust_periodic_low_1.png)
+
 Requests per Second and Response Times
 
 
 ![Number of Users](img/load/milestone-2/01-periodic/locust_periodic_low_2.png)
+
 Number of Users
 
 ![Failure Rate](img/load/milestone-2/01-periodic/locust_periodic_low_3.png)
+
 Failure Rates per Request
 
 
 ![CPU Utilization Itinerary Service](img/load/milestone-2/01-periodic/periodic_low_cpu_itinerary.png)
+
 CPU Utilization Itinerary Service
 
 ![CPU Utilization Comments & Likes Service](img/load/milestone-2/01-periodic/periodic_low_cpu_comments_likes.png)
+
 CPU Utilization Comments & Likes Service
 
 ![CPU Utilization Recommendation Service](img/load/milestone-2/01-periodic/periodic_low_cpu_recommendation.png)
+
 CPU Utilization Recommendation Service
 
 ![CPU Utilization Travel Warnings Service](img/load/milestone-2/01-periodic/periodic_low_cpu_warnings.png)
+
 CPU Utilization Travel Warnings Service
 
 ![Memory Utilization Itinerary Service](img/load/milestone-2/01-periodic/periodic_low_memory_itinerary.png)
+
 Memory Utilization Itinerary Service
 
 ![Memory Utilization Recommendation Service](img/load/milestone-2/01-periodic/periodic_low_memory_recommendation.png)
+
 Memory Utilization Recommendation Service
 
 ![Memory Utilization Travel Warnings Service](img/load/milestone-2/01-periodic/periodic_low_memory_warnings.png)
+
 Memory Utilization Travel Warnings Service
 
 ![Total amount of replicas during test](img/load/milestone-2/01-periodic/periodic_low_replicas_all.png)
+
 Total Amount of Replicas During Test
 
 **Test Results:**
@@ -1660,36 +1672,47 @@ The system successfully handled moderate periodic load (100 concurrent users) wi
 Same as Scenario 1 (45% browse, 25% social, 15% recommendations, 10% creation, 5% user ops)
 
 ![Requests per Seconds and Response Times](img/load/milestone-2/02-periodic-high/locust_periodic_high_1.png)
+
 Requests per Second and Response Times
 
 ![Number of Users](img/load/milestone-2/02-periodic-high/locust_periodic_high_2.png)
+
 Number of Users
 
 ![Failure Rate](img/load/milestone-2/02-periodic-high/locust_periodic_high_3.png)
+
 Failure Rates per Request
 
 ![CPU Utilization Itinerary Service](img/load/milestone-2/02-periodic-high/periodic_high_cpu_itinerary.png)
+
 CPU Utilization Itinerary Service
 
 ![CPU Utilization Comments & Likes Service](img/load/milestone-2/02-periodic-high/periodic_high_cpu_comments_likes.png)
+
 CPU Utilization Comments & Likes Service
 
 ![CPU Utilization Recommendation Service](img/load/milestone-2/02-periodic-high/periodic_high_cpu_recommendation.png)
+
 CPU Utilization Recommendation Service
 
 ![CPU Utilization Travel Warnings Service](img/load/milestone-2/02-periodic-high/periodic_high_cpu_warnings.png)
+
 CPU Utilization Travel Warnings Service
 
 ![Memory Utilization Itinerary Service](img/load/milestone-2/02-periodic-high/periodic_high_memory_itinerary.png)
+
 Memory Utilization Itinerary Service
 
 ![Memory Utilization Recommendation Service](img/load/milestone-2/02-periodic-high/periodic_high_memory_recommendation.png)
+
 Memory Utilization Recommendation Service
 
 ![Memory Utilization Travel Warnings Service](img/load/milestone-2/02-periodic-high/periodic_high_memory_warnings.png)
+
 Memory Utilization Travel Warnings Service
 
 ![Amount of replicas travel warnings service during test](img/load/milestone-2/02-periodic-high/periodic_high_replicas_warnings.png)
+
 Amount of Replicas Travel Warnings Service During Test
 
 ![Amount of replicas other servides during test](img/load/milestone-2/02-periodic-high/periodic_high_replicas_others.png)
@@ -1958,22 +1981,28 @@ Simulate a viral traffic spike scenario where Tripico gains sudden massive popul
 | **Content Creation** | 5% | New itineraries | Inspired users creating copycat trips |
 
 ![Requests per Seconds and Response Times](img/load/milestone-2/03-onceinalifetime/locust_onceinlifetimecharts.png)
+
 Requests per Second, Response Times and Number of Users
 
 ![Failure Rate](img/load/milestone-2/03-onceinalifetime/locust_onceinlifetime_failurerates.png)
+
 Failure Rates per Request
 
 ![Response Time Distribution](img/load/milestone-2/03-onceinalifetime/locust_onceinlifetime_responsetimes.png)
+
 Response Time Distribution
 
 ![Ramp Up Breakpoint](img/load/milestone-2/03-onceinalifetime/locust_onceinlifetime_breakpoint.png)
+
 Ramp Up Breakpoint at ~900 Users
 
 
 ![CPU Utilization Itinerary Service](img/load/milestone-2/03-onceinalifetime/onceinlifetime_itinerary_cpu.png)
+
 CPU Utilization Itinerary Service
 
 ![CPU Utilization Comments & Likes Service](img/load/milestone-2/03-onceinalifetime/onceinlifetime_comments_cpu.png)
+
 CPU Utilization Comments & Likes Service
 
 ![CPU Utilization Recommendation Service](img/load/milestone-2/03-onceinalifetime/onceinlifetime_recommendation_cpu.png)
@@ -1983,21 +2012,27 @@ CPU Utilization Travel Warnings Service
 
 
 ![Memory Utilization Itinerary Service](img/load/milestone-2/03-onceinalifetime/onceinlifetime_itinerary_memory.png)
+
 Memory Utilization Itinerary Service
 
 ![Memory Utilization Comments & Likes Service](img/load/milestone-2/03-onceinalifetime/onceinlifetime_comments_memory.png)
+
 Memory Utilization Comments & Likes Service
 
 ![Memory Utilization Recommendation Service](img/load/milestone-2/03-onceinalifetime/onceinlifetime_recommendation_memory.png)
+
 Memory Utilization Recommendation Service
 
 ![Memory Utilization Travel Warnings Service](img/load/milestone-2/03-onceinalifetime/onceinlifetime_warnings_memory.png)
+
 Memory Utilization Travel Warnings Service
 
 ![Amount of replicas recommendation service during test](img/load/milestone-2/03-onceinalifetime/onceinlifetime_replicas_recommendation_service.png)
+
 Amount of Replicas Recommendation Service During Test
 
 ![Amount of replicas others](img/load/milestone-2/03-onceinalifetime/onceinlifetime_replicas_other.png)
+
 Amount of Replicas Other Services During Test
 
 ---
