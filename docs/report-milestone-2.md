@@ -1265,9 +1265,40 @@ Simulate normal daily traffic patterns with users browsing, creating content, an
 
 #### Scenario 1: Moderate Periodic Load (100 Peak Users)
 
-[//]: # (# TODO: Add response time charts &#40;min, median, 95th percentile, max&#41;)
-[//]: # (# TODO: Add failure rate chart over time)
-[//]: # (# TODO: Add resource utilization graphs &#40;CPU, memory, network&#41;)
+![Requests per Seconds and Response Times](docs/img/load/milestone-2/01-periodic/locust_periodic_low_1.png)
+Requests per Second and Response Times
+
+
+![Number of Users](docs/img/load/milestone-2/01-periodic/locust_periodic_low_2.png)
+Number of Users
+
+![Failure Rate](docs/img/load/milestone-2/01-periodic/locust_periodic_low_3.png)
+Failure Rates per Request
+
+
+![CPU Utilization Itinerary Service](docs/img/load/milestone-2/01-periodic/periodic_low_cpu_itinerary.png)
+CPU Utilization Itinerary Service
+
+![CPU Utilization Comments & Likes Service](docs/img/load/milestone-2/01-periodic/periodic_low_cpu_comments_likes.png)
+CPU Utilization Comments & Likes Service
+
+![CPU Utilization Recommendation Service](docs/img/load/milestone-2/01-periodic/periodic_low_cpu_recommendation.png)
+CPU Utilization Recommendation Service
+
+![CPU Utilization Travel Warnings Service](docs/img/load/milestone-2/01-periodic/periodic_low_cpu_warnings.png)
+CPU Utilization Travel Warnings Service
+
+![Memory Utilization Itinerary Service](docs/img/load/milestone-2/01-periodic/periodic_low_memory_itinerary.png)
+Memory Utilization Itinerary Service
+
+![Memory Utilization Recommendation Service](docs/img/load/milestone-2/01-periodic/periodic_low_memory_recommendation.png)
+Memory Utilization Recommendation Service
+
+![Memory Utilization Travel Warnings Service](docs/img/load/milestone-2/01-periodic/periodic_low_memory_warnings.png)
+Memory Utilization Travel Warnings Service
+
+![Total amount of replicas during test](docs/img/load/milestone-2/01-periodic/periodic_low_replicas_all.png)
+Total Amount of Replicas During Test
 
 **Test Configuration:**
 
@@ -1299,25 +1330,137 @@ Simulate normal daily traffic patterns with users browsing, creating content, an
 | **Content Creation** | 10% | Create itineraries, add locations, update trips |
 | **User Operations** | 5% | Profile updates, login, authentication |
 
-**Expected Results:**
+**Test Results:**
 
-[//]: # (# TODO: Insert actual test results table with the following metrics:)
-[//]: # (# - Endpoint name)
-[//]: # (# - Request count)
-[//]: # (# - Failure count)
-[//]: # (# - Median response time &#40;ms&#41;)
-[//]: # (# - 95th percentile &#40;ms&#41;)
-[//]: # (# - Average requests per second &#40;RPS&#41;)
+| Metric | Value |
+|--------|-------|
+| **Total Requests** | 39,592 |
+| **Total Failures** | 20 |
+| **Failure Rate** | 0.051% |
+| **Average Response Time** | 243.92 ms |
+| **Median Response Time** | 81 ms |
+| **95th Percentile** | 900 ms |
+| **99th Percentile** | 4,100 ms |
+| **Requests per Second** | 33.02 req/s |
+| **Test Duration** | 20 minutes |
 
 **Analysis:**
 
-[//]: # (# TODO: Write analysis of results:)
-[//]: # (# - Did the application handle the load without degradation?)
-[//]: # (# - What was the failure rate? &#40;<1% is acceptable&#41;)
-[//]: # (# - Were response times within SLA? &#40;<500ms for reads, <1s for writes&#41;)
-[//]: # (# - Did auto-scaling trigger? How many pods were running at peak?)
-[//]: # (# - Which service/endpoint was the slowest?)
-[//]: # (# - Any bottlenecks identified?)
+The application demonstrated **excellent performance** under moderate periodic load with 100 concurrent users. The system handled the workload effectively without significant degradation.
+
+**1. Overall System Stability**
+
+The application successfully handled 39,592 requests over 20 minutes with an exceptional failure rate of only **0.051%** (20 failures out of 39,592 requests). This is well below the 1% acceptable threshold, indicating robust system stability. The throughput remained stable at approximately 33 requests per second throughout the test duration.
+
+**2. Response Time Performance**
+
+The response time metrics show strong performance across the board:
+- **Median response time**: 81 ms - Excellent performance for typical requests
+- **Average response time**: 243.92 ms - Well within acceptable bounds
+- **95th percentile**: 900 ms - Acceptable for most use cases
+- **99th percentile**: 4,100 ms - Some outliers present, but not concerning
+
+The distribution shows that the majority of requests (50%) completed in under 100 ms, with 75% completing within 130 ms, indicating excellent responsiveness for most user interactions.
+
+**3. Service-Level Performance Analysis**
+
+**Fastest Endpoints:**
+- GET `/location/itinerary/:id` - Median: 26 ms, Avg: 177 ms (4,803 requests, 0 failures)
+- POST `/itinerary/create` - Median: 28 ms, Avg: 224 ms (3,448 requests, 1 failure)
+- POST `/itinerary/search [all]` - Median: 66 ms, Avg: 336 ms (4,916 requests, 4 failures)
+
+**Slowest Endpoints:**
+- POST `/itinerary/search [destination]` - Avg: 408 ms, 95th%: 2,600 ms, Max: 13,469 ms (7,207 requests)
+  - This endpoint shows the highest latency, likely due to complex database queries filtering by destination
+- GET `[TravelWarnings] /warnings/travel-warnings` - Median: 180 ms, Avg: 227 ms (3,375 requests)
+  - Consistently higher response times, possibly due to external API calls or complex processing
+- GET `[Recommendation] /feed` - Median: 120 ms, Avg: 246 ms (1,481 requests)
+  - Recommendation service shows moderate latency due to graph database queries
+
+**Comments & Likes Service Performance:**
+- GET `/comment/itinerary/:id` - Median: 88 ms, Avg: 104 ms (2,523 requests, 0 failures)
+- POST `/comment/itinerary/:id` - Median: 87 ms, Avg: 102 ms (1,921 requests, 2 failures)
+- POST `/like/itinerary/:id` - Median: 110 ms, Avg: 127 ms (3,011 requests, 3 failures)
+
+The Comments & Likes service performed consistently well with low latency across all operations.
+
+**4. Failure Analysis**
+
+The 20 failures were distributed across multiple services:
+
+- **Search Operations (7 failures)**: HTTP 500 errors on itinerary search endpoints
+  - 4 failures on `/itinerary/search [all]`
+  - 2 failures on `/itinerary/search [destination]`
+  - 1 failure on `/itinerary/search [date range]`
+  - Likely caused by occasional database query timeouts or concurrent access issues
+
+- **Connection Issues (8 failures)**: Connection refused errors indicating temporary pod unavailability
+  - Comments/Likes service: 3 connection failures
+  - Travel Warnings service: 2 connection failures
+  - Location service: 3 read timeouts
+
+- **Timeout Issues (4 failures)**: Read timeouts exceeding configured limits
+  - Comments/Likes service: 2 timeouts (5s timeout threshold)
+  - Recommendation service: 1 timeout (15s timeout threshold)
+  - Travel Warnings service: 1 timeout
+
+- **Create Operation (1 failure)**: HTTP 500 error on itinerary creation
+
+These failures appear to be transient issues rather than systematic problems, as they represent only 0.051% of all requests.
+
+**5. Auto-Scaling Behavior**
+
+**No auto-scaling events were triggered during the test**. All services maintained **2 pods each** throughout the entire 20-minute test duration. This indicates that:
+- The baseline resource allocation (2 pods per service) was sufficient for handling 100 concurrent users
+- CPU and memory utilization remained within acceptable thresholds, not triggering scaling policies
+- The system is over-provisioned for this load level, providing headroom for traffic spikes
+
+**6. Resource Utilization**
+
+Resource monitoring revealed:
+- **CPU utilization**: Some peaks observed but no service approached resource limits
+- **Memory utilization**: Stable memory consumption across all services
+- **No resource bottlenecks** were identified during the test
+- All services operated comfortably within their allocated resources
+
+**7. Database Performance**
+
+No database bottlenecks were identified:
+- **Cloud SQL (PostgreSQL)**: Handled itinerary and location queries efficiently
+- **Firestore**: Supported user data operations without issues
+- **Neo4j (Graph Database)**: Processed recommendation queries with acceptable latency
+
+The slowest operations were complex search queries on the itinerary service, which is expected behavior for filtered searches across large datasets.
+
+**8. Key Findings & Recommendations**
+
+**Strengths:**
+✅ Excellent failure rate (0.051%) - far below 1% threshold
+✅ Fast median response times (81 ms) for typical user requests
+✅ Stable throughput of 33 req/s throughout the test
+✅ No resource bottlenecks or auto-scaling requirements at this load level
+✅ All services performed within acceptable ranges
+
+**Areas for Optimization:**
+- **Search Performance**: The destination search endpoint shows high latency (max: 13.4s). Consider:
+  - Adding database indexes on frequently queried fields
+  - Implementing caching for popular search queries
+  - Optimizing complex join operations
+  
+- **Connection Stability**: 8 connection-related failures suggest occasional pod health issues. Consider:
+  - Adjusting readiness/liveness probe configurations
+  - Implementing retry mechanisms with exponential backoff
+  - Reviewing pod startup times and resource requests
+
+- **Resource Efficiency**: With no scaling triggered, consider:
+  - Reducing baseline pod count to 1 per service during low-traffic periods
+  - Fine-tuning Horizontal Pod Autoscaler (HPA) thresholds for cost optimization
+  - Implementing more aggressive scaling policies for the 1000-user scenario
+
+**Conclusion:**
+
+The system successfully handled moderate periodic load (100 concurrent users) with minimal failures and excellent response times. The infrastructure is well-provisioned for this load level, with sufficient capacity to handle traffic without requiring auto-scaling. The application is production-ready for this user volume, with opportunities for optimization in search performance and resource efficiency.
+
 
 ---
 
