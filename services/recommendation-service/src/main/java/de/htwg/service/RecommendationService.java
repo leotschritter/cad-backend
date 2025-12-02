@@ -240,7 +240,7 @@ public class RecommendationService {
             ORDER BY commonLikes DESC
             LIMIT 15
             MATCH (other)-[:LIKES]->(rec:Itinerary)
-            WHERE NOT EXISTS((u:User {email: $userEmail})-[:LIKES]->(rec))
+            WHERE NOT EXISTS((:User {email: $userEmail})-[:LIKES]->(rec))
             WITH rec, COUNT(DISTINCT other) as commonUsers
             MATCH (rec)<-[likes:LIKES]-()
             WITH rec.id as itineraryId, commonUsers, COUNT(DISTINCT likes) as totalLikes
