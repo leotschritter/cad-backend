@@ -48,6 +48,7 @@ The Tripico application interacts with the following external systems and actors
 - **Auswärtiges Amt API** - German Federal Foreign Office API providing real-time travel warnings and safety information for countries worldwide
 - **Meteosource Weather API** - Weather forecast service providing 7-day daily forecasts and 24-hour hourly forecasts for travel destinations
 - **Firebase Authentication** - Identity platform for user authentication and authorization across all microservices
+- **HTWG SMTP Server** - Email server used by the Travel Warnings Service to send alert notifications to users
 
 #### Actors
 - **Travelers (End Users)** - Primary users who create itineraries, browse recommendations, interact with content, and receive travel alerts
@@ -61,7 +62,7 @@ The Tripico application interacts with the following external systems and actors
 #### Core Features
 
 **1. Itinerary Management**
-- Create, read, update, and delete travel itineraries
+- Create and read travel itineraries
 - Add locations, accommodations, and transport details to trips
 - Search and filter itineraries by various criteria
 
@@ -76,8 +77,9 @@ The Tripico application interacts with the following external systems and actors
 - Real-time travel warning information from Auswärtiges Amt
 - Automated notification system for trips affected by new warnings
 - Email alerts with severity levels (None, Minor, Moderate, Severe, Critical)
-- Trip-based alert matching with configurable preferences
+- Comprehensive warning details with clearly indicated severity levels and recommended actions
 - Categorized safety information (Security, Nature & Climate, Travel Info, Documents, Health)
+- Link to full official travel advisory available
 
 **4. Weather Forecasts**
 - 7-day daily weather forecasts for travel destinations
@@ -104,11 +106,21 @@ The Tripico application interacts with the following external systems and actors
 - Structure: Microservices organized in `/services/` directory
 - Infrastructure: Terraform IaC in `/terraform/` and service-specific `terraform/` directories
 - Load Testing: Comprehensive test suite in `/load/` directory
+- Helm Charts: Kubernetes deployment manifests in the following directories for the following services:
+  - Cluster Issuer for Certificates: Helm Chart located at `services/itinerary-service/kubernetes/cert-manager-chart`
+  - `comments-likes-service`: Helm Chart located at `services/comments-likes-service/comments-likes-chart`
+  - `itinerary-service`: Helm Chart located at `services/itinerary-service/kubernetes/itinerary-service-chart`
+  - `recommendation-service`: Helm Chart located at `services/recommendation-service/recommendation-service-chart`
+  - `travel-warnings-service`: Helm Chart located at `services/travel_warnings/travel-warnings-chart`
+  - `weather-forecast-service`: Helm Chart located at `services/weather-forecast-service/helm/weather-forecast-service`
+- CI/CD: GitHub Actions workflows in `.github/workflows/` for building the images, building the infrastructure with terraform and deploying the Kubernetes Services with the Helm charts.
 
 **Frontend Repository:**
 - Repository: https://github.com/leotschritter/cad-frontend
 - Technology: Vue.js 3 with Vuetify UI framework
 - Deployment: Static site hosted on GCP
+- Helm Chart: Kubernetes deployment manifests for the `cad-frontend-service` located in `cad-frontend-chart`.
+- CI/CD: GitHub Actions workflows in `.github/workflows/` for building the images and deploying the Kubernetes Service with the Helm chart.
 
 #### Software Components Overview
 
@@ -1030,6 +1042,9 @@ Both environments use identical Terraform modules with only variable differences
 **IaC Directory Structure:**
 ```
 services/itinerary-service/terraform/
+├── backend-config-dev.hcl     # Custom configuration for develop backend
+├── backend-config.hcl         # Custom configuration for productive backend
+├── dev-environment.tfvars     # Custom variables for develop environment
 ├── main.tf                    # Root module orchestration
 ├── provider.tf                # GCP provider configuration
 ├── variables.tf               # Input variables
