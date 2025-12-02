@@ -1,0 +1,52 @@
+@startuml
+!theme plain
+
+entity "WeatherForecast" as WeatherForecast {
+    *id : Long <<PK>>
+    --
+    location_name : String
+    latitude : Decimal
+    longitude : Decimal
+    fetched_at : Timestamp
+    timezone : String
+}
+
+entity "DailyForecast" as DailyForecast {
+    *id : Long <<PK>>
+    --
+    weather_forecast_id : Long <<FK>>
+    date : Date
+    temperature_high : Decimal
+    temperature_low : Decimal
+    weather_condition : String
+    weather_icon : String
+    precipitation_probability : Integer
+    precipitation_total : Decimal
+    wind_speed : Decimal
+    wind_direction : String
+    humidity : Integer
+    uv_index : Integer
+    summary : Text
+}
+
+entity "HourlyForecast" as HourlyForecast {
+    *id : Long <<PK>>
+    --
+    weather_forecast_id : Long <<FK>>
+    datetime : Timestamp
+    temperature : Decimal
+    weather_condition : String
+    weather_icon : String
+    wind_speed : Decimal
+    wind_direction : String
+    precipitation_amount : Decimal
+    precipitation_type : String
+    cloud_cover : Integer
+    summary : Text
+}
+
+' Relationships
+WeatherForecast ||--o{ DailyForecast : "1:N"
+WeatherForecast ||--o{ HourlyForecast : "1:N"
+
+@enduml

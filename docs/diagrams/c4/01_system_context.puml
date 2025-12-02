@@ -13,14 +13,14 @@ System(travelSaaS, "Travel SaaS Platform", "Social travel management platform wi
 ' External Systems
 System_Ext(identity, "Identity Provider", "OAuth2 / Firebase - User authentication and token validation")
 System_Ext(auswaertigesAmt, "Auswärtiges Amt", "REST API providing official travel warnings and country safety information")
-System_Ext(emailApi, "SendGrid Email API", "RESTful Email Delivery Platform used to send safety alerts and notifications")
+System_Ext(emailApi, "HTWG SMTP Server", "SMTP mail server (smtp.htwg-konstanz.de:587) for sending travel warning email alerts to users")
 System_Ext(weatherApi, "Meteosource Weather API", "REST API providing weather forecasts and meteorological data for travel destinations")
 
 ' Relationships
 Rel(traveller, travelSaaS, "Plans trips, receives alerts, browses personalised feed", "HTTPS (REST API)")
 Rel(travelSaaS, identity, "Authenticates users, validates identity", "OIDC / JWT")
 Rel(travelSaaS, auswaertigesAmt, "Fetches travel warnings and safety data", "HTTPS (REST API)")
-Rel(travelSaaS, emailApi, "Sends safety alerts and travel warning notifications via REST API", "HTTPS (SendGrid v3 API)")
+Rel(travelSaaS, emailApi, "Sends travel warning email alerts to users when new warnings affect their trips", "SMTP/STARTTLS")
 Rel(travelSaaS, weatherApi, "Fetches weather forecasts for destinations", "HTTPS (REST API)")
 
 @enduml
