@@ -1,0 +1,47 @@
+@startuml
+title Firestore Document Structure – Comments & Likes
+
+!theme plain
+hide circle
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+' ------------------ COLLECTION: COMMENTS ------------------
+
+entity "comments (Collection)" as Comments {
+  == Document Fields ==
+  id : string (auto-generated)
+  itineraryId : string (UUID)
+  userId : string (Firebase UID)
+  userName : string
+  content : string
+  createdAt : timestamp
+  updatedAt : timestamp
+  parentCommentId : string (optional)
+}
+
+' ------------------ COLLECTION: LIKES ------------------
+
+entity "likes (Collection)" as Likes {
+  == Document Fields ==
+  id : string (auto-generated)
+  itineraryId : string (UUID)
+  userId : string (Firebase UID)
+  createdAt : timestamp
+}
+
+' ------------------ INDEXES ------------------
+
+entity "Firestore Indexes" as Indexes {
+  == comments indexes ==
+  (itineraryId, createdAt DESC)
+
+  == likes indexes ==
+  (itineraryId, userId)
+  itineraryId (single-field)
+}
+
+Comments --> Indexes : "indexed by"
+Likes --> Indexes : "indexed by"
+
+@enduml

@@ -40,7 +40,7 @@ The application is built as a microservices architecture deployed on Google Clou
 
 ### 1.1 System Context
 
-[//]: # (# TODO: Add System Context Diagram here showing Tripico and all neighboring systems)
+![03_software_architecture_diagram.png](img/load/milestone-2/04-diagrams/03_software_architecture_diagram.png)
 
 The Tripico application interacts with the following external systems and actors:
 
@@ -227,7 +227,7 @@ The application uses multiple database technologies optimized for different data
 
 #### Itinerary Service - PostgreSQL Database
 
-[//]: # (# TODO: Add ER Diagram for Itinerary Service database schema)
+![04_er_diagram_itinerary.png](img/load/milestone-2/04-diagrams/04_er_diagram_itinerary.png)
 
 **Entities:**
 
@@ -298,7 +298,7 @@ The application uses multiple database technologies optimized for different data
 
 #### Comments & Likes Service - Firestore
 
-[//]: # (# TODO: Add JSON Schema or document structure diagram for Firestore collections)
+![05_firestore_document_structure.png](img/load/milestone-2/04-diagrams/05_firestore_document_structure.png)
 
 **Collections:**
 
@@ -347,7 +347,7 @@ The application uses multiple database technologies optimized for different data
 
 #### Recommendation Service - Neo4j Graph Database
 
-[//]: # (# TODO: Add Graph Data Model diagram showing nodes and relationships)
+![06_graph_data_model.png](img/load/milestone-2/04-diagrams/06_graph_data_model.png)
 
 **Node Types:**
 
@@ -436,7 +436,7 @@ ORDER BY recommendation.likesCount DESC
 
 #### Weather Forecast Service - PostgreSQL Database
 
-[//]: # (# TODO: Add ER Diagram for Weather Forecast Service database schema)
+![07_er_diagram_weather_forecast.png](img/load/milestone-2/04-diagrams/07_er_diagram_weather_forecast.png)
 
 **Entities:**
 
@@ -492,7 +492,7 @@ ORDER BY recommendation.likesCount DESC
 
 #### Travel Warnings Service - PostgreSQL Database
 
-[//]: # (# TODO: Add ER Diagram for Travel Warnings Service database schema)
+![08_er_diagram_travel_warning.png](img/load/milestone-2/04-diagrams/08_er_diagram_travel_warning.png)
 
 **Entities:**
 
@@ -541,7 +541,7 @@ ORDER BY recommendation.likesCount DESC
 
 ### 3.1 Runtime Overview
 
-[//]: # (# TODO: Add Cloud Resources Diagram showing GKE cluster, Cloud SQL, Firestore, Load Balancer, etc.)
+![09_tripico_cloud_infrastructure.png](img/load/milestone-2/04-diagrams/09_tripico_cloud_infrastructure.png)
 
 #### Cloud Infrastructure
 

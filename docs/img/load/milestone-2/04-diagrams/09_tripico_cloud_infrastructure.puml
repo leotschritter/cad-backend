@@ -1,0 +1,63 @@
+@startuml
+!theme plain
+skinparam wrapWidth 250
+skinparam maxMessageSize 250
+
+title Tripico Cloud Infrastructure (Prod & Dev)
+
+rectangle "Google Cloud Platform" as GCP {
+
+    package "Production Project\n<production-project-id>\nDomain: frontend.tripico.fun" as Prod {
+
+        node "Load Balancer" as LB_PROD
+
+        node "GKE Cluster\ntripico-cluster-prod\n(europe-west1)" as GKE_PROD {
+            component "Microservices\n(Pods, Deployments)" as SVC_PROD
+        }
+
+        database "Cloud SQL\nPostgreSQL 15\n(db-f1-micro)" as SQL_PROD
+
+        storage "Cloud Storage Bucket\n(prod assets, uploads)" as GCS_PROD
+
+        cloud "Firestore (Native Mode)\nMulti-region" as FS_PROD
+
+        folder "Artifact Registry\n<region>-docker.pkg.dev/\n<production-project-id>/tripico-images" as AR_PROD
+
+        cloud "Firebase Auth\n(Prod)" as AUTH_PROD
+
+        LB_PROD --> GKE_PROD
+        SVC_PROD --> SQL_PROD
+        SVC_PROD --> FS_PROD
+        SVC_PROD --> GCS_PROD
+        SVC_PROD --> AUTH_PROD
+        GKE_PROD --> AR_PROD
+    }
+
+    package "Development Project\n<dev-project-id>\nDomain: dev-frontend.tripico.fun" as Dev {
+
+        node "Load Balancer" as LB_DEV
+
+        node "GKE Cluster\ntripico-cluster-dev\n(europe-west1)" as GKE_DEV {
+            component "Microservices\n(Pods, Deployments)" as SVC_DEV
+        }
+
+        database "Cloud SQL\nPostgreSQL 15\n(db-f1-micro)" as SQL_DEV
+
+        storage "Cloud Storage Bucket\n(dev assets, uploads)" as GCS_DEV
+
+        cloud "Firestore (Native Mode)\nMulti-region" as FS_DEV
+
+        folder "Artifact Registry\n<region>-docker.pkg.dev/\n<dev-project-id>/tripico-images" as AR_DEV
+
+        cloud "Firebase Auth\n(Dev)" as AUTH_DEV
+
+        LB_DEV --> GKE_DEV
+        SVC_DEV --> SQL_DEV
+        SVC_DEV --> FS_DEV
+        SVC_DEV --> GCS_DEV
+        SVC_DEV --> AUTH_DEV
+        GKE_DEV --> AR_DEV
+    }
+}
+
+@enduml
