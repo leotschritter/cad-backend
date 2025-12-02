@@ -19,7 +19,7 @@
    - 3.2 [Microservices](#32-microservices)
    - 3.3 [Datastores](#33-datastores)
 4. [DevOps](#4-devops)
-   - 4.1 [IaC](#41-iac)
+   - 4.1 [IaC](#41-iac-infrastructure-as-code)
 5. [Performance Tests](#5-performance-tests)
    - 5.1 [Periodic Workload](#51-periodic-workload)
    - 5.2 [Once-in-a-lifetime Workload](#52-once-in-a-lifetime-workload)
@@ -48,6 +48,7 @@ The Tripico application interacts with the following external systems and actors
 - **Auswärtiges Amt API** - German Federal Foreign Office API providing real-time travel warnings and safety information for countries worldwide
 - **Meteosource Weather API** - Weather forecast service providing 7-day daily forecasts and 24-hour hourly forecasts for travel destinations
 - **Firebase Authentication** - Identity platform for user authentication and authorization across all microservices
+- **HTWG SMTP Server** - Email server used by the Travel Warnings Service to send alert notifications to users
 
 #### Actors
 - **Travelers (End Users)** - Primary users who create itineraries, browse recommendations, interact with content, and receive travel alerts
@@ -61,7 +62,7 @@ The Tripico application interacts with the following external systems and actors
 #### Core Features
 
 **1. Itinerary Management**
-- Create, read, update, and delete travel itineraries
+- Create and read travel itineraries
 - Add locations, accommodations, and transport details to trips
 - Search and filter itineraries by various criteria
 
@@ -76,8 +77,9 @@ The Tripico application interacts with the following external systems and actors
 - Real-time travel warning information from Auswärtiges Amt
 - Automated notification system for trips affected by new warnings
 - Email alerts with severity levels (None, Minor, Moderate, Severe, Critical)
-- Trip-based alert matching with configurable preferences
+- Comprehensive warning details with clearly indicated severity levels and recommended actions
 - Categorized safety information (Security, Nature & Climate, Travel Info, Documents, Health)
+- Link to full official travel advisory available
 
 **4. Weather Forecasts**
 - 7-day daily weather forecasts for travel destinations
@@ -104,11 +106,21 @@ The Tripico application interacts with the following external systems and actors
 - Structure: Microservices organized in `/services/` directory
 - Infrastructure: Terraform IaC in `/terraform/` and service-specific `terraform/` directories
 - Load Testing: Comprehensive test suite in `/load/` directory
+- Helm Charts: Kubernetes deployment manifests in the following directories for the following services:
+  - Cluster Issuer for Certificates: Helm Chart located at `services/itinerary-service/kubernetes/cert-manager-chart`
+  - `comments-likes-service`: Helm Chart located at `services/comments-likes-service/comments-likes-chart`
+  - `itinerary-service`: Helm Chart located at `services/itinerary-service/kubernetes/itinerary-service-chart`
+  - `recommendation-service`: Helm Chart located at `services/recommendation-service/recommendation-service-chart`
+  - `travel-warnings-service`: Helm Chart located at `services/travel_warnings/travel-warnings-chart`
+  - `weather-forecast-service`: Helm Chart located at `services/weather-forecast-service/helm/weather-forecast-service`
+- CI/CD: GitHub Actions workflows in `.github/workflows/` for building the images, building the infrastructure with terraform and deploying the Kubernetes Services with the Helm charts.
 
 **Frontend Repository:**
 - Repository: https://github.com/leotschritter/cad-frontend
 - Technology: Vue.js 3 with Vuetify UI framework
 - Deployment: Static site hosted on GCP
+- Helm Chart: Kubernetes deployment manifests for the `cad-frontend-service` located in `cad-frontend-chart`.
+- CI/CD: GitHub Actions workflows in `.github/workflows/` for building the images and deploying the Kubernetes Service with the Helm chart.
 
 #### Software Components Overview
 
@@ -709,15 +721,16 @@ The Recommendation Service provides personalized travel recommendations using gr
 - **Resource Limits:**
   ```yaml
   # Application pods
-  resources:
+  applicationResources:
     requests:
       memory: "512Mi"
       cpu: "250m"
     limits:
       memory: "1Gi"
       cpu: "1000m"
+  
   # Neo4j pod
-  resources:
+  neo4jResources:
     requests:
       memory: "1Gi"
       cpu: "500m"
@@ -1030,6 +1043,9 @@ Both environments use identical Terraform modules with only variable differences
 **IaC Directory Structure:**
 ```
 services/itinerary-service/terraform/
+├── backend-config-dev.hcl     # Custom configuration for develop backend
+├── backend-config.hcl         # Custom configuration for productive backend
+├── dev-environment.tfvars     # Custom variables for develop environment
 ├── main.tf                    # Root module orchestration
 ├── provider.tf                # GCP provider configuration
 ├── variables.tf               # Input variables
@@ -1147,60 +1163,212 @@ terraform apply -var-file="terraform.tfvars"
   - Automated deployment on merge to `main` branch
   - Requires additional approval gates
 
-#### Kubernetes Configuration
+#### Kubernetes Configuration with Helm
 
-**Helm Charts:**
-- Weather Forecast Service: `services/weather-forecast-service/helm/`
-- Comments & Likes Service: `services/comments-likes-service/comments-likes-chart/`
-- Travel Warnings Service: `services/travel_warnings/travel-warnings-chart/`
-- Recommendation Service: Helm chart in development
+Tripico uses **Helm charts** for managing Kubernetes deployments across all microservices. Each service has a dedicated chart with environment-specific configurations for development and production deployments.
 
-**Chart Structure:**
+**All Services with Helm Charts:**
+
+| Service | Chart Location | Chart Version | App Version |
+|---------|---------------|---------------|-------------|
+| Itinerary Service | `services/itinerary-service/kubernetes/itinerary-service-chart/` | 1.0.0 | 2.3.2 |
+| Comments & Likes Service | `services/comments-likes-service/comments-likes-chart/` | 1.0.0 | 2.2.6 |
+| Weather Forecast Service | `services/weather-forecast-service/helm/weather-forecast-service/` | 0.1.0 | 1.1.5 |
+| Travel Warnings Service | `services/travel_warnings/travel-warnings-chart/` | 0.1.0 | 1.1.4 |
+| Recommendation Service | `services/recommendation-service/recommendation-service-chart/` | 0.1.0 | 1.1.16 |
+
+**Standard Chart Structure:**
+
+Each Helm chart follows a consistent structure optimized for multi-environment deployments:
+
 ```
-helm-chart/
-├── Chart.yaml              # Chart metadata
-├── values.yaml             # Default values (dev environment)
-├── values-prod.yaml        # Production overrides
+service-chart/
+├── Chart.yaml              # Chart metadata (name, version, appVersion)
+├── values.yaml             # Default/base configuration values
+├── values-dev.yaml         # Development environment overrides
+├── values-prod.yaml        # Production environment overrides
+├── .helmignore            # Files to exclude from chart package
 └── templates/
-    ├── deployment.yaml     # Deployment manifest
-    ├── service.yaml        # Service manifest
-    ├── ingress.yaml        # Ingress rules
+    ├── deployment.yaml     # Kubernetes Deployment resource
+    ├── service.yaml        # Kubernetes Service resource
+    ├── ingress.yaml        # Ingress with TLS/SSL configuration
     ├── hpa.yaml            # Horizontal Pod Autoscaler
-    ├── configmap.yaml      # Application configuration
-    ├── secret.yaml         # Sensitive data (sealed secrets)
-    └── certificate.yaml    # SSL certificate (cert-manager)
+    ├── configmap.yaml      # Application configuration (env vars)
+    ├── secret.yaml         # Sensitive data (API keys, passwords)
+    ├── serviceaccount.yaml # Service account for Workload Identity
+    ├── pdb.yaml            # Pod Disruption Budget (some services)
+    ├── certificate.yaml    # cert-manager Certificate (some services)
+    ├── NOTES.txt          # Post-installation instructions
+    └── _helpers.tpl        # Template helper functions
 ```
 
-**Helm Deployment:**
+**Multi-Environment Deployment Strategy:**
+
+All services implement a three-tier configuration approach:
+- **`values.yaml`**: Base configuration shared across all environments (service ports, health check paths, common labels)
+- **`values-dev.yaml`**: Development-specific settings (dev domain, lower resources, single replicas, development image registry)
+- **`values-prod.yaml`**: Production-specific settings (prod domain, higher resources, auto-scaling, production image registry)
+
+**Environment-Specific Configuration Differences:**
+
+| Configuration | Development | Production |
+|---------------|-------------|------------|
+| **Replicas** | 1-2 pods | 2+ pods with HPA |
+| **Auto-scaling** | Disabled | Enabled (2-10 replicas) |
+| **CPU Requests** | 100-250m | 250-500m |
+| **CPU Limits** | 500m-1000m | 1000m-2000m |
+| **Memory Requests** | 256Mi-512Mi | 512Mi-768Mi |
+| **Memory Limits** | 512Mi-1Gi | 1Gi-4Gi |
+| **Image Registry** | `europe-west1-docker.pkg.dev/iaas-476910/docker-repo/` | `europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/` |
+| **Domain Names** | `dev-*.tripico.fun` | `*.tripico.fun` |
+| **Health Checks** | Faster intervals for quick iteration | Conservative intervals for stability |
+| **GCP Project** | `iaas-476910` | `graphite-plane-474510-s9` |
+
+**Helm Deployment Commands:**
+
 ```bash
-# Production deployment
-helm upgrade --install <release-name> ./helm-chart \
-  -f values-prod.yaml \
-  --namespace tripico-prod \
-  --create-namespace
+# ============================================
+# Production Deployment (GCP Project: graphite-plane-474510-s9)
+# ============================================
 
-# Development deployment
-helm upgrade --install <release-name> ./helm-chart \
-  -f values-dev.yaml \
-  --namespace tripico-dev \
-  --create-namespace
+# Itinerary Service
+helm upgrade --install itinerary-service \
+  ./services/itinerary-service/kubernetes/itinerary-service-chart \
+  -f ./services/itinerary-service/kubernetes/itinerary-service-chart/values-prod.yaml \
+  --namespace tripico-prod --create-namespace
 
-# Example for weather service in production
-helm upgrade --install weather-forecast ./helm/weather-forecast-service \
-  -f helm/weather-forecast-service/values-prod.yaml \
+# Comments & Likes Service
+helm upgrade --install comments-likes-service \
+  ./services/comments-likes-service/comments-likes-chart \
+  -f ./services/comments-likes-service/comments-likes-chart/values-prod.yaml \
   --namespace tripico-prod
 
-# Example for weather service in development
-helm upgrade --install weather-forecast ./helm/weather-forecast-service \
-  -f helm/weather-forecast-service/values-dev.yaml \
+# Weather Forecast Service
+helm upgrade --install weather-forecast-service \
+  ./services/weather-forecast-service/helm/weather-forecast-service \
+  -f ./services/weather-forecast-service/helm/weather-forecast-service/values-prod.yaml \
+  --set meteosource.apiKey=$METEOSOURCE_API_KEY \
+  --namespace tripico-prod
+
+# Travel Warnings Service
+helm upgrade --install travel-warnings-service \
+  ./services/travel_warnings/travel-warnings-chart \
+  -f ./services/travel_warnings/travel-warnings-chart/values-prod.yaml \
+  --set smtp.user=$SMTP_USER --set smtp.password=$SMTP_PASSWORD \
+  --namespace tripico-prod
+
+# Recommendation Service
+helm upgrade --install recommendation-service \
+  ./services/recommendation-service/recommendation-service-chart \
+  -f ./services/recommendation-service/recommendation-service-chart/values-prod.yaml \
+  --set neo4j.password=$NEO4J_PASSWORD \
+  --namespace tripico-prod
+
+# ============================================
+# Development Deployment (GCP Project: iaas-476910)
+# ============================================
+
+# Itinerary Service
+helm upgrade --install itinerary-service \
+  ./services/itinerary-service/kubernetes/itinerary-service-chart \
+  -f ./services/itinerary-service/kubernetes/itinerary-service-chart/values-dev.yaml \
+  --namespace tripico-dev --create-namespace
+
+# Comments & Likes Service
+helm upgrade --install comments-likes-service \
+  ./services/comments-likes-service/comments-likes-chart \
+  -f ./services/comments-likes-service/comments-likes-chart/values-dev.yaml \
+  --namespace tripico-dev
+
+# Weather Forecast Service
+helm upgrade --install weather-forecast-service \
+  ./services/weather-forecast-service/helm/weather-forecast-service \
+  -f ./services/weather-forecast-service/helm/weather-forecast-service/values-dev.yaml \
+  --set meteosource.apiKey=$METEOSOURCE_API_KEY \
+  --namespace tripico-dev
+
+# Travel Warnings Service
+helm upgrade --install travel-warnings-service \
+  ./services/travel_warnings/travel-warnings-chart \
+  -f ./services/travel_warnings/travel-warnings-chart/values-dev.yaml \
+  --set smtp.user=$SMTP_USER --set smtp.password=$SMTP_PASSWORD \
+  --namespace tripico-dev
+
+# Recommendation Service
+helm upgrade --install recommendation-service \
+  ./services/recommendation-service/recommendation-service-chart \
+  -f ./services/recommendation-service/recommendation-service-chart/values-dev.yaml \
+  --set neo4j.password=$NEO4J_PASSWORD \
   --namespace tripico-dev
 ```
 
-**Environment-Specific Configuration:**
-- `values-dev.yaml` - Development environment settings:
-  - Development-specific endpoints and credentials
-- `values-prod.yaml` - Production environment settings:
-  - Production endpoints and credentials
+**Key Kubernetes Resources Deployed:**
+
+**1. Deployments:**
+- Rolling update strategy (maxSurge: 1, maxUnavailable: 0) for zero-downtime deployments
+- Environment-specific resource limits and requests
+- Health checks (startup, liveness, readiness probes)
+- Quarkus-optimized health endpoints (`/q/health/*`)
+
+**2. Services:**
+- ClusterIP type for internal communication
+- Port 8080 for all Java/Quarkus services
+- Service discovery via Kubernetes DNS
+
+**3. Ingress Resources:**
+- NGINX Ingress Controller
+- Automatic TLS/SSL via cert-manager with Let's Encrypt
+- Environment-specific domains:
+  - Production: `itinerary.tripico.fun`, `cl.tripico.fun`, `weather.tripico.fun`, `warnings.tripico.fun`, `recommendation.tripico.fun`
+  - Development: `dev-itinerary.tripico.fun`, `dev-cl.tripico.fun`, `dev-weather.tripico.fun`, `dev-warnings.tripico.fun`, `dev-recommendation.tripico.fun`
+- CORS configuration for cross-origin requests
+
+**4. Horizontal Pod Autoscalers (Production Only):**
+- CPU-based scaling (70% target utilization)
+- Min/Max replicas: 2-10 pods per service
+- Automatic scale-up during traffic spikes
+
+**5. ConfigMaps:**
+- Application configuration (database URLs, API endpoints, feature flags)
+- Quarkus settings (connection pooling, timeouts)
+- CORS policies and authentication headers
+
+**6. Secrets:**
+- API keys (Meteosource Weather API)
+- Database passwords
+- SMTP credentials
+- Neo4j authentication
+- Managed via `--set` flags during Helm installation (not stored in Git)
+
+**7. Service Accounts:**
+- GCP Workload Identity binding for secure access to GCP resources
+- Environment-specific service account annotations:
+  - Dev: `tripico-sa@iaas-476910.iam.gserviceaccount.com`
+  - Prod: `tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com`
+
+**8. Persistent Volume Claims:**
+- Weather Forecast Service: PostgreSQL data (5Gi)
+- Travel Warnings Service: PostgreSQL data (4Gi)
+- Recommendation Service: Neo4j graph database data (10Gi)
+
+**Additional Infrastructure Components:**
+
+**Neo4j Graph Database (Recommendation Service):**
+- Neo4j 5.15.0 with APOC plugin
+- Persistent storage for graph data
+- Memory configuration: 512m-1G heap, 512m page cache
+- Bolt protocol (port 7687) and HTTP API (port 7474)
+
+**PostgreSQL Databases (Weather & Travel Warnings):**
+- PostgreSQL 15 Alpine
+- Separate instances per service for data isolation
+- Persistent volume claims for data durability
+- Health checks via `pg_isready`
+
+**cert-manager Integration:**
+- ClusterIssuer: `letsencrypt-prod`
+- Automatic SSL certificate provisioning and renewal
+- Ingress annotations trigger certificate creation
 
 #### Infrastructure Deployment Summary
 
