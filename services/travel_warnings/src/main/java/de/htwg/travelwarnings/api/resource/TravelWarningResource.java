@@ -51,6 +51,8 @@ public class TravelWarningResource {
     public Response getAllWarnings(
             @QueryParam("activeOnly") @DefaultValue("false") boolean activeOnly) {
 
+        LOG.infof("GET /warnings/travel-warnings - activeOnly: %s", activeOnly);
+
         List<TravelWarning> warnings = activeOnly
             ? warningRepository.findAllWithActiveWarnings()
             : warningRepository.listAll();
@@ -59,6 +61,7 @@ public class TravelWarningResource {
             .map(mapper::toDto)
             .collect(Collectors.toList());
 
+        LOG.infof("Returning %d travel warnings", dtos.size());
         return Response.ok(dtos).build();
     }
 
@@ -70,12 +73,22 @@ public class TravelWarningResource {
     @Operation(summary = "Get travel warning by country code",
                description = "Returns travel warning for a specific country")
     public Response getWarningByCountryCode(@PathParam("countryCode") String countryCode) {
-        return warningRepository.findByCountryCode(countryCode.toUpperCase())
+        LOG.infof("GET /warnings/travel-warnings/country/%s", countryCode);
+
+        var result = warningRepository.findByCountryCode(countryCode.toUpperCase())
             .map(mapper::toDto)
-            .map(dto -> Response.ok(dto).build())
-            .orElse(Response.status(Response.Status.NOT_FOUND)
-                .entity("No warning found for country code: " + countryCode)
-                .build());
+            .map(dto -> {
+                LOG.infof("Found travel warning for country: %s with severity: %s", countryCode, dto.getSeverity());
+                return Response.ok(dto).build();
+            })
+            .orElseGet(() -> {
+                LOG.warnf("No warning found for country code: %s", countryCode);
+                return Response.status(Response.Status.NOT_FOUND)
+                    .entity("No warning found for country code: " + countryCode)
+                    .build();
+            });
+
+        return result;
     }
 
     /**
@@ -86,12 +99,22 @@ public class TravelWarningResource {
     @Operation(summary = "Get detailed travel warning",
                description = "Returns detailed travel warning with categorized content")
     public Response getWarningDetailByCountryCode(@PathParam("countryCode") String countryCode) {
-        return warningRepository.findByCountryCode(countryCode.toUpperCase())
+        LOG.infof("GET /warnings/travel-warnings/country/%s/detail", countryCode);
+
+        var result = warningRepository.findByCountryCode(countryCode.toUpperCase())
             .map(mapper::toDetailDto)
-            .map(dto -> Response.ok(dto).build())
-            .orElse(Response.status(Response.Status.NOT_FOUND)
-                .entity("No warning found for country code: " + countryCode)
-                .build());
+            .map(dto -> {
+                LOG.infof("Returning detailed warning for country: %s", countryCode);
+                return Response.ok(dto).build();
+            })
+            .orElseGet(() -> {
+                LOG.warnf("No detailed warning found for country code: %s", countryCode);
+                return Response.status(Response.Status.NOT_FOUND)
+                    .entity("No warning found for country code: " + countryCode)
+                    .build();
+            });
+
+        return result;
     }
 
     /**
@@ -102,14 +125,24 @@ public class TravelWarningResource {
     @Operation(summary = "Get travel warning by content ID",
                description = "Returns travel warning by Auswärtiges Amt content ID")
     public Response getWarningByContentId(@PathParam("contentId") String contentId) {
-        return warningRepository.findByContentId(contentId)
+        LOG.infof("GET /warnings/travel-warnings/%s", contentId);
+
+        var result = warningRepository.findByContentId(contentId)
             .map(mapper::toDto)
-            .map(dto -> Response.ok(dto).build())
-            .orElse(Response.status(Response.Status.NOT_FOUND)
-                .entity(ErrorResponse.notFound(
-                    "No warning found with content ID: " + contentId,
-                    "/warnings/travel-warnings/" + contentId))
-                .build());
+            .map(dto -> {
+                LOG.infof("Found warning with content ID: %s", contentId);
+                return Response.ok(dto).build();
+            })
+            .orElseGet(() -> {
+                LOG.warnf("No warning found with content ID: %s", contentId);
+                return Response.status(Response.Status.NOT_FOUND)
+                    .entity(ErrorResponse.notFound(
+                        "No warning found with content ID: " + contentId,
+                        "/warnings/travel-warnings/" + contentId))
+                    .build();
+            });
+
+        return result;
     }
 
     /**
@@ -120,6 +153,9 @@ public class TravelWarningResource {
     @Operation(summary = "Get warnings for multiple countries",
                description = "Returns travel warnings for a list of country codes")
     public Response getWarningsBatch(List<String> countryCodes) {
+        LOG.infof("POST /warnings/travel-warnings/batch - Requesting warnings for %d countries: %s",
+                  countryCodes.size(), countryCodes);
+
         List<String> upperCaseCodes = countryCodes.stream()
             .map(String::toUpperCase)
             .collect(Collectors.toList());
@@ -130,6 +166,7 @@ public class TravelWarningResource {
             .map(mapper::toDto)
             .collect(Collectors.toList());
 
+        LOG.infof("Returning %d warnings for batch request", dtos.size());
         return Response.ok(dtos).build();
     }
 
@@ -141,8 +178,9 @@ public class TravelWarningResource {
     @Operation(summary = "Manually refresh travel warnings",
                description = "Triggers manual fetch of latest warnings from Auswärtiges Amt API")
     public Response refreshWarnings() {
-        LOG.info("Manual refresh triggered via API");
+        LOG.info("POST /warnings/travel-warnings/refresh - Manual refresh triggered via API");
         scheduler.triggerManualPoll();
+        LOG.info("Travel warning refresh job triggered successfully");
 
         // Return proper JSON response
         return Response.accepted()

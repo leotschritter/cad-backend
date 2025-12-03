@@ -42,29 +42,48 @@ public class AlertDispatcherService {
     @Transactional
     public boolean sendAlert(TravelWarning warning, UserTrip trip, String userEmail) {
 
+        LOG.infof("📧 Attempting to send travel warning alert - Recipient: %s, Country: %s, Severity: %s",
+                  userEmail, warning.getCountryName(), warning.getSeverity());
+
         // Check if we already sent a notification for this warning version
         if (notificationRepository.wasNotificationSentRecently(
                 trip.getId(), warning.getContentId(), warning.getLastModified())) {
-            LOG.debugf("Notification already sent for trip %d and warning %s (version %d)",
+            LOG.infof("⏭️ Skipping duplicate notification - Already sent for trip ID %d, warning %s (version %d)",
                       trip.getId(), warning.getContentId(), warning.getLastModified());
             return false;
         }
 
         try {
+            LOG.debugf("Building email content for %s - Trip: %s, Destination: %s",
+                      userEmail, trip.getTripName(), trip.getCountryName());
+
             String subject = buildEmailSubject(warning, trip);
             String body = buildEmailBody(warning, trip);
 
+            LOG.infof("📨 Sending email via SMTP - To: %s, Subject: '%s'", userEmail, subject);
+            LOG.debugf("Email body length: %d characters", body.length());
+
+            // Send email via SMTP (Quarkus Mailer handles SMTP connection)
             mailer.send(Mail.withHtml(userEmail, subject, body));
+
+            LOG.infof("✅ EMAIL SENT SUCCESSFULLY - To: %s, Country: %s, Severity: %s",
+                     userEmail, warning.getCountryName(), warning.getSeverity());
 
             // Record the notification
             recordNotification(warning, trip, true, null);
+            LOG.debugf("✅ Notification record saved to database for trip ID %d", trip.getId());
 
-            LOG.infof("Sent alert email to %s for trip to %s", userEmail, warning.getCountryName());
             return true;
 
         } catch (Exception e) {
-            LOG.errorf(e, "Failed to send alert email to %s", userEmail);
+            LOG.errorf(e, "❌ EMAIL SENDING FAILED - To: %s, Country: %s - Error: %s",
+                      userEmail, warning.getCountryName(), e.getMessage());
+            LOG.errorf("❌ SMTP Error Details - Exception Type: %s, Message: %s",
+                      e.getClass().getSimpleName(), e.getMessage());
+
             recordNotification(warning, trip, false, e.getMessage());
+            LOG.debugf("⚠️ Failed notification recorded to database for trip ID %d", trip.getId());
+
             return false;
         }
     }
@@ -185,6 +204,9 @@ public class AlertDispatcherService {
      */
     private void recordNotification(TravelWarning warning, UserTrip trip,
                                     boolean successful, String errorMessage) {
+        LOG.debugf("Recording notification in database - Trip ID: %d, Email: %s, Success: %s",
+                  trip.getId(), trip.getEmail(), successful);
+
         WarningNotification notification = new WarningNotification();
         notification.setUserTripId(trip.getId());
         notification.setEmail(trip.getEmail());
@@ -198,6 +220,14 @@ public class AlertDispatcherService {
         notification.setWarningLastModified(warning.getLastModified());
 
         notificationRepository.persist(notification);
+
+        if (successful) {
+            LOG.infof("📝 Notification record persisted - Trip ID: %d, Email: %s, Country: %s",
+                     trip.getId(), trip.getEmail(), warning.getCountryName());
+        } else {
+            LOG.warnf("📝 Failed notification recorded - Trip ID: %d, Email: %s, Error: %s",
+                     trip.getId(), trip.getEmail(), errorMessage);
+        }
     }
 
     /**
