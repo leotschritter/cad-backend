@@ -5,6 +5,8 @@
 ingress:
   enabled: true
   useProd: true
+  prod:
+    host: recommendation.tripico.fun
 
 # Higher availability and resources for production
 recommendationApi:
@@ -40,16 +42,37 @@ recommendationApi:
       failureThreshold: 3
       timeoutSeconds: 5
 
+serviceAccount:
+  name: recommendation-service-sa
+  gcpServiceAccount: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+
+recommendationConfig:
+  googleCloudProject: "graphite-plane-474510-s9"
+  openapiServerUrl: "https://recommendation.tripico.fun"
+
 # Use in-cluster neo4j
 neo4j:
   enabled: true
   replicas: 1
   password: ""  # Set via --set neo4j.password=XXX
+  
+  # Neo4j JVM memory configuration (CRITICAL for performance!)
+  environmentVariables:
+    plugins: '["apoc"]'
+    dbmsSecurityProceduresUnrestricted: "apoc.*"
+    serverMemoryHeapInitialSize: "1G"
+    serverMemoryHeapMaxSize: "2G"
+    serverMemoryPagecacheSize: "1500m"
+
   resources:
     requests:
-      memory: "1Gi"
-      cpu: "500m"
-    limits:
       memory: "2Gi"
       cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+
+certificate:
+  dnsNames:
+    - recommendation.tripico.fun
 

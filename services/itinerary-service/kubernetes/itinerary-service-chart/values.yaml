@@ -1,14 +1,9 @@
 # Default values for itinerary-service
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+itineraryService:
+  image: "ghcr.io/leotschritter/cad-backend:latest"
 
-replicaCount: 1
-
-image:
-  repository: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-backend
-  pullPolicy: Always
-
-imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
@@ -16,8 +11,7 @@ serviceAccount:
   # Specifies whether a service account should be created
   create: true
   # Annotations to add to the service account
-  annotations:
-    iam.gke.io/gcp-service-account: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+  annotations: {}
   # The name of the service account to use.
   # If not set and create is true, a name is generated using the fullname template
   name: "itinerary-service-sa"
@@ -48,26 +42,7 @@ ingress:
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-  hosts:
-    - host: itinerary.tripico.fun
-      paths:
-        - path: /
-          pathType: Prefix
-  tls:
-    - secretName: itinerary-tls
-      hosts:
-        - itinerary.tripico.fun
 
-# Certificate configuration
-certificate:
-  enabled: true
-  name: itinerary-tls-cert
-  secretName: itinerary-tls
-  issuerRef:
-    name: letsencrypt-prod
-    kind: ClusterIssuer
-  dnsNames:
-    - itinerary.tripico.fun
 
 resources:
   limits:
@@ -95,15 +70,8 @@ quarkus:
 database:
   user: "cad_db_user"
   password: "" #  provided via --set
+  url: "" # provided via --set"
 
-# GCP configuration
-gcp:
-  projectId: "graphite-plane-474510-s9"
-  bucketName: "graphite-plane-474510-s9-tripico-images"
-  serviceAccountEmail: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
-
-# Backend URL
-backendUrl: "https://itinerary.tripico.fun"
 
 # Identity Platform Authentication Configuration
 identityPlatform:

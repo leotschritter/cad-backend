@@ -5,6 +5,8 @@
 ingress:
   enabled: true
   useProd: true
+  prod:
+    host: weather.tripico.fun
 
 # Higher availability and resources for production
 weatherForecastApi:

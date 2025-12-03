@@ -111,6 +111,8 @@ variable "authorized_domains" {
     "tripico.fun",
     "frontend.tripico.fun",
     "api.tripico.fun",
+    "iaas-476910.firebaseapp.com",
+    "iaas-476910.web.app",
   ]
 }
 
@@ -145,7 +147,7 @@ variable "artifact_registry_name" {
 variable "create_artifact_registry" {
   description = "Whether to create GCP Artifact Registry (required for Kubernetes deployments)"
   type        = bool
-  default     = false # Registry already exists
+  default     = false # LEAVE 'false' ON main AND 'true' ON develop
 }
 
 # Docker Image Configuration

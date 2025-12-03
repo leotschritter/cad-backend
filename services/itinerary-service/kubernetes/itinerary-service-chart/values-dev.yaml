@@ -47,19 +47,24 @@ probes:
 ingress:
   enabled: true
   hosts:
-    - host: itinerary-dev.tripico.fun
+    - host: dev-itinerary.tripico.fun
       paths:
         - path: /
           pathType: Prefix
+  tls:
+    - secretName: itinerary-tls
+      hosts:
+        - dev-itinerary.tripico.fun
 
-certificate:
-  enabled: true
-  name: itinerary-dev-tls-cert
-  secretName: itinerary-dev-tls
-  dnsNames:
-    - itinerary-dev.tripico.fun
 
-# Dev Quarkus profile
-quarkus:
-  profile: "dev"
 
+backendUrl: "https://dev-itinerary.tripico.fun"
+
+serviceAccount:
+  annotations:
+    iam.gke.io/gcp-service-account: "travel-backend-sa@iaas-476910.iam.gserviceaccount.com"
+
+gcp:
+  projectId: "iaas-476910"
+  serviceAccountEmail: "travel-backend-sa@iaas-476910.iam.gserviceaccount.com"
+  bucketName: "iaas-476910-tripico-images"

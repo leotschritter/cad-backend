@@ -3,6 +3,15 @@
 
 replicaCount: 2
 
+image:
+  repository: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/comments-likes-service
+  pullPolicy: Always
+
+
+serviceAccount:
+  annotations:
+    # This must match the GCP service account created by Terraform
+    iam.gke.io/gcp-service-account: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
 
 # Production resources
 resources:
@@ -50,10 +59,22 @@ probes:
 # Use production domain
 ingress:
   enabled: true
+  useProd: true
   hosts:
     - host: cl.tripico.fun
       paths:
         - path: /
           pathType: Prefix
+  tls:
+    - secretName: comments-likes-tls
+      hosts:
+        - cl.tripico.fun
 
+# GCP configuration
+gcp:
+  projectId: "graphite-plane-474510-s9"
+  serviceAccountEmail: "comments-likes-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+
+# Backend URL
+backendUrl: "https://cl.tripico.fun"
 

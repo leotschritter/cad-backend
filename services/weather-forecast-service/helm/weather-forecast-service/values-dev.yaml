@@ -1,27 +1,45 @@
-# Development/Local Environment Values
-# Use this for local development with Minikube or Docker Desktop
+# Production Environment Values
+# Use this for production deployment on GCP/GKE
 
-# Use development ingress (without TLS)
+# Use production ingress with TLS
 ingress:
   enabled: true
-  useProd: false
+  useProd: true
+  prod:
+    host: dev-weather.tripico.fun
 
-# Lower resource requirements for local development
+# Higher availability and resources for production
 weatherForecastApi:
-  replicas: 1
+  replicas: 2
+  image: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/weather-forecast-service:latest
 
   resources:
     requests:
-      memory: "256Mi"
-      cpu: "125m"
-    limits:
       memory: "512Mi"
-      cpu: "500m"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
 
-# Use local postgres
+  # Production-grade health checks
+  probes:
+    readiness:
+      path: /q/health/ready
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
+    liveness:
+      path: /q/health/live
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+
+# Use in-cluster postgres (or configure external DB)
 postgres:
   replicas: 1
 
-# Meteosource API Key can be set via --set
+# Meteosource API Key should be provided via --set
 meteosource:
-  apiKey: ""
+  apiKey: ""  # Set via --set meteosource.apiKey=XXX
