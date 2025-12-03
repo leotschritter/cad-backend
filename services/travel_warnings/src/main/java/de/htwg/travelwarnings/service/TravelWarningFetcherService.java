@@ -42,53 +42,87 @@ public class TravelWarningFetcherService {
      * Fetch and update all travel warnings from the external API
      */
     public int fetchAndUpdateAllWarnings() {
-        LOG.info("Starting to fetch travel warnings from Auswärtiges Amt API");
+        LOG.info("🌍 Starting to fetch travel warnings from Auswärtiges Amt API");
+        LOG.info("📡 Calling API endpoint: GET /travelwarning");
 
         try {
             JsonNode response = auswaertigesAmtClient.getTravelWarnings();
 
+            LOG.info("✅ Received response from Auswärtiges Amt API");
+            LOG.debugf("Response size: %d bytes", response != null ? response.toString().length() : 0);
+
             if (response == null || !response.has("response")) {
-                LOG.warn("Received empty or invalid response from API");
+                LOG.error("❌ Received empty or invalid response from Auswärtiges Amt API");
+                LOG.error("Response was null: " + (response == null));
+                if (response != null) {
+                    LOG.errorf("Response structure: %s", response.toPrettyString());
+                }
                 return 0;
             }
 
+            LOG.info("✅ Response structure validated - contains 'response' node");
+
             JsonNode responseNode = response.get("response");
+            LOG.debug("Extracting contentList from response node");
+
             JsonNode contentListNode = responseNode.get("contentList");
 
             if (contentListNode == null || !contentListNode.isArray()) {
-                LOG.warn("No content list found in response");
+                LOG.error("❌ No content list found in Auswärtiges Amt response");
+                LOG.errorf("Response node keys: %s", responseNode.fieldNames());
                 return 0;
             }
+
+            LOG.infof("✅ Found contentList in response - Type: %s", contentListNode.getNodeType());
 
             List<String> contentIds = new ArrayList<>();
             contentListNode.forEach(node -> contentIds.add(node.asText()));
 
-            LOG.infof("Found %d travel warnings to process", contentIds.size());
+            LOG.infof("📋 Extracted %d content IDs from Auswärtiges Amt response", contentIds.size());
+            LOG.debugf("Content IDs: %s", contentIds);
 
             int updatedCount = 0;
+            int processedCount = 0;
+
+            LOG.info("🔄 Starting to process individual warnings from Auswärtiges Amt response...");
+
             for (String contentId : contentIds) {
+                processedCount++;
                 try {
+                    LOG.debugf("Processing warning %d/%d - Content ID: %s", processedCount, contentIds.size(), contentId);
+
                     // Parse the summary data from the response
                     JsonNode warningNode = responseNode.get(contentId);
                     if (warningNode != null) {
+                        LOG.debugf("Found warning node for %s in response", contentId);
                         ReisewarnungZusammenfassung summaryDto = objectMapper.treeToValue(warningNode, ReisewarnungZusammenfassung.class);
+                        LOG.debugf("Parsed summary DTO for %s - Country: %s", contentId, summaryDto.getCountryName());
 
                         // Process in separate transaction to avoid session corruption
                         boolean processed = processWarning(contentId, summaryDto);
                         if (processed) {
                             updatedCount++;
+                            LOG.debugf("✅ Successfully processed warning for %s", summaryDto.getCountryName());
                         }
+                    } else {
+                        LOG.warnf("⚠️ Warning node not found in response for contentId: %s", contentId);
                     }
                 } catch (Exception e) {
-                    LOG.errorf(e, "Error processing warning with contentId: %s", contentId);
+                    LOG.errorf(e, "❌ Error processing warning with contentId: %s - %s", contentId, e.getMessage());
                 }
             }
 
-            LOG.infof("Successfully updated %d travel warnings", updatedCount);
+            LOG.infof("✅ ✅ ✅ AUSWÄRTIGES AMT SYNC COMPLETED ✅ ✅ ✅");
+            LOG.infof("   → Total warnings in response: %d", contentIds.size());
+            LOG.infof("   → Successfully updated: %d", updatedCount);
+            LOG.infof("   → Skipped (no changes): %d", contentIds.size() - updatedCount);
             return updatedCount;
 
         } catch (Exception e) {
-            LOG.error("Error fetching travel warnings", e);
+            LOG.errorf(e, "❌ ❌ ❌ CRITICAL ERROR fetching travel warnings from Auswärtiges Amt API ❌ ❌ ❌");
+            LOG.errorf("Exception type: %s", e.getClass().getSimpleName());
+            LOG.errorf("Error message: %s", e.getMessage());
+            LOG.error("This means travel warnings cannot be updated - users may not receive latest safety information!");
             return 0;
         }
     }
@@ -174,25 +208,38 @@ public class TravelWarningFetcherService {
      */
     private void updateWarningFromDetail(TravelWarning existing, String contentId, ReisewarnungZusammenfassung summaryDto) {
         try {
+            LOG.debugf("📡 Fetching detailed warning from Auswärtiges Amt - Content ID: %s", contentId);
             JsonNode detailResponse = auswaertigesAmtClient.getTravelWarningDetail(contentId);
 
+            LOG.debugf("✅ Received detail response for %s", contentId);
+
             if (detailResponse != null && detailResponse.has("response")) {
+                LOG.debugf("Detail response validated for %s", contentId);
                 JsonNode responseNode = detailResponse.get("response");
                 JsonNode warningNode = responseNode.get(contentId);
 
                 if (warningNode != null) {
+                    LOG.debugf("Parsing detail DTO for %s", contentId);
                     Reisewarnung detailDto = objectMapper.treeToValue(warningNode, Reisewarnung.class);
+                    LOG.debugf("✅ Successfully parsed detail data for %s - Country: %s", contentId, detailDto.getCountryName());
 
                     updateEntityFromDetailDto(existing, detailDto);
+                    LOG.debugf("Entity updated with detailed content for %s", contentId);
                     return;
+                } else {
+                    LOG.warnf("⚠️ Warning node not found in detail response for %s", contentId);
                 }
+            } else {
+                LOG.warnf("⚠️ Invalid detail response structure for %s", contentId);
             }
 
             // Fallback to summary data if detail fetch fails
+            LOG.debugf("Using summary data for %s (detail fetch incomplete)", contentId);
             updateEntityFromSummaryDto(existing, summaryDto);
 
         } catch (Exception e) {
-            LOG.errorf(e, "Error fetching detail for contentId: %s, using summary data", contentId);
+            LOG.errorf(e, "❌ Error fetching detail from Auswärtiges Amt for contentId: %s - %s", contentId, e.getMessage());
+            LOG.debugf("Falling back to summary data for %s", contentId);
             updateEntityFromSummaryDto(existing, summaryDto);
         }
     }
@@ -202,26 +249,36 @@ public class TravelWarningFetcherService {
      */
     private TravelWarning fetchDetailedWarning(String contentId, ReisewarnungZusammenfassung summaryDto) {
         try {
+            LOG.debugf("📡 Fetching detailed warning from Auswärtiges Amt for new entity - Content ID: %s", contentId);
             JsonNode detailResponse = auswaertigesAmtClient.getTravelWarningDetail(contentId);
 
+            LOG.debugf("✅ Received detail response for new warning: %s", contentId);
+
             if (detailResponse == null || !detailResponse.has("response")) {
-                LOG.warnf("No detail response for contentId: %s", contentId);
+                LOG.warnf("⚠️ No valid detail response from Auswärtiges Amt for contentId: %s - using summary data", contentId);
                 return mapSummaryToWarning(contentId, summaryDto, null);
             }
 
+            LOG.debugf("Detail response structure validated for %s", contentId);
             JsonNode responseNode = detailResponse.get("response");
             JsonNode warningNode = responseNode.get(contentId);
 
             if (warningNode != null) {
+                LOG.debugf("Parsing detailed warning DTO for %s", contentId);
                 Reisewarnung detailDto = objectMapper.treeToValue(warningNode, Reisewarnung.class);
+                LOG.debugf("✅ Successfully parsed detailed warning for %s - Country: %s", contentId, detailDto.getCountryName());
 
-                return mapDetailToWarning(contentId, detailDto);
+                TravelWarning warning = mapDetailToWarning(contentId, detailDto);
+                LOG.debugf("Created new TravelWarning entity from detail data for %s", contentId);
+                return warning;
             }
 
+            LOG.warnf("⚠️ Warning node not found in detail response for %s - using summary data", contentId);
             return mapSummaryToWarning(contentId, summaryDto, null);
 
         } catch (Exception e) {
-            LOG.errorf(e, "Error fetching detail for contentId: %s", contentId);
+            LOG.errorf(e, "❌ Error fetching detail from Auswärtiges Amt for contentId: %s - %s", contentId, e.getMessage());
+            LOG.debugf("Falling back to summary data for new entity: %s", contentId);
             return mapSummaryToWarning(contentId, summaryDto, null);
         }
     }

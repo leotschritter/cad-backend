@@ -46,7 +46,8 @@ public class MockAuswaertigesAmtClient implements AuswaertigesAmtClient {
             throw new UnsupportedOperationException("Mock is disabled");
         }
 
-        LOG.info("Returning mock travel warnings data");
+        LOG.info("🎭 MOCK API: getTravelWarnings() called");
+        LOG.info("📡 Simulating Auswärtiges Amt API response (MOCK MODE)");
 
         ObjectNode response = objectMapper.createObjectNode();
         ObjectNode responseData = objectMapper.createObjectNode();
@@ -96,6 +97,10 @@ public class MockAuswaertigesAmtClient implements AuswaertigesAmtClient {
 
         response.set("response", responseData);
 
+        LOG.infof("✅ MOCK API: Returning summary data for %d countries", contentList.size());
+        LOG.debugf("Mock countries: Afghanistan, Albania, Germany, Ukraine, France");
+        LOG.debugf("Mock response size: %d bytes", response.toString().length());
+
         return response;
     }
 
@@ -105,7 +110,8 @@ public class MockAuswaertigesAmtClient implements AuswaertigesAmtClient {
             throw new UnsupportedOperationException("Mock is disabled");
         }
 
-        LOG.infof("Returning mock travel warning detail for contentId: %s", contentId);
+        LOG.infof("🎭 MOCK API: getTravelWarningDetail(%s) called", contentId);
+        LOG.infof("📡 Simulating Auswärtiges Amt detail response for: %s (MOCK MODE)", contentId);
 
         ObjectNode response = objectMapper.createObjectNode();
         ObjectNode responseData = objectMapper.createObjectNode();
@@ -165,6 +171,9 @@ public class MockAuswaertigesAmtClient implements AuswaertigesAmtClient {
 
         responseData.set(contentId, warningDetail);
         response.set("response", responseData);
+
+        LOG.infof("✅ MOCK API: Returning detailed warning for %s", contentId);
+        LOG.debugf("Mock detail response size: %d bytes", response.toString().length());
 
         return response;
     }
