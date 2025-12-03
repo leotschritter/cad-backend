@@ -556,7 +556,7 @@ Tripico operates in two separate GCP projects, each with identical infrastructur
 
 **Development Environment:**
 - **GCP Project:** `<dev-project-id>`
-- **Domain:** frontend-dev.tripico.fun
+- **Domain:** dev-frontend.tripico.fun
 - **Purpose:** Testing, staging, and development with production-identical infrastructure
 
 **Core Services (Both Environments):**
@@ -626,7 +626,7 @@ Tripico operates in two separate GCP projects, each with identical infrastructur
 - **Health Checks:** `/q/health` endpoints on all services
 
 **Development Environment:**
-- **Frontend:** https://frontend-dev.tripico.fun
+- **Frontend:** https://dev-frontend.tripico.fun
 - **Backend APIs:** Accessible via Kubernetes Ingress in dev cluster
 - **Swagger UI:** Available on each service for testing
 - **Health Checks:** Same endpoint structure as production
@@ -1009,7 +1009,7 @@ Tripico implements a multi-environment deployment strategy with two fully operat
 - **Deployment:** Automated deployments from `develop` branch
 - **Database:** Mirror of production schema with test data
 - **Infrastructure:** Identical configuration to production (enforced via IaC)
-- **Domain:** frontend-dev.tripico.fun
+- **Domain:** dev-frontend.tripico.fun
 - **Status:** Fully operational
 - **Benefits:**
   - Safe testing of infrastructure changes before production rollout
