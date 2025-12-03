@@ -86,7 +86,7 @@ smtp:
 travelWarningsConfig:
   name: travel-warnings-config
   smtp:
-    from: "noreply.travel-warning@htwg-konstanz.de"
+    from: "le121tsc@htwg-konstanz.de"
     host: "smtp.htwg-konstanz.de"
     port: "587"
     startTls: "REQUIRED"
