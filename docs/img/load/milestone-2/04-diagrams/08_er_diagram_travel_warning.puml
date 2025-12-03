@@ -1,0 +1,43 @@
+@startuml
+!theme plain
+
+entity "TravelWarning" as TravelWarning {
+    *id : Long <<PK>>
+    --
+    country_code : String
+    country_name : String
+    severity : Enum { NONE | MINOR | MODERATE | SEVERE | CRITICAL }
+    summary : Text
+    content_html : Text
+    last_updated : Timestamp
+    fetched_at : Timestamp
+    url : String
+}
+
+entity "UserTrip" as UserTrip {
+    *id : Long <<PK>>
+    --
+    user_id : String
+    itinerary_id : UUID
+    country_codes : Array/JSON
+    start_date : Date
+    end_date : Date
+    notifications_enabled : Boolean
+    created_at : Timestamp
+}
+
+entity "WarningNotification" as WarningNotification {
+    *id : Long <<PK>>
+    --
+    user_trip_id : Long <<FK>>
+    travel_warning_id : Long <<FK>>
+    sent_at : Timestamp
+    notification_type : Enum { EMAIL | PUSH }
+    status : Enum { SENT | FAILED | PENDING }
+}
+
+' Relationships
+UserTrip ||--o{ WarningNotification : "1:N"
+TravelWarning ||--o{ WarningNotification : "1:N"
+
+@enduml

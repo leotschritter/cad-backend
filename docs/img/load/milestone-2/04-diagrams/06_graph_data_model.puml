@@ -1,0 +1,68 @@
+@startuml
+title Graph Data Model – Users, Itineraries, Locations
+
+!theme plain
+hide circle
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+
+' ------------------ NODE TYPES ------------------
+
+entity "User Node" as User {
+  == Properties ==
+  userId : string (Firebase UID)
+  createdAt : datetime
+}
+
+entity "Itinerary Node" as Itinerary {
+  == Properties ==
+  itineraryId : string (UUID)
+  title : string
+  createdAt : datetime
+  likesCount : integer
+}
+
+entity "Location Node" as Location {
+  == Properties ==
+  locationId : string (UUID)
+  name : string
+  country : string
+  latitude : float
+  longitude : float
+}
+
+' ------------------ RELATIONSHIPS ------------------
+
+' LIKES RELATIONSHIP
+User --> Itinerary : ":LIKES\n{ createdAt : datetime }"
+
+note on link #lightblue
+Created when a user likes an itinerary
+Weighted in recommendation algorithm
+end note
+
+' CREATED RELATIONSHIP
+User --> Itinerary : ":CREATED\n{ createdAt : datetime }"
+
+note on link #lightgreen
+Links itinerary to its creator
+Used for authorship filtering
+end note
+
+' VISITED RELATIONSHIP
+User --> Location : ":VISITED\n{ visitDate : date }"
+
+note on link #lightyellow
+Inferred from itinerary locations
+Used for location-based recommendations
+end note
+
+' INCLUDES RELATIONSHIP
+Itinerary --> Location : ":INCLUDES\n{ orderIndex : integer }"
+
+note on link #lightpink
+Represents locations in an itinerary
+Order maintained by orderIndex
+end note
+
+@enduml

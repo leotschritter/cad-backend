@@ -1,0 +1,78 @@
+@startuml
+title ER Diagram – Travel Itinerary System
+
+!theme plain
+
+hide circle
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+
+' ------------------ ENTITIES ------------------
+
+entity "User" as User {
+  *id : UUID <<PK>>
+  --
+  firebase_uid : String <<Unique>>
+  email : String
+  display_name : String
+  created_at : Timestamp
+  updated_at : Timestamp
+}
+
+entity "Itinerary" as Itinerary {
+  *id : UUID <<PK>>
+  --
+  user_id : UUID <<FK>>
+  title : String
+  description : Text
+  start_date : Date
+  end_date : Date
+  is_public : Boolean
+  created_at : Timestamp
+  updated_at : Timestamp
+}
+
+entity "Location" as Location {
+  *id : UUID <<PK>>
+  --
+  itinerary_id : UUID <<FK>>
+  name : String
+  country : String
+  latitude : Decimal
+  longitude : Decimal
+  arrival_date : Date
+  departure_date : Date
+  order_index : Integer
+}
+
+entity "Accommodation" as Accommodation {
+  *id : UUID <<PK>>
+  --
+  location_id : UUID <<FK>>
+  name : String
+  address : String
+  check_in : DateTime
+  check_out : DateTime
+  notes : Text
+}
+
+entity "Transport" as Transport {
+  *id : UUID <<PK>>
+  --
+  from_location_id : UUID <<FK>>
+  to_location_id : UUID <<FK>>
+  transport_type : Enum(FLIGHT, TRAIN, CAR, BUS, BOAT, OTHER)
+  departure_time : DateTime
+  arrival_time : DateTime
+  booking_reference : String
+  notes : Text
+}
+
+' ------------------ RELATIONSHIPS ------------------
+
+User ||--o{ Itinerary : "creates"
+Itinerary ||--o{ Location : "contains"
+Location ||--o{ Accommodation : "has"
+Location ||--o{ Transport : "origin/destination"
+
+@enduml
