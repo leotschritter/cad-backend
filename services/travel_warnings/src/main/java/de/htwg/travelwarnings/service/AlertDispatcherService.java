@@ -205,7 +205,7 @@ public class AlertDispatcherService {
     private void recordNotification(TravelWarning warning, UserTrip trip,
                                     boolean successful, String errorMessage) {
         LOG.debugf("Recording notification in database - Trip ID: %d, Email: %s, Success: %s",
-                  trip.getId(), trip.getEmail(), successful);
+                  trip.getId(), trip.getEmail(), Boolean.valueOf(successful));
 
         WarningNotification notification = new WarningNotification();
         notification.setUserTripId(trip.getId());
