@@ -27,10 +27,14 @@
 - Reduced feature set (feature flags controlled at application layer)
 
 **Database**
-- Single shared database instance per service
-- All tenants' data in same tables, partitioned by `tenant_id` column
-- Row-Level Security (RLS) policies enforce data isolation at DB level
-- Example: `WHERE tenant_id = current_setting('app.current_tenant')`
+- Reduced database footprint due to limited feature set:
+  - **1x Shared PostgreSQL**: Single instance for core relational data (users, basic itineraries, essential features)
+  - **1x Shared Firestore**: Shared document store (e.g., real-time data, flexible schemas)
+  - **No Neo4j**: Advanced recommendation features not available in Free tier
+  - **No additional PostgreSQL instances**: Comments/likes and other premium features not available
+- All tenants' data in same database, partitioned by `tenant_id` property/column
+- Row-Level Security (RLS) for PostgreSQL: `WHERE tenant_id = current_setting('app.current_tenant')`
+- Firestore: Collections structured as `{collection}/{tenant_id}/{documents}` or documents tagged with `tenant_id` field
 
 **Object Storage**
 - Single shared bucket per service (e.g., `app-uploads-free-tier`)
@@ -63,10 +67,13 @@
 - Services only handle single tenant's traffic (no `tenant_id` routing logic needed)
 
 **Database**
-- Dedicated database instance per tenant (e.g., Cloud SQL or managed Postgres)
-- Instance naming: `db-{tenant_id}` (or similar convention)
-- Automated provisioning via IaC (Terraform/Helm)
-- Enables per-tenant backup schedules, scaling policies, and performance isolation
+- Dedicated database instances per tenant (one set per tenant):
+  - **3x PostgreSQL instances**: `{tenant_id}-postgres-1`, `{tenant_id}-postgres-2`, `{tenant_id}-postgres-3`
+  - **1x Neo4j instance**: `{tenant_id}-neo4j`
+  - **1x Firestore database**: `{tenant_id}-firestore` (or dedicated collection structure)
+- Automated provisioning via IaC (Terraform/Helm) - creates entire database stack
+- Enables per-tenant backup schedules, scaling policies, and complete performance isolation
+- Each service connects only to tenant's dedicated database instances
 
 **Object Storage**
 - Dedicated bucket per tenant: `{tenant_id}-uploads`
@@ -122,9 +129,13 @@
 - Full customization: custom service versions, feature flags, integrations
 
 **Database**
-- Dedicated database instance(s) in tenant's cluster or managed service
-- Tenant can choose high-availability, replication, backup strategies
-- Full schema customization allowed (custom tables, extensions)
+- Dedicated database instances in tenant's cluster or managed service:
+  - **3x PostgreSQL instances** (with optional HA/replication)
+  - **1x Neo4j instance** (with optional cluster mode)
+  - **1x Firestore database** (dedicated project/namespace)
+- Tenant can choose high-availability, replication, backup strategies per database
+- Full schema customization allowed (custom tables, extensions, indexes)
+- Optional read replicas for reporting workloads
 
 **Object Storage**
 - Dedicated buckets with tenant-managed policies
@@ -158,35 +169,57 @@
 ## Database Strategy Details
 
 ### **Free Tier**
-- **Technology**: Shared PostgreSQL/MySQL instance (multi-tenant)
-- **Isolation**: Row-Level Security + application-enforced `tenant_id` filtering
-- **Schema**: Single schema with all tenants' tables
+- **Technology**: 
+  - **1x Shared PostgreSQL instance** (multi-tenant, e.g., Cloud SQL) - covers basic features only
+  - **1x Shared Firestore** (multi-tenant document store) - for real-time data
+  - **No Neo4j** (recommendations/graph features not available in Free tier)
+  - **No additional PostgreSQL instances** (comments/likes and other premium features not available)
+- **Isolation**: 
+  - PostgreSQL: Row-Level Security + `tenant_id` column filtering
+  - Firestore: Document-level `tenant_id` field or collection-per-tenant structure
+- **Schema**: Single schema with all tenants' data mixed
+- **Feature Limitation**: Reduced database footprint reflects reduced feature set (no recommendations, limited social features)
 - **Concerns**: 
-  - Noisy neighbor (one tenant's heavy queries impact others)
-  - Backup/restore all or nothing
+  - Noisy neighbor across database types
+  - Backup/restore all or nothing (affects all tenants)
   - Schema migrations affect all tenants simultaneously
+  - Limited feature set may encourage upgrades to Standard tier
 
 ### **Standard Tier**
-- **Technology**: Dedicated database instance per tenant (e.g., Cloud SQL)
-- **Isolation**: Full database-level isolation
-- **Schema**: Tenant owns entire database schema
+- **Technology**: 
+  - **3x Dedicated PostgreSQL instances** per tenant (e.g., Cloud SQL small instances)
+  - **1x Dedicated Neo4j instance** per tenant
+  - **1x Dedicated Firestore database/namespace** per tenant
+- **Isolation**: Complete database-level isolation for each DB type
+- **Schema**: Tenant owns entire schema for each database
 - **Benefits**:
-  - Independent scaling and performance tuning
-  - Per-tenant backups and point-in-time recovery
+  - Independent scaling and performance tuning per database type
+  - Per-tenant backups and point-in-time recovery for all databases
   - Schema migrations can be rolled out gradually per tenant
+  - Neo4j graph operations don't interfere across tenants
+  - Firestore security rules simplified (no multi-tenancy logic)
 - **Concerns**:
-  - Higher cost (one instance per tenant)
-  - Management overhead (monitoring N instances)
+  - Higher cost (5 database instances per tenant)
+  - Management overhead (monitoring N × 5 instances)
+  - Neo4j and Firestore costs can escalate quickly
 
 ### **Enterprise Tier**
-- **Technology**: Dedicated instance(s), potentially HA cluster
-- **Isolation**: Complete physical/logical separation
-- **Schema**: Fully customizable, tenant can add custom tables/extensions
+- **Technology**: 
+  - **3x Dedicated PostgreSQL** (HA clusters with replication)
+  - **1x Dedicated Neo4j** (cluster mode with multiple replicas)
+  - **1x Dedicated Firestore** (in tenant's own GCP project)
+- **Isolation**: Complete physical/logical separation with optional geographic distribution
+- **Schema**: Fully customizable across all databases
 - **Benefits**:
-  - SLA guarantees (uptime, performance)
-  - Custom backup schedules
-  - Compliance requirements (data residency, encryption)
-  - Tenant can request direct DB access (read replicas)
+  - SLA guarantees (uptime, performance) for each database
+  - Custom backup schedules per database type
+  - Compliance requirements (data residency, encryption at rest/transit)
+  - Tenant can request direct DB access or read replicas
+  - Performance isolation for graph traversals (Neo4j) and real-time operations (Firestore)
+- **Advanced Options**:
+  - PostgreSQL: Multi-region replication, custom extensions
+  - Neo4j: Causal clustering for high availability
+  - Firestore: Cross-region replication, custom indexes
 
 ---
 
@@ -290,10 +323,12 @@
 2. **Tenant Operator** watches for new `Tenant` CR and executes:
    - Create namespace: `kubectl create namespace tenant-{id}`
    - Apply resource quotas and network policies
-   - **Database Provisioning**:
-     - Call cloud provider API (e.g., `gcloud sql instances create`)
-     - Wait for DB to be ready (~2-3 min)
-     - Create database, user, apply schema migrations
+   - **Database Provisioning** (5 instances total):
+     - Provision **3x PostgreSQL instances** (via `gcloud sql instances create` or Terraform)
+     - Provision **1x Neo4j instance** (via marketplace or custom deployment)
+     - Provision **1x Firestore database** (create database in Firestore project)
+     - Wait for all DBs to be ready (~3-5 min depending on Neo4j)
+     - Initialize schemas, create users, apply migrations to each database
    - **Storage Provisioning**:
      - Create bucket via cloud API
      - Configure IAM policies
@@ -351,7 +386,7 @@
    - Share runbooks and escalation paths
    - Schedule onboarding call
 
-**Time to activation**: 1-3 days
+**Time to activation**: hours
 
 ---
 
@@ -403,6 +438,8 @@
 | Feature Category       | Free                     | Standard                  | Enterprise               |
 |------------------------|--------------------------|---------------------------|--------------------------|
 | **Subdomain**          | Shared (`app.com`)       | Dedicated (`X.app.com`)   | Custom domain            |
+| **Databases**          | 1 PostgreSQL + 1 Firestore (shared) | 3 PostgreSQL + Neo4j + Firestore (dedicated) | Full stack with HA |
+| **Features Available** | Basic only (no recommendations, limited social) | Full feature set | Full + custom features |
 | **API Rate Limits**    | Low (e.g., 100 req/min)  | Medium (e.g., 1000/min)   | Custom/unlimited         |
 | **Storage Quota**      | 1 GB                     | 50 GB (configurable)      | Unlimited                |
 | **Uptime SLA**         | Best effort              | 99.5%                     | 99.9% or custom          |
