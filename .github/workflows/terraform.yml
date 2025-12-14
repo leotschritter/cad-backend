@@ -200,7 +200,7 @@ jobs:
             if [[ "$GITHUB_REF_NAME" == "main" ]]; then
               terraform apply -auto-approve tfplan
             else
-              terraform import module.firestore.google_firestore_database.database projects/iaas-476910/databases/(default)
+              terraform import module.firestore.google_firestore_database.database "projects/iaas-476910/databases/(default)"
               terraform plan -out=tfplan
               terraform apply -var-file="dev-environment.tfvars" -auto-approve tfplan
             fi
