@@ -110,3 +110,4 @@ module "api_gateway" {
   microservices         = var.microservices
   project_apis_enabled  = module.project.identity_platform_config_id
 }
+
