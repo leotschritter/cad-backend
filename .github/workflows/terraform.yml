@@ -199,7 +199,6 @@ jobs:
           if [ -f tfplan ]; then
             echo "Found uploaded plan artifact; applying it"
             if [[ "$GITHUB_REF_NAME" == "main" ]]; then
-              terraform plan -out=tfplan
               terraform apply -auto-approve tfplan
             else
               terraform apply -var-file="dev-environment.tfvars" -auto-approve tfplan
