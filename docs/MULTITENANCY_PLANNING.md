@@ -450,6 +450,236 @@
 
 ---
 
+## User Management & Tenant Administration
+
+### **Current State: Google Identity Platform with Multi-Tenancy**
+
+**Architecture Decision**: Use Identity Platform's built-in [multi-tenancy feature](https://cloud.google.com/identity-platform/docs/multi-tenancy)
+
+**What Identity Platform Handles**:
+- User authentication (login/logout, password management)
+- User identity storage (email, name, profile)
+- Token issuance (JWT with user claims and tenant context)
+- **Tenant isolation at authentication layer** - each tenant gets own user pool
+- Email verification and password reset flows
+- **Authentication Method**: Email + password only (all tiers)
+
+**What Identity Platform Multi-Tenancy Provides**:
+- Separate user namespace per tenant (users in tenant A cannot see users in tenant B)
+- Tenant-specific authentication configuration
+- Tenant ID embedded in JWT tokens automatically
+- Simplified user provisioning per tenant
+
+**What Identity Platform Does NOT Handle**:
+- Tenant-level roles and permissions (tenant admin vs. regular user)
+- Application-level authorization (what users can do within a tenant)
+- Tenant ownership and administration workflows
+- Feature-based access control
+
+### **Tenant User Management Strategy**
+
+**Approach**: Identity Platform multi-tenancy for authentication + custom RBAC for authorization
+
+**Architecture Overview**:
+```
+┌─────────────────────────────┐
+│ Identity Platform           │ → Authentication per tenant
+│ Multi-Tenancy Feature       │   (separate user pools)
+│                             │
+│ ┌─────────┐ ┌─────────┐   │
+│ │Tenant A │ │Tenant B │   │
+│ │Users    │ │Users    │   │
+│ └─────────┘ └─────────┘   │
+└──────────┬──────────────────┘
+           │
+           ▼
+┌─────────────────────────────┐
+│ Application DB              │ → Authorization (roles/permissions)
+│ (user_tenants table)        │
+└─────────────────────────────┘
+```
+
+**Key Benefits**:
+- Each tenant has isolated user pool in Identity Platform
+- No risk of user email conflicts across tenants
+- Tenant context automatically included in JWT
+- Simplified user provisioning (create user directly in tenant's Identity Platform namespace)
+
+**Database Schema (PostgreSQL)**:
+```sql
+-- Users table (mirrors Identity Platform users)
+CREATE TABLE users (
+  id UUID PRIMARY KEY,
+  firebase_uid VARCHAR(128) UNIQUE NOT NULL,  -- Links to Identity Platform
+  email VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Tenants table
+CREATE TABLE tenants (
+  id UUID PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  tier VARCHAR(20) NOT NULL,  -- 'free', 'standard', 'enterprise'
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- User-Tenant association with roles
+CREATE TABLE user_tenants (
+  id UUID PRIMARY KEY,
+  user_id UUID REFERENCES users(id),
+  tenant_id UUID REFERENCES tenants(id),
+  role VARCHAR(50) NOT NULL,  -- 'owner', 'admin', 'member', 'readonly'
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, tenant_id)
+);
+```
+
+### **Role-Based Access Control (RBAC)**
+
+**Proposed Roles per Tenant**:
+
+| Role       | Permissions                                                                 |
+|------------|-----------------------------------------------------------------------------|
+| **Owner**  | Full control. Can delete tenant, manage billing, add/remove admins.         |
+| **Admin**  | Manage users, configure settings, access all data. Cannot delete tenant.    |
+| **Member** | Standard user access. Can create/edit own data, view shared data.           |
+| **ReadOnly** | View-only access. Cannot modify data. Useful for auditors/observers.      |
+
+**Permission Examples**:
+- `tenant:delete` → Owner only
+- `tenant:billing:manage` → Owner only
+- `tenant:users:invite` → Owner, Admin
+- `tenant:users:remove` → Owner, Admin
+- `tenant:settings:update` → Owner, Admin
+- `tenant:data:write` → Owner, Admin, Member
+- `tenant:data:read` → All roles
+
+### **Authentication Flow**
+
+1. **User logs in** via Identity Platform with tenant-specific endpoint
+   - Login URL includes tenant identifier: `https://[PROJECT_ID].firebaseapp.com/?tenantId={tenant_id}`
+   - User provides email + password
+   - Identity Platform validates against tenant's user pool
+   - Returns JWT with `firebase_uid` and `tenant_id` automatically embedded
+   
+2. **Backend validates JWT** and extracts both `firebase_uid` and `tenant_id`
+   - Tenant context is already in the token (no additional lookup needed for tenant identification)
+
+3. **Lookup user role** within tenant:
+   ```sql
+   SELECT ut.role
+   FROM user_tenants ut
+   WHERE ut.user_id = (SELECT id FROM users WHERE firebase_uid = ?)
+     AND ut.tenant_id = ?
+   ```
+
+4. **Inject tenant context** into request:
+   - `tenant_id` already available from JWT
+   - All downstream services filter by this `tenant_id`
+
+5. **Authorize action** based on role:
+   ```javascript
+   if (action === 'delete_tenant' && user.role !== 'owner') {
+     throw ForbiddenError('Only tenant owner can delete tenant');
+   }
+   ```
+
+**Simplified Flow**: Identity Platform multi-tenancy eliminates the need to manually track which tenant a user belongs to at authentication time - it's built into the login flow.
+
+### **Tenant Administration by Tier**
+
+**Free Tier**:
+- Single-user tenant (user who signed up is automatically the owner)
+- No ability to invite other users
+- User manages only their own data
+
+**Standard Tier**:
+- Multi-user support enabled
+- Owner/Admin can invite users via email
+- Invited users receive email → create Identity Platform account → linked to tenant
+- Role assignment at invitation time
+- Use case: Small team (5-20 users) working on shared itineraries
+
+**Enterprise Tier**:
+- Full multi-user support with advanced features:
+  - Custom roles beyond the 4 standard ones
+  - Audit logs of all user actions
+  - Dedicated support for bulk user management
+  - **Authentication**: Email + password (same as other tiers)
+- Use case: Large organization (100+ users) with compliance requirements
+
+### **Implementation Approach**
+
+**Selected: Identity Platform Multi-Tenancy + Custom RBAC** ✅
+
+**Architecture**:
+- **Identity Platform Multi-Tenancy** handles:
+  - Tenant-isolated user pools
+  - Authentication (email + password)
+  - Tenant ID embedded in JWT automatically
+  - User identity management per tenant
+  
+- **Custom RBAC** handles:
+  - Role assignment (Owner, Admin, Member, ReadOnly)
+  - Permission checks in application middleware
+  - User invitation workflows
+  - Tenant administration UI
+
+**Benefits**:
+- Clean separation: authentication (Identity Platform) vs. authorization (application)
+- No user email conflicts across tenants
+- Tenant context always available in JWT
+- Flexibility to add custom roles and permissions
+- Scales well across all tiers
+
+**Implementation**:
+- Store roles in application database (see schema above)
+- Middleware extracts `tenant_id` from JWT, queries role from database
+- Control plane service manages user invitations and role assignments
+- Each tenant gets own Identity Platform tenant instance
+
+### **Open Questions for Clarification**
+
+1. **Multi-Tenant Users**: Should Standard/Enterprise users be able to belong to multiple tenants (e.g., consultant working for 3 companies)?
+   - If YES → User must select active tenant on login, session stores `current_tenant_id`
+   - If NO → Simpler, one user = one tenant, easier to manage
+
+2. **User Invitations**: How should invitations work?
+   - Email invitation with signup link?
+   - Admin pre-creates account and user sets password on first login?
+
+3. **Tenant Ownership Transfer**: Can Free tier user transfer ownership to another user? Or does "tenant" = "personal account"?
+
+4. **Role Granularity**: Are 4 roles enough, or need feature-level permissions (e.g., "can manage itineraries" vs "can manage comments")?
+
+
+### **Recommended Implementation Phases**
+
+For a student project context with gradual complexity:
+
+**Phase 1 (MVP - Free Tier Only)**:
+- Identity Platform multi-tenancy for authentication
+- Create one Identity Platform tenant per application tenant
+- Single user per tenant (no multi-user support)
+- No RBAC needed (user is implicitly owner of their tenant)
+- `tenant_id` automatically included in JWT
+
+**Phase 2 (Standard Tier - Multi-User)**:
+- Add `user_tenants` table with roles
+- Implement invitation flow (email invite → signup in tenant's Identity Platform namespace)
+- Add role checks in backend middleware
+- Build admin UI for user management
+
+**Phase 3 (Enterprise Tier - Advanced)**:
+- Add audit logging
+- Add custom role definitions
+- Bulk user management UI
+- Enhanced compliance features
+
+This phased approach lets you start simple and add complexity as needed.
+
+---
+
 ## Key Assumptions
 
 1. **Cluster Capacity**: Standard tier assumes a single shared cluster can handle 100-500 tenant namespaces before requiring additional clusters.
@@ -472,6 +702,7 @@
 8. **Secret Management**: How to securely distribute DB credentials and API keys to tenant namespaces (Vault, K8s Secrets, external secret operator)?
 9. **Multi-Region**: Should Standard tier support regional selection? Or all in one region initially?
 10. **Enterprise Control Plane**: Should Enterprise tenants share the central control plane (authentication, billing) or fully isolated?
+11. **User-Tenant Model**: Should Standard/Enterprise users be able to belong to multiple tenants simultaneously?
 
 ---
 
