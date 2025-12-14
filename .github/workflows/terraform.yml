@@ -199,6 +199,7 @@ jobs:
           if [ -f tfplan ]; then
             echo "Found uploaded plan artifact; applying it"
             if [[ "$GITHUB_REF_NAME" == "main" ]]; then
+              terraform import module.project.google_identity_platform_config.default projects/graphite-plane-474510-s9
               terraform apply -auto-approve tfplan
             else
               terraform apply -var-file="dev-environment.tfvars" -auto-approve tfplan
