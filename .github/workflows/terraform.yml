@@ -200,7 +200,7 @@ jobs:
             if [[ "$GITHUB_REF_NAME" == "main" ]]; then
               terraform apply -auto-approve tfplan
             else
-              terraform import module.project.google_identity_platform_config.default projects/iaas-476910
+              terraform plan -out=tfplan
               terraform apply -var-file="dev-environment.tfvars" -auto-approve tfplan
             fi
           else
