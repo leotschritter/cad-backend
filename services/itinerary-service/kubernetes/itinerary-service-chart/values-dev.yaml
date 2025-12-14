@@ -47,18 +47,18 @@ probes:
 ingress:
   enabled: true
   hosts:
-    - host: dev-itinerary.tripico.fun
+    - host: itinerary.develop.tripico.fun
       paths:
         - path: /
           pathType: Prefix
   tls:
     - secretName: itinerary-tls
       hosts:
-        - dev-itinerary.tripico.fun
+        - itinerary.develop.tripico.fun
 
 
 
-backendUrl: "https://dev-itinerary.tripico.fun"
+backendUrl: "https://itinerary.develop.tripico.fun"
 
 serviceAccount:
   annotations:
