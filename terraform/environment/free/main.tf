@@ -114,8 +114,8 @@ module "api_gateway" {
 module "dns" {
   source = "../../modules/dns"
 
-  project_id          = var.project_id
-  region              = var.region
-  domain_name         = var.domain_name
-  domain_name_prefix  = var.domain_name_prefix
+  project_id         = var.project_id
+  region             = var.region
+  domain_name        = var.domain_name
+  domain_name_prefix = var.domain_name_prefix
 }

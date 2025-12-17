@@ -1,6 +1,6 @@
 output "tripico_fun_name_servers" {
   description = "Authoritative name servers for tripico.fun (enter these at STRATO)"
-  value = join("\n", google_dns_managed_zone.tripico_fun.name_servers)
+  value       = join("\n", google_dns_managed_zone.tripico_fun.name_servers)
 }
 
 output "domain_name" {

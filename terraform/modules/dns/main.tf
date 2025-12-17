@@ -15,9 +15,9 @@ resource "google_dns_managed_zone" "tripico_fun" {
 }
 
 resource "google_compute_address" "ingress_ip" {
-  project     = var.project_id
-  name        = "tripico-ingress-ip"
-  region      = var.region
+  project = var.project_id
+  name    = "tripico-ingress-ip"
+  region  = var.region
 }
 
 resource "google_dns_record_set" "wildcard" {
@@ -27,21 +27,21 @@ resource "google_dns_record_set" "wildcard" {
   type         = "A"
   ttl          = 60
 
-  rrdatas = [google_compute_address.ingress_ip.address ]
+  rrdatas = [google_compute_address.ingress_ip.address]
 }
 
 resource "helm_release" "ingress_nginx" {
-  name       = var.ingress_namespace
-  repository = "https://kubernetes.github.io/ingress-nginx"
-  chart      = var.ingress_namespace
-  namespace  = var.ingress_namespace
+  name             = var.ingress_namespace
+  repository       = "https://kubernetes.github.io/ingress-nginx"
+  chart            = var.ingress_namespace
+  namespace        = var.ingress_namespace
   create_namespace = true
 
   values = [yamlencode({
     controller = {
       service = {
-        type             = "LoadBalancer"
-        loadBalancerIP   = google_compute_address.ingress_ip.address
+        type           = "LoadBalancer"
+        loadBalancerIP = google_compute_address.ingress_ip.address
       }
     }
   })]
