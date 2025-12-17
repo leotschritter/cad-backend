@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/google"
       version = "6.38.0"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.13"
+    }
   }
 }
 # Create a Google Cloud DNS managed zone for full control over the DNS settings of the domain tripico.fun.
