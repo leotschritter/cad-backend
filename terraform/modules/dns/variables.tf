@@ -17,7 +17,11 @@ variable "ingress_namespace" {
 variable "domain_name" {
   description = "The domain name for the DNS zone"
   type        = string
-  default     = "tripico.fun"
+}
+
+variable "domain_name_prefix" {
+  description = "The prefix to add to the domain name for the DNS records"
+  type        = string
 }
 
 variable "cloud_dns_managed_zone_name" {

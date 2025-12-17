@@ -1,7 +1,7 @@
 microservices = {
   comment = {
     name         = "comment-service"
-    ingress_url  = "https://dev-cl.tripico.fun"
+    ingress_url  = "https://cl-dev.tripico.fun"
     path_prefix  = "/comment"
     service_name = "comment-service"
     namespace    = "default"
@@ -9,7 +9,7 @@ microservices = {
   }
   itinerary = {
     name         = "itinerary-service"
-    ingress_url  = "https://dev-itinerary.tripico.fun"
+    ingress_url  = "https://itinerary-dev.tripico.fun"
     path_prefix  = "/itinerary"
     service_name = "itinerary-service"
     namespace    = "default"
@@ -17,7 +17,7 @@ microservices = {
   }
   like = {
     name         = "like-service"
-    ingress_url  = "https://dev-cl.tripico.fun"
+    ingress_url  = "https://cl-dev.tripico.fun"
     path_prefix  = "/like"
     service_name = "like-service"
     namespace    = "default"
@@ -25,7 +25,7 @@ microservices = {
   }
   location = {
     name         = "location-service"
-    ingress_url  = "https://dev-itinerary.tripico.fun"
+    ingress_url  = "https://itinerary-dev.tripico.fun"
     path_prefix  = "/location"
     service_name = "location-service"
     namespace    = "default"
@@ -33,7 +33,7 @@ microservices = {
   }
   user = {
     name         = "user-service"
-    ingress_url  = "https://dev-itinerary.tripico.fun"
+    ingress_url  = "https://itinerary-dev.tripico.fun"
     path_prefix  = "/user"
     service_name = "user-service"
     namespace    = "default"
@@ -41,7 +41,7 @@ microservices = {
   }
   travel-warnings = {
     name         = "travel-warnings-service"
-    ingress_url  = "https://dev-warnings.tripico.fun"
+    ingress_url  = "https://warnings-dev.tripico.fun"
     path_prefix  = "/warnings"
     service_name = "travel-warnings-service"
     namespace    = "default"
@@ -49,7 +49,7 @@ microservices = {
   }
   weather = {
     name         = "weather-service"
-    ingress_url  = "https://dev-weather.tripico.fun"
+    ingress_url  = "https://weather-dev.tripico.fun"
     path_prefix  = "/api/weather"
     service_name = "weather-service"
     namespace    = "default"
@@ -57,7 +57,7 @@ microservices = {
   }
   feed = {
     name         = "recommendation-feed-service"
-    ingress_url  = "https://dev-recommendation.tripico.fun"
+    ingress_url  = "https://recommendation-dev.tripico.fun"
     path_prefix  = "/feed"
     service_name = "recommendation-service"
     namespace    = "default"
@@ -65,7 +65,7 @@ microservices = {
   }
   graph = {
     name         = "recommendation-graph-service"
-    ingress_url  = "https://dev-recommendation.tripico.fun"
+    ingress_url  = "https://recommendation-dev.tripico.fun"
     path_prefix  = "/graph"
     service_name = "recommendation-service"
     namespace    = "default"

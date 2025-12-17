@@ -34,6 +34,7 @@ env:
   TF_STATE_BUCKET: ${{ github.ref_name == 'main' && 'graphite-plane-474510-s9-terraform-state' || 'iaas-476910-terraform-state' }}
   TF_VAR_project_id: ${{ github.ref_name == 'main' && 'graphite-plane-474510-s9' || 'iaas-476910' }}
   BACKEND_CONF_HCL: ${{ github.ref_name == 'main' && 'backend-config.hcl' || 'backend-config-dev.hcl' }}
+  TF_VAR_domain_name_prefix: ${{ github.ref_name == 'main' && '-prod' || '-dev' }}
 
 jobs:
   terraform-validate:
@@ -57,7 +58,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Terraform backend
-        working-directory: terraform
+        working-directory: terraform/environment/free
         run: |
           cat > ${{ env.BACKEND_CONF_HCL }} << EOF
           bucket = "${{ env.TF_STATE_BUCKET }}"
@@ -65,15 +66,15 @@ jobs:
           EOF
 
       - name: Terraform Init
-        working-directory: terraform
+        working-directory: terraform/environment/free
         run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
 
       - name: Terraform Validate
-        working-directory: terraform
+        working-directory: terraform/environment/free
         run: terraform validate
 
       - name: Terraform Format Check
-        working-directory: terraform
+        working-directory: terraform/environment/free
         run: terraform fmt -check -recursive
 
   terraform-plan:
@@ -102,7 +103,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Terraform backend
-        working-directory: terraform
+        working-directory: terraform/environment/free
         run: |
           cat > ${{ env.BACKEND_CONF_HCL }} << EOF
           bucket = "${{ env.TF_STATE_BUCKET }}"
@@ -110,16 +111,18 @@ jobs:
           EOF
 
       - name: Terraform Init
-        working-directory: terraform
+        working-directory: terraform/environment/free
         run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
 
       - name: Terraform Plan
         id: tf-plan
-        working-directory: terraform
+        working-directory: terraform/environment/free
         env:
           TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
           TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
+          TF_VAR_domain_name_prefix: ${{ env.TF_VAR_domain_name_prefix }}
+          TF_VAR_domain_name: ${{ env.DOMAIN_NAME }}
         run: |
           # produce a human-readable plan and save a binary plan for apply
           if [[ "$GITHUB_REF_NAME" == "main" ]]; then
@@ -168,7 +171,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Terraform backend
-        working-directory: terraform
+        working-directory: terraform/environment/free
         run: |
           cat > ${{ env.BACKEND_CONF_HCL }} << EOF
           bucket = "${{ env.TF_STATE_BUCKET }}"
@@ -176,7 +179,7 @@ jobs:
           EOF
 
       - name: Terraform Init
-        working-directory: terraform
+        working-directory: terraform/environment/free
         run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
 
       # Try to download a plan artifact produced by the Plan job. If it's
@@ -190,11 +193,13 @@ jobs:
         continue-on-error: true
 
       - name: Apply plan (use artifact if present, otherwise create+apply)
-        working-directory: terraform
+        working-directory: terraform/environment/free
         env:
           TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
           TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
+          TF_VAR_domain_name_prefix: ${{ env.TF_VAR_domain_name_prefix }}
+          TF_VAR_domain_name: ${{ env.DOMAIN_NAME }}
         run: |
           if [ -f tfplan ]; then
             echo "Found uploaded plan artifact; applying it"
@@ -216,7 +221,7 @@ jobs:
 
       - name: Terraform Outputs
         id: tf-outputs
-        working-directory: terraform
+        working-directory: terraform/environment/free
         run: |
           echo "api_gateway_url=$(terraform output -raw api_gateway_url)" >> $GITHUB_OUTPUT
           echo "gke_cluster_name=$(terraform output -raw gke_cluster_name)" >> $GITHUB_OUTPUT
@@ -245,7 +250,7 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Terraform backend
-        working-directory: terraform
+        working-directory: terraform/environment/free
         run: |
           cat > ${{ env.BACKEND_CONF_HCL }} << EOF
           bucket = "${{ env.TF_STATE_BUCKET }}"
@@ -253,14 +258,16 @@ jobs:
           EOF
 
       - name: Terraform Init
-        working-directory: terraform
+        working-directory: terraform/environment/free
         run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
 
       - name: Terraform Destroy
-        working-directory: terraform
+        working-directory: terraform/environment/free
         env:
           TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
           TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
+          TF_VAR_domain_name_prefix: ${{ env.TF_VAR_domain_name_prefix }}
+          TF_VAR_domain_name: ${{ env.DOMAIN_NAME }}
         run: terraform destroy -auto-approve
 

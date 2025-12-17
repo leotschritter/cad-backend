@@ -23,7 +23,7 @@ resource "google_compute_address" "ingress_ip" {
 resource "google_dns_record_set" "wildcard" {
   project      = var.project_id
   managed_zone = google_dns_managed_zone.tripico_fun.name
-  name         = "*.${var.domain_name}."
+  name         = "*${var.domain_name_prefix}.${var.domain_name}."
   type         = "A"
   ttl          = 60
 
