@@ -56,6 +56,7 @@ resource "google_sql_database_instance" "main" {
     availability_type = var.db_availability_type
     disk_size         = var.disk_size
     disk_type         = "PD_SSD"
+    edition           = "ENTERPRISE" # Required for db-f1-micro and db-g1-small tiers
 
     backup_configuration {
       enabled                        = true
