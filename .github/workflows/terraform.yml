@@ -122,7 +122,7 @@ jobs:
           TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name_prefix: ${{ env.TF_VAR_domain_name_prefix }}
-          TF_VAR_domain_name: ${{ env.DOMAIN_NAME }}
+          TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
         run: |
           # produce a human-readable plan and save a binary plan for apply
           if [[ "$GITHUB_REF_NAME" == "main" ]]; then
@@ -199,7 +199,7 @@ jobs:
           TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name_prefix: ${{ env.TF_VAR_domain_name_prefix }}
-          TF_VAR_domain_name: ${{ env.DOMAIN_NAME }}
+          TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
         run: |
           if [ -f tfplan ]; then
             echo "Found uploaded plan artifact; applying it"
@@ -268,6 +268,6 @@ jobs:
           TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name_prefix: ${{ env.TF_VAR_domain_name_prefix }}
-          TF_VAR_domain_name: ${{ env.DOMAIN_NAME }}
+          TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
         run: terraform destroy -auto-approve
 
