@@ -239,7 +239,7 @@ variable "microservices" {
   default = {
     comment = {
       name         = "comment-service"
-      ingress_url  = "https://cl.tripico.fun"
+      ingress_url  = "https://cl-prod.tripico.fun"
       path_prefix  = "/comment"
       service_name = "comment-service"
       namespace    = "default"
@@ -247,7 +247,7 @@ variable "microservices" {
     }
     itinerary = {
       name         = "itinerary-service"
-      ingress_url  = "https://itinerary.tripico.fun"
+      ingress_url  = "https://itinerary-prod.tripico.fun"
       path_prefix  = "/itinerary"
       service_name = "itinerary-service"
       namespace    = "default"
@@ -255,7 +255,7 @@ variable "microservices" {
     }
     like = {
       name         = "like-service"
-      ingress_url  = "https://cl.tripico.fun"
+      ingress_url  = "https://cl-prod.tripico.fun"
       path_prefix  = "/like"
       service_name = "like-service"
       namespace    = "default"
@@ -263,7 +263,7 @@ variable "microservices" {
     }
     location = {
       name         = "location-service"
-      ingress_url  = "https://itinerary.tripico.fun"
+      ingress_url  = "https://itinerary-prod.tripico.fun"
       path_prefix  = "/location"
       service_name = "location-service"
       namespace    = "default"
@@ -271,7 +271,7 @@ variable "microservices" {
     }
     user = {
       name         = "user-service"
-      ingress_url  = "https://itinerary.tripico.fun"
+      ingress_url  = "https://itinerary-prod.tripico.fun"
       path_prefix  = "/user"
       service_name = "user-service"
       namespace    = "default"
@@ -279,7 +279,7 @@ variable "microservices" {
     }
     travel-warnings = {
       name         = "travel-warnings-service"
-      ingress_url  = "https://warnings.tripico.fun"
+      ingress_url  = "https://warnings-prod.tripico.fun"
       path_prefix  = "/warnings"
       service_name = "travel-warnings-service"
       namespace    = "default"
@@ -287,7 +287,7 @@ variable "microservices" {
     }
     weather = {
       name         = "weather-service"
-      ingress_url  = "https://weather.tripico.fun"
+      ingress_url  = "https://weather-prod.tripico.fun"
       path_prefix  = "/api/weather"
       service_name = "weather-service"
       namespace    = "default"
@@ -295,7 +295,7 @@ variable "microservices" {
     }
     feed = {
       name         = "recommendation-feed-service"
-      ingress_url  = "https://recommendation.tripico.fun"
+      ingress_url  = "https://recommendation-prod.tripico.fun"
       path_prefix  = "/feed"
       service_name = "recommendation-service"
       namespace    = "default"
@@ -303,11 +303,22 @@ variable "microservices" {
     }
     graph = {
       name         = "recommendation-graph-service"
-      ingress_url  = "https://recommendation.tripico.fun"
+      ingress_url  = "https://recommendation-prod.tripico.fun"
       path_prefix  = "/graph"
       service_name = "recommendation-service"
       namespace    = "default"
       port         = 8080
     }
   }
+}
+
+# DNS Configuration
+variable "domain_name" {
+  description = "The domain name for the DNS zone"
+  type        = string
+}
+
+variable "domain_name_prefix" {
+  description = "The prefix to add to the domain name for the DNS records"
+  type        = string
 }

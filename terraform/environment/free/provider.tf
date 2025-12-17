@@ -4,15 +4,19 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 5.0"
+      version = "~> 6.38"
     }
     google-beta = {
       source  = "hashicorp/google-beta"
-      version = "~> 5.0"
+      version = "~> 6.38"
     }
     random = {
       source  = "hashicorp/random"
       version = "~> 3.5"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.13"
     }
   }
 
@@ -38,3 +42,8 @@ provider "google-beta" {
   billing_project       = var.project_id
 }
 
+provider "helm" {
+  kubernetes {
+    config_path = pathexpand("~/.kube/config")
+  }
+}
