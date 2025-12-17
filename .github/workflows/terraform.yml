@@ -213,6 +213,7 @@ jobs:
           else
             echo "No plan artifact found; running plan then apply"
             if [[ "$GITHUB_REF_NAME" == "main" ]]; then
+              terraform import 'module.project.google_identity_platform_config.default' 'projects/graphite-plane-474510-s9/identityPlatformConfig'
               terraform plan -out=tfplan
               terraform apply -auto-approve tfplan
             else
