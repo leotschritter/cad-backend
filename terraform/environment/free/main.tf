@@ -14,7 +14,7 @@ resource "random_id" "suffix" {
 
 # Project Services Module
 module "project" {
-  source = "/terraform/modules/project"
+  source = "../../modules/project"
 
   project_id         = var.project_id
   required_apis      = var.required_apis
@@ -23,7 +23,7 @@ module "project" {
 
 # IAM Module
 module "iam" {
-  source = "/terraform/modules/iam"
+  source = "../../modules/iam"
 
   project_id           = var.project_id
   app_name             = var.app_name
@@ -33,7 +33,7 @@ module "iam" {
 
 # Database Module
 module "database" {
-  source = "/terraform/modules/database"
+  source = "../../modules/database"
 
   project_id            = var.project_id
   region                = var.region
@@ -52,7 +52,7 @@ module "database" {
 
 # Storage Module
 module "storage" {
-  source = "/terraform/modules/storage"
+  source = "../../modules/storage"
 
   project_id            = var.project_id
   bucket_name           = local.bucket_name
@@ -65,7 +65,7 @@ module "storage" {
 
 # Firestore Module
 module "firestore" {
-  source = "/terraform/modules/firestore"
+  source = "../../modules/firestore"
 
   project_id           = var.project_id
   firestore_location   = var.firestore_location
@@ -75,7 +75,7 @@ module "firestore" {
 # Artifact Registry Module
 module "artifact_registry" {
   count  = var.create_artifact_registry ? 1 : 0
-  source = "/terraform/modules/artifact-registry"
+  source = "../../modules/artifact-registry"
 
   project_id           = var.project_id
   region               = var.region
@@ -87,7 +87,7 @@ module "artifact_registry" {
 
 # GKE Module
 module "gke" {
-  source = "/terraform/modules/gke"
+  source = "../../modules/gke"
 
   project_id           = var.project_id
   region               = var.region
@@ -101,7 +101,7 @@ module "gke" {
 
 # API Gateway Module
 module "api_gateway" {
-  source = "/terraform/modules/api-gateway"
+  source = "../../modules/api-gateway"
 
   project_id            = var.project_id
   region                = var.region
@@ -112,7 +112,7 @@ module "api_gateway" {
 }
 
 module "dns" {
-  source = "/terraform/modules/dns"
+  source = "../../modules/dns"
 
   project_id          = var.project_id
   region              = var.region
