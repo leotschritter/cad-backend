@@ -16,7 +16,7 @@
 
 ---
 
-## Architecture by Tier
+## Infrastructure by Tier
 
 ### **Free Tier: Shared Everything**
 
@@ -31,17 +31,13 @@
 - Reduced database footprint due to limited feature set:
   - **PostgreSQL**: Single instance for core relational data (users, itineraries)
   - **Firestore**: Shared document store (comments, likes)
-- All tenants' data in same database
 
 **Object Storage**
-- Single shared bucket per service (e.g., `app-uploads-free-tier`)
-- Objects stored with tenant prefix: `{tenant_id}/{object_key}`
+- Single shared bucket per service (e.g., `app-images-free-tier`)
 - Access controlled via application logic (IAM not tenant-aware)
 
 **Service Accounts & IAM**
 - Single service account per microservice
-- Services run with same credentials for all tenants
-- Application-layer authorization only
 
 **Provisioning Flow**
 1. User registers → tenant record created in control plane DB
@@ -146,6 +142,16 @@
 
 ---
 
+## Tenant Management
+
+Tenant creation and deletion are handled by a dedicated microservice that manages the complete tenant lifecycle. 
+
+This service uses MongoDB to store tenant metadata, configuration, and provisioning state.
+
+It orchestrates the provisioning workflows for each tier and tracks tenant status throughout their lifecycle.
+
+---
+
 ## User Management & Tenant Administration
 
 ### **Google Identity Platform with Multi-Tenancy**
@@ -169,3 +175,4 @@
 - Application-level authorization (what users can do within a tenant)
 - Tenant ownership and administration workflows
 - Feature-based access control
+
