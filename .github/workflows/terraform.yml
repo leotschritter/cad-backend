@@ -182,6 +182,10 @@ jobs:
         working-directory: terraform/environment/free
         run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
 
+      - name: Install gke-gcloud-auth-plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
       - name: Get GKE credentials (if cluster exists)
         continue-on-error: true
         run: |
