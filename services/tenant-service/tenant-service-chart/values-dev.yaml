@@ -1,0 +1,94 @@
+# Development values for tenant-service
+# Override default values for development/testing
+
+replicaCount: 2
+
+image:
+  repository: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/tenant-service
+  pullPolicy: Always
+
+# Lower resources for dev
+serviceAccount:
+  annotations:
+    # This must match the GCP service account created by Terraform
+    iam.gke.io/gcp-service-account: "tripico-sa@iaas-476910.iam.gserviceaccount.com"
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+# Disable autoscaling in dev
+autoscaling:
+  enabled: false
+
+# Faster health checks for dev
+probes:
+  startup:
+    httpGet:
+      path: /q/health/started
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 20
+  liveness:
+    httpGet:
+      path: /q/health/live
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 20
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readiness:
+    httpGet:
+      path: /q/health/ready
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# Use development domain
+ingress:
+  enabled: true
+  useProd: true
+  hosts:
+    - host: dev-tenant.tripico.fun
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: tenant-tls
+      hosts:
+        - dev-tenant.tripico.fun
+
+# GCP configuration
+gcp:
+  projectId: "iaas-476910"
+  serviceAccountEmail: "tenant-sa@iaas-476910.iam.gserviceaccount.com"
+
+# Backend URL
+backendUrl: "https://dev-tenant.tripico.fun"
+
+# MongoDB Configuration for Development
+mongodb:
+  enabled: true
+  replicaCount: 1
+  auth:
+    enabled: false  # Disable auth for dev simplicity
+  persistence:
+    enabled: true
+    size: 5Gi  # Smaller size for dev
+    configSize: 512Mi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+

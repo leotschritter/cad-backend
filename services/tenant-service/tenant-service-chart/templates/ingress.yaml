@@ -1,0 +1,42 @@
+{{- if .Values.ingress.enabled -}}
+{{- end }}
+    {{- end }}
+          {{- end }}
+                  number: {{ $.Values.service.port }}
+                port:
+                name: {{ include "tenant-service.fullname" $ }}
+              service:
+            backend:
+            pathType: {{ .pathType }}
+          - path: {{ .path }}
+          {{- range .paths }}
+        paths:
+      http:
+    - host: {{ .host | quote }}
+    {{- range .Values.ingress.hosts }}
+  rules:
+  {{- end }}
+    {{- end }}
+      secretName: {{ .secretName }}
+        {{- end }}
+        - {{ . | quote }}
+        {{- range .hosts }}
+    - hosts:
+    {{- range .Values.ingress.tls }}
+  tls:
+  {{- if .Values.ingress.tls }}
+  {{- end }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.className }}
+spec:
+  {{- end }}
+    {{- toYaml . | nindent 4 }}
+  annotations:
+  {{- with .Values.ingress.annotations }}
+    {{- include "tenant-service.labels" . | nindent 4 }}
+  labels:
+  name: {{ include "tenant-service.fullname" . }}
+metadata:
+kind: Ingress
+apiVersion: networking.k8s.io/v1
+

@@ -1,0 +1,101 @@
+# Production values for tenant-service
+# Override default values for production deployment
+
+replicaCount: 2
+
+image:
+  repository: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/tenant-service
+  pullPolicy: Always
+
+serviceAccount:
+  annotations:
+    # This must match the GCP service account created by Terraform
+    iam.gke.io/gcp-service-account: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+
+# Production resources
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 768Mi
+
+# Enable autoscaling in production
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# Production health checks - more conservative
+probes:
+  startup:
+    httpGet:
+      path: /q/health/started
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 30
+  liveness:
+    httpGet:
+      path: /q/health/live
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    httpGet:
+      path: /q/health/ready
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# Use production domain
+ingress:
+  enabled: true
+  useProd: true
+  hosts:
+    - host: tenant.tripico.fun
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: tenant-tls
+      hosts:
+        - tenant.tripico.fun
+
+# GCP configuration
+gcp:
+  projectId: "graphite-plane-474510-s9"
+  serviceAccountEmail: "tenant-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+
+# Backend URL
+backendUrl: "https://tenant.tripico.fun"
+
+# MongoDB Configuration for Production
+mongodb:
+  enabled: true
+  replicaCount: 1
+  auth:
+    enabled: true  # Enable authentication in production
+    rootUsername: admin
+    rootPassword: "CHANGE_ME_IN_PRODUCTION"  # Should be overridden via --set or secret
+    # existingSecret: "mongodb-credentials"  # Recommended: use existing secret
+  persistence:
+    enabled: true
+    storageClass: "standard"  # Adjust based on your cluster
+    size: 20Gi
+    configSize: 2Gi
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+

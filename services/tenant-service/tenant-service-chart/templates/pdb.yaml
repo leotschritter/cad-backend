@@ -1,0 +1,14 @@
+{{- if gt (int .Values.replicaCount) 1 }}
+{{- end }}
+      {{- include "tenant-service.selectorLabels" . | nindent 6 }}
+    matchLabels:
+  selector:
+  minAvailable: 1
+spec:
+    {{- include "tenant-service.labels" . | nindent 4 }}
+  labels:
+  name: {{ include "tenant-service.fullname" . }}
+metadata:
+kind: PodDisruptionBudget
+apiVersion: policy/v1
+
