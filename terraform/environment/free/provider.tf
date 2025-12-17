@@ -42,8 +42,8 @@ provider "google-beta" {
   billing_project       = var.project_id
 }
 
-/*provider "helm" {
+provider "helm" {
   kubernetes {
     config_path = pathexpand("~/.kube/config")
   }
-}*/
+}
