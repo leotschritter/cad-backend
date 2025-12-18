@@ -80,7 +80,7 @@ resource "google_dns_record_set" "dev_delegation" {
   ]
 }*/
 
-# Ingress controller (both environments)
+/*# Ingress controller (both environments)
 resource "helm_release" "ingress_nginx" {
   name             = var.ingress_namespace
   repository       = "https://kubernetes.github.io/ingress-nginx"
@@ -98,4 +98,4 @@ resource "helm_release" "ingress_nginx" {
       }
     }
   })]
-}
+}*/
