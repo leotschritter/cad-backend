@@ -147,7 +147,7 @@ jobs:
       - name: Set environment variables
         id: env
         run: |
-          if [ "${{ github.ref_name }}" = "dev" ]; then
+          if [ "${{ github.ref_name }}" == "develop" ]; then
             echo "VALUES_FILE=values-dev.yaml" >> $GITHUB_OUTPUT
             echo "CERT_MANAGER_SA_KEY=${{ secrets.CERT_MANAGER_DNS01_SA_KEY_DEV }}" >> $GITHUB_OUTPUT
 
