@@ -164,6 +164,18 @@ jobs:
             echo "✗ kubeconfig file does not exist"
           fi
 
+      - name: Remove problematic Helm release from state (if exists)
+        continue-on-error: true
+        working-directory: terraform/environment/free
+        run: |
+          echo "Checking if Helm release exists in state..."
+          if terraform state list | grep -q "module.dns.helm_release.ingress_nginx"; then
+            echo "Found Helm release in state, removing it to allow refresh..."
+            terraform state rm module.dns.helm_release.ingress_nginx || echo "Failed to remove, will continue anyway"
+          else
+            echo "No Helm release found in state"
+          fi
+
       - name: Terraform Plan
         id: tf-plan
         working-directory: terraform/environment/free
@@ -256,6 +268,18 @@ jobs:
             helm version || echo "Helm not available"
           else
             echo "✗ kubeconfig file does not exist"
+          fi
+
+      - name: Remove problematic Helm release from state (if exists)
+        continue-on-error: true
+        working-directory: terraform/environment/free
+        run: |
+          echo "Checking if Helm release exists in state..."
+          if terraform state list | grep -q "module.dns.helm_release.ingress_nginx"; then
+            echo "Found Helm release in state, removing it to allow refresh..."
+            terraform state rm module.dns.helm_release.ingress_nginx || echo "Failed to remove, will continue anyway"
+          else
+            echo "No Helm release found in state"
           fi
 
       # Try to download a plan artifact produced by the Plan job. If it's
