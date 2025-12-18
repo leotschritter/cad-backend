@@ -1,0 +1,30 @@
+# Development Environment Values for cert-manager
+# Use this for dev deployment
+
+# ClusterIssuer configuration for development
+clusterIssuer:
+  enabled: true
+  name: letsencrypt-prod
+
+  # Let's Encrypt production (use staging for testing)
+  # For testing: https://acme-staging-v02.api.letsencrypt.org/directory
+  server: https://acme-v02.api.letsencrypt.org/directory
+
+  email: benedikt.scheffel@gmail.com
+  privateKeySecretRef: letsencrypt-prod
+
+  # DNS01 Challenge enabled for dev environment
+  dns01:
+    enabled: true
+    project: "iaas-476910"
+    serviceAccountSecretRef:
+      name: cert-manager-dns01-sa
+      key: key.json
+    dnsZones:
+      - "dev.tripico.fun"
+
+  # HTTP01 fallback (not used when dns01.enabled=true)
+  solvers:
+    - http01:
+        ingress:
+          class: nginx
