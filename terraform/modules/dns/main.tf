@@ -67,7 +67,7 @@ resource "google_dns_record_set" "dev_wildcard" {
   rrdatas = [google_compute_address.ingress_ip.address]
 }
 
-/*# Delegation record in parent zone (prod only)
+# Delegation record in parent zone (prod only)
 resource "google_dns_record_set" "dev_delegation" {
   count = var.is_prod_environment ? 1 : 0
   project      = var.project_id
@@ -76,11 +76,14 @@ resource "google_dns_record_set" "dev_delegation" {
   type         = "NS"
   ttl          = 300
   rrdatas      = [
-    # Paste nameservers from step 1
+    "ns-cloud-b1.googledomains.com.",
+    "ns-cloud-b2.googledomains.com.",
+    "ns-cloud-b3.googledomains.com.",
+    "ns-cloud-b4.googledomains.com.",
   ]
-}*/
+}
 
-/*# Ingress controller (both environments)
+# Ingress controller (both environments)
 resource "helm_release" "ingress_nginx" {
   name             = var.ingress_namespace
   repository       = "https://kubernetes.github.io/ingress-nginx"
@@ -98,4 +101,4 @@ resource "helm_release" "ingress_nginx" {
       }
     }
   })]
-}*/
+}
