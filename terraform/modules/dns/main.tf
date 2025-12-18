@@ -39,6 +39,8 @@ resource "google_compute_address" "ingress_ip" {
   project = var.project_id
   name    = "tripico-ingress-ip"
   region  = var.region
+
+  depends_on = [var.project_apis_enabled]
 }
 
 # DNS record in parent zone (prod only)
@@ -52,6 +54,8 @@ resource "google_dns_record_set" "wildcard" {
   ttl          = 60
 
   rrdatas = [google_compute_address.ingress_ip.address]
+
+  depends_on = [google_dns_managed_zone.tripico_fun, google_compute_address.ingress_ip]
 }
 
 # DNS record in delegated zone (dev only)
@@ -65,6 +69,8 @@ resource "google_dns_record_set" "dev_wildcard" {
   ttl          = 60
 
   rrdatas = [google_compute_address.ingress_ip.address]
+
+  depends_on = [google_dns_managed_zone.dev_tripico_fun, google_compute_address.ingress_ip]
 }
 
 # Delegation record in parent zone (prod only)
