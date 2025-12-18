@@ -99,6 +99,7 @@ variable "required_apis" {
     "apigateway.googleapis.com",
     "servicemanagement.googleapis.com",
     "servicecontrol.googleapis.com",
+    "dns.googleapis.com",
   ]
 }
 
@@ -324,7 +325,7 @@ variable "domain_name_prefix" {
 }
 
 variable "is_prod_environment" {
-  description = "Flag to indicate if the environment is production"
+  description = "Whether this is the production environment"
   type        = bool
   default     = false
 }

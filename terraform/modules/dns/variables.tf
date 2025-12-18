@@ -35,3 +35,9 @@ variable "is_prod_environment" {
   type        = bool
   default     = false
 }
+
+variable "project_apis_enabled" {
+  description = "Dependency on project APIs being enabled"
+  type        = any
+  default     = []
+}

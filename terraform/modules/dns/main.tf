@@ -18,6 +18,8 @@ resource "google_dns_managed_zone" "tripico_fun" {
   name        = var.cloud_dns_managed_zone_name
   dns_name    = "${var.domain_name}."
   description = "Authoritative zone for ${var.domain_name}"
+
+  depends_on = [var.project_apis_enabled]
 }
 
 # Delegated subdomain zone (dev only)
@@ -28,6 +30,8 @@ resource "google_dns_managed_zone" "dev_tripico_fun" {
   name        = var.cloud_dns_managed_zone_name
   dns_name    = "${var.domain_name}."
   description = "Delegated zone for ${var.domain_name}"
+
+  depends_on = [var.project_apis_enabled]
 }
 
 # Static IP for ingress (both environments)
