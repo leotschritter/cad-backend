@@ -30,8 +30,8 @@ variable "cloud_dns_managed_zone_name" {
   default     = "tripico-fun-zone"
 }
 
-variable "project_apis_enabled" {
-  description = "Dependency on project APIs being enabled"
-  type        = any
-  default     = []
+variable "is_prod_environment" {
+  description = "Flag to indicate if the environment is production"
+  type        = bool
+  default     = false
 }

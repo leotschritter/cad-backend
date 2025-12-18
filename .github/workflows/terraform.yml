@@ -35,6 +35,7 @@ env:
   TF_VAR_project_id: ${{ github.ref_name == 'main' && 'graphite-plane-474510-s9' || 'iaas-476910' }}
   BACKEND_CONF_HCL: ${{ github.ref_name == 'main' && 'backend-config.hcl' || 'backend-config-dev.hcl' }}
   TF_VAR_domain_name_prefix: ${{ github.ref_name == 'main' && '-prod' || '-dev' }}
+  TF_VAR_is_prod_environment: ${{ github.ref_name == 'main' && 'true' || 'false' }}
 
 jobs:
   terraform-validate:
@@ -123,6 +124,7 @@ jobs:
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name_prefix: ${{ env.TF_VAR_domain_name_prefix }}
           TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+          TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
         run: |
           # produce a human-readable plan and save a binary plan for apply
           if [[ "$GITHUB_REF_NAME" == "main" ]]; then
@@ -209,6 +211,7 @@ jobs:
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name_prefix: ${{ env.TF_VAR_domain_name_prefix }}
           TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+          TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
         run: |
           if [ -f tfplan ]; then
             echo "Found uploaded plan artifact; applying it"
@@ -278,5 +281,6 @@ jobs:
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name_prefix: ${{ env.TF_VAR_domain_name_prefix }}
           TF_VAR_domain_name: ${{ vars.DOMAIN_NAME }}
+          TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
         run: terraform destroy -auto-approve
 

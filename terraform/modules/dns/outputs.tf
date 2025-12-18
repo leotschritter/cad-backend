@@ -1,6 +1,19 @@
-output "tripico_fun_name_servers" {
-  description = "Authoritative name servers for tripico.fun (enter these at STRATO)"
-  value       = join("\n", google_dns_managed_zone.tripico_fun.name_servers)
+output "managed_zone_name_servers" {
+  description = "Name servers for the DNS managed zone (prod: parent zone, dev: delegated subdomain zone)"
+  value = var.is_prod_environment ? (
+    length(google_dns_managed_zone.tripico_fun) > 0 ? google_dns_managed_zone.tripico_fun[0].name_servers : []
+    ) : (
+    length(google_dns_managed_zone.dev_tripico_fun) > 0 ? google_dns_managed_zone.dev_tripico_fun[0].name_servers : []
+  )
+}
+
+output "managed_zone_name_servers_string" {
+  description = "Name servers as a newline-separated string"
+  value = var.is_prod_environment ? (
+    length(google_dns_managed_zone.tripico_fun) > 0 ? join("\n", google_dns_managed_zone.tripico_fun[0].name_servers) : ""
+    ) : (
+    length(google_dns_managed_zone.dev_tripico_fun) > 0 ? join("\n", google_dns_managed_zone.dev_tripico_fun[0].name_servers) : ""
+  )
 }
 
 output "domain_name" {
