@@ -16,6 +16,8 @@ resource "google_dns_managed_zone" "tripico_fun" {
   name        = var.cloud_dns_managed_zone_name
   dns_name    = "${var.domain_name}."
   description = "Authoritative zone for tripico.fun"
+
+  depends_on = [var.project_apis_enabled]
 }
 
 resource "google_compute_address" "ingress_ip" {
@@ -40,6 +42,8 @@ resource "helm_release" "ingress_nginx" {
   chart            = var.ingress_namespace
   namespace        = var.ingress_namespace
   create_namespace = true
+  replace          = true
+  force_update     = true
 
   values = [yamlencode({
     controller = {

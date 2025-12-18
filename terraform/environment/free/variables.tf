@@ -99,6 +99,7 @@ variable "required_apis" {
     "apigateway.googleapis.com",
     "servicemanagement.googleapis.com",
     "servicecontrol.googleapis.com",
+    "dns.googleapis.com",
   ]
 }
 

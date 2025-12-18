@@ -29,3 +29,9 @@ variable "cloud_dns_managed_zone_name" {
   type        = string
   default     = "tripico-fun-zone"
 }
+
+variable "project_apis_enabled" {
+  description = "Dependency on project APIs being enabled"
+  type        = any
+  default     = []
+}
