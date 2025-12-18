@@ -47,7 +47,7 @@ resource "google_dns_record_set" "wildcard" {
 
   project      = var.project_id
   managed_zone = google_dns_managed_zone.tripico_fun[0].name
-  name         = "*${var.domain_name_prefix}.${var.domain_name}."
+  name         = "*.${var.domain_name}."
   type         = "A"
   ttl          = 60
 

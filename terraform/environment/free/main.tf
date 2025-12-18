@@ -117,7 +117,6 @@ module "dns" {
   project_id           = var.project_id
   region               = var.region
   domain_name          = var.domain_name
-  domain_name_prefix   = var.domain_name_prefix
   is_prod_environment  = var.is_prod_environment
   project_apis_enabled = module.project.identity_platform_config_id
 }

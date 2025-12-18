@@ -319,11 +319,6 @@ variable "domain_name" {
   type        = string
 }
 
-variable "domain_name_prefix" {
-  description = "The prefix to add to the domain name for the DNS records"
-  type        = string
-}
-
 variable "is_prod_environment" {
   description = "Whether this is the production environment"
   type        = bool

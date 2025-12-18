@@ -19,11 +19,6 @@ variable "domain_name" {
   type        = string
 }
 
-variable "domain_name_prefix" {
-  description = "The prefix to add to the domain name for the DNS records"
-  type        = string
-}
-
 variable "cloud_dns_managed_zone_name" {
   description = "The name of the Cloud DNS managed zone"
   type        = string

@@ -21,11 +21,6 @@ output "domain_name" {
   value       = var.domain_name
 }
 
-output "domain_name_prefix" {
-  description = "The prefix to add to the domain name for the DNS records"
-  value       = var.domain_name_prefix
-}
-
 output "cloud_dns_managed_zone_name" {
   description = "The name of the Cloud DNS managed zone"
   value       = var.cloud_dns_managed_zone_name
