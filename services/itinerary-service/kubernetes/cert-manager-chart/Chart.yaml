@@ -3,10 +3,10 @@ name: cert-manager-setup
 description: A Helm chart to install cert-manager and configure ClusterIssuer for Let's Encrypt
 type: application
 version: 1.0.0
-appVersion: "v1.13.6"
+appVersion: "v1.13.7"
 
 dependencies:
   - name: cert-manager
-    version: v1.13.5
+    version: v1.13.7
     repository: https://charts.jetstack.io
 
