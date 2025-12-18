@@ -70,6 +70,29 @@ jobs:
         working-directory: terraform/environment/free
         run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
 
+      - name: Install gke-gcloud-auth-plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE credentials (if cluster exists)
+        continue-on-error: true
+        run: |
+          gcloud container clusters get-credentials tripico-cluster --region europe-west1 --project ${{ env.GCP_PROJECT_ID }} || echo "GKE cluster not yet created"
+
+      - name: Verify kubeconfig setup
+        continue-on-error: true
+        run: |
+          echo "Checking if kubeconfig exists..."
+          if [ -f ~/.kube/config ]; then
+            echo "✓ kubeconfig file exists at ~/.kube/config"
+            echo "Current context:"
+            kubectl config current-context || echo "No current context"
+            echo "Testing cluster connectivity..."
+            kubectl cluster-info || echo "Cannot connect to cluster"
+          else
+            echo "✗ kubeconfig file does not exist"
+          fi
+
       - name: Terraform Validate
         working-directory: terraform/environment/free
         run: terraform validate
@@ -123,6 +146,23 @@ jobs:
         continue-on-error: true
         run: |
           gcloud container clusters get-credentials tripico-cluster --region europe-west1 --project ${{ env.GCP_PROJECT_ID }} || echo "GKE cluster not yet created"
+
+      - name: Verify kubeconfig setup
+        continue-on-error: true
+        run: |
+          echo "Checking if kubeconfig exists..."
+          if [ -f ~/.kube/config ]; then
+            echo "✓ kubeconfig file exists at ~/.kube/config"
+            ls -lh ~/.kube/config
+            echo "Current context:"
+            kubectl config current-context || echo "No current context"
+            echo "Testing cluster connectivity..."
+            kubectl cluster-info || echo "Cannot connect to cluster"
+            echo "Checking Helm connectivity..."
+            helm version || echo "Helm not available"
+          else
+            echo "✗ kubeconfig file does not exist"
+          fi
 
       - name: Terraform Plan
         id: tf-plan
@@ -200,6 +240,23 @@ jobs:
         continue-on-error: true
         run: |
           gcloud container clusters get-credentials tripico-cluster --region europe-west1 --project ${{ env.GCP_PROJECT_ID }} || echo "GKE cluster not yet created"
+
+      - name: Verify kubeconfig setup
+        continue-on-error: true
+        run: |
+          echo "Checking if kubeconfig exists..."
+          if [ -f ~/.kube/config ]; then
+            echo "✓ kubeconfig file exists at ~/.kube/config"
+            ls -lh ~/.kube/config
+            echo "Current context:"
+            kubectl config current-context || echo "No current context"
+            echo "Testing cluster connectivity..."
+            kubectl cluster-info || echo "Cannot connect to cluster"
+            echo "Checking Helm connectivity..."
+            helm version || echo "Helm not available"
+          else
+            echo "✗ kubeconfig file does not exist"
+          fi
 
       # Try to download a plan artifact produced by the Plan job. If it's
       # available we'll apply it. If not (e.g. a manual dispatch without a
