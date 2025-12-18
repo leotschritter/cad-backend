@@ -36,3 +36,10 @@ variable "project_apis_enabled" {
   type        = any
   default     = []
 }
+
+variable "gke_cluster_ready" {
+  description = "Dependency on GKE cluster being ready"
+  type        = any
+  default     = []
+}
+

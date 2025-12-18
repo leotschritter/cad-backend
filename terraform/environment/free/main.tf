@@ -119,4 +119,5 @@ module "dns" {
   domain_name          = var.domain_name
   is_prod_environment  = var.is_prod_environment
   project_apis_enabled = module.project.identity_platform_config_id
+  gke_cluster_ready    = module.gke.cluster_ready
 }

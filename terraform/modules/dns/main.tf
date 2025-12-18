@@ -69,13 +69,13 @@ resource "google_dns_record_set" "dev_wildcard" {
 
 # Delegation record in parent zone (prod only)
 resource "google_dns_record_set" "dev_delegation" {
-  count = var.is_prod_environment ? 1 : 0
+  count        = var.is_prod_environment ? 1 : 0
   project      = var.project_id
   managed_zone = google_dns_managed_zone.tripico_fun[0].name
   name         = "dev.tripico.fun."
   type         = "NS"
   ttl          = 300
-  rrdatas      = [
+  rrdatas = [
     "ns-cloud-b1.googledomains.com.",
     "ns-cloud-b2.googledomains.com.",
     "ns-cloud-b3.googledomains.com.",
@@ -101,4 +101,6 @@ resource "helm_release" "ingress_nginx" {
       }
     }
   })]
+
+  depends_on = [var.gke_cluster_ready]
 }
