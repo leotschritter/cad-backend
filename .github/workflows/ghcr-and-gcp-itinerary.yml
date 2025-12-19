@@ -144,20 +144,9 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Set environment variables
-        id: env
-        run: |
-          if [ "${{ github.ref_name }}" = "develop" ]; then
-            echo "VALUES_FILE=values-dev.yaml" >> $GITHUB_OUTPUT
-            echo "CERT_MANAGER_SA_KEY=${{ secrets.CERT_MANAGER_DNS01_SA_KEY_DEV }}" >> $GITHUB_OUTPUT
-          else
-            echo "VALUES_FILE=values-prod.yaml" >> $GITHUB_OUTPUT
-            echo "CERT_MANAGER_SA_KEY=${{ secrets.CERT_MANAGER_DNS01_SA_KEY_PROD }}" >> $GITHUB_OUTPUT
-          fi
-
       - name: Create cert-manager DNS01 Service Account Secret
         env:
-          CERT_MANAGER_SA_KEY: ${{ steps.env.outputs.CERT_MANAGER_SA_KEY }}
+          CERT_MANAGER_SA_KEY: ${{ secrets.CERT_MANAGER_DNS01_SA_KEY_DEV }}
         run: |
           echo "Creating cert-manager DNS01 service account secret..."
 
@@ -192,12 +181,12 @@ jobs:
           helm dependency update ./cert-manager-chart
           helm dependency build ./cert-manager-chart
 
-          echo "Deploying cert-manager with values file: ${{ steps.env.outputs.VALUES_FILE }}"
+          echo "Deploying cert-manager with values-dev.yaml"
 
           helm upgrade --install cert-manager ./cert-manager-chart \
             --namespace cert-manager \
             --create-namespace \
-            -f ./cert-manager-chart/${{ steps.env.outputs.VALUES_FILE }} \
+            -f ./cert-manager-chart/values-dev.yaml \
             --set cert-manager.installCRDs=true \
             --set cert-manager.global.rbac.create=true \
             --set cert-manager.serviceAccount.create=true \
