@@ -155,7 +155,7 @@ jobs:
 
       - name: Create cert-manager DNS01 Service Account Secret
         env:
-          CERT_MANAGER_SA_KEY: ${{ github.ref_name == 'main' && secrets.CERT_MANAGER_DNS01_SA_KEY_PROD || secrets.CERT_MANAGER_DNS01_SA_KEY_DEV }}
+          CERT_MANAGER_SA_KEY: secrets.CERT_MANAGER_DNS01_SA_KEY
         run: |
           echo "Creating cert-manager DNS01 service account secret..."
 
