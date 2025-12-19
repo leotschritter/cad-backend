@@ -1,0 +1,35 @@
+# Helm values for itinerary-service in pro namespace
+namespaceOverride: standard
+
+itineraryService:
+  image: "ghcr.io/leotschritter/cad-backend:latest"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations:
+    iam.gke.io/gcp-service-account: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+  name: "itinerary-service-sa-standard"
+
+podAnnotations:
+  tier: standard
+
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+  name: http
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  # Host will be set via --set ingress.host in pipeline
+  host: ""
+  # TLS secret name will be set via --set ingress.tlsSecretName in pipeline
+  tlsSecretName: ""

@@ -1,0 +1,72 @@
+# Helm values for travel-warnings-service in shared namespace
+# This service is deployed once and shared between freemium and pro tiers
+
+# Override namespace
+namespaceOverride: shared
+
+# Common labels
+commonLabels:
+  app.kubernetes.io/part-of: travel-warnings-system
+  app.kubernetes.io/managed-by: helm
+  tier: shared
+
+travelWarningsApi:
+  name: travel-warnings-service
+  port: 8080
+  replicas: 2  # Increased replicas for shared usage
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+  probes:
+    startup:
+      path: /q/health/started
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      failureThreshold: 30
+      timeoutSeconds: 3
+    readiness:
+      path: /q/health/ready
+      periodSeconds: 30
+      initialDelaySeconds: 5
+      failureThreshold: 3
+      timeoutSeconds: 5
+    liveness:
+      path: /q/health/live
+      periodSeconds: 30
+      initialDelaySeconds: 10
+      failureThreshold: 3
+      timeoutSeconds: 5
+
+ingress:
+  name: travel-warnings-ingress
+  enabled: true
+  useProd: true
+  prod:
+    host: ""
+    tlsSecretName: ""
+    sslRedirect: "true"
+    forceSslRedirect: "true"
+
+# Autoscaling configuration - increased for shared usage
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 15
+  targetCPUUtilizationPercentage: 70
+
+certificate:
+  name: warnings-tls-cert
+  secretName: warnings-tls
+  issuerName: letsencrypt-prod

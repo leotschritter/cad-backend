@@ -1,0 +1,139 @@
+# Network Policy for shared namespace
+# Allows ingress from freemium and pro namespaces
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: shared-allow-from-tiers
+  namespace: shared
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow from freemium namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: freemium
+  # Allow from standard namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: standard
+  # Allow within shared namespace
+  - from:
+    - podSelector: {}
+  # Allow from ingress controller (typically in kube-system or ingress-nginx namespace)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+
+---
+# Network Policy for freemium namespace
+# Denies traffic from standard namespace, allows traffic to shared
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: freemium-isolation
+  namespace: freemium
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow within same namespace
+  - from:
+    - podSelector: {}
+  # Allow from ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+  egress:
+  # Allow to shared namespace
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: shared
+  # Allow within same namespace
+  - to:
+    - podSelector: {}
+  # Allow DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow external traffic (internet)
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
+
+---
+# Network Policy for standard namespace
+# Denies traffic from freemium namespace, allows traffic to shared
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: standard-isolation
+  namespace: standard
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow within same namespace
+  - from:
+    - podSelector: {}
+  # Allow from ingress controller
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+  egress:
+  # Allow to shared namespace
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: shared
+  # Allow within same namespace
+  - to:
+    - podSelector: {}
+  # Allow DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow external traffic (internet)
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80

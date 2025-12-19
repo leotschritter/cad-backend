@@ -1,0 +1,122 @@
+# Helm values for recommendation-service in freemium namespace
+namespaceOverride: freemium
+
+commonLabels:
+  app.kubernetes.io/part-of: recommendation-system
+  app.kubernetes.io/managed-by: helm
+  tier: freemium
+
+neo4j:
+  name: neo4j-freemium
+  image: neo4j:5.15.0
+  port:
+    bolt: 7687
+    http: 7474
+  replicas: 1
+  password: ""  # Set via: --set neo4j.password=your-password
+  environmentVariables:
+    plugins: '["apoc"]'
+    dbmsSecurityProceduresUnrestricted: "apoc.*"
+    serverMemoryHeapInitialSize: "512m"
+    serverMemoryHeapMaxSize: "1G"
+    serverMemoryPagecacheSize: "512m"
+  volumeMounts:
+    mountPath: /data
+    name: neo4j-data
+  resources:
+    requests:
+      memory: "1Gi"
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"
+  probes:
+    liveness:
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      timeoutSeconds: 5
+    readiness:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+
+neo4jPvc:
+  name: neo4j-data-pvc-freemium
+  storage: 10Gi
+
+recommendationApi:
+  name: recommendation-service
+  image: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/recommendation-service:latest
+  port: 8080
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+
+  cors:
+    origins: "*"
+    methods: "GET,POST,PUT,DELETE,OPTIONS"
+    headers: "accept,authorization,content-type,x-requested-with"
+
+  probes:
+    startup:
+      path: /q/health/started
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      failureThreshold: 30
+      timeoutSeconds: 5
+    readiness:
+      path: /q/health/ready
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+    liveness:
+      path: /q/health/live
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      timeoutSeconds: 5
+
+recommendationConfig:
+  name: recommendation-service-config
+  neo4j:
+    uri: "bolt://neo4j-service-freemium.freemium.svc.cluster.local:7687"
+    username: "neo4j"
+  itineraryServiceUrl: "http://itinerary-service.freemium.svc.cluster.local:8080"
+  identityPlatform:
+    authEnabled: "true"
+    primaryHeader: "X-Forwarded-Authorization"
+    fallbackHeader: "Authorization"
+  recommendation:
+    feedMaxItems: "30"
+  openapiServerUrl: "https://freemium-recommendation.tripico.fun"
+
+# Autoscaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5  # Lower for freemium
+  targetCPUUtilizationPercentage: 70
+
+ingress:
+  name: recommendation-ingress
+  enabled: true
+  useProd: true
+  prod:
+    host: ""
+    tlsSecretName: ""
+    sslRedirect: "true"
+    forceSslRedirect: "true"
+
+certificate:
+  name: recommendation-freemium-tls-cert
+  issuerName: letsencrypt-prod
+  secretName: recommendation-freemium-tls

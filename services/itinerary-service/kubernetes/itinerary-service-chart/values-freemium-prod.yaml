@@ -1,0 +1,100 @@
+# Helm values for itinerary-service in freemium namespace
+namespaceOverride: freemium
+
+itineraryService:
+  image: "ghcr.io/leotschritter/cad-backend:latest"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations:
+    iam.gke.io/gcp-service-account: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+  name: "itinerary-service-sa-freemium"
+
+podAnnotations:
+  tier: freemium
+
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+  name: http
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  # Host will be set via --set ingress.host in pipeline
+  host: ""
+  # TLS secret name will be set via --set ingress.tlsSecretName in pipeline
+  tlsSecretName: ""
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5  # Lower max for freemium
+  targetCPUUtilizationPercentage: 70
+
+# Quarkus application configuration
+quarkus:
+  http:
+    port: 8080
+    host: "0.0.0.0"
+  profile: "prod"
+
+# Database configuration - separate DB for freemium
+database:
+  user: "cad_db_user"
+  password: "" # provided via --set
+  url: "" # provided via --set - should point to freemium DB instance
+
+# Identity Platform Authentication Configuration
+identityPlatform:
+  authEnabled: "true"
+  primaryHeader: "X-Forwarded-Authorization"
+  fallbackHeader: "Authorization"
+
+# Service discovery for shared services
+sharedServices:
+  weatherService:
+    url: "http://weather-forecast-service.shared.svc.cluster.local:8080"
+  travelWarningsService:
+    url: "http://travel-warnings-service.shared.svc.cluster.local:8080"
+
+# Health check probes
+probes:
+  startup:
+    httpGet:
+      path: /q/health/started
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+  liveness:
+    httpGet:
+      path: /q/health/live
+      port: 8080
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 5
+  readiness:
+    httpGet:
+      path: /q/health/ready
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5

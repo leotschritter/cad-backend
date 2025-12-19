@@ -1,0 +1,123 @@
+# Helm values for weather-forecast-service in shared namespace
+# This service is deployed once and shared between freemium and pro tiers
+
+# Override namespace
+namespaceOverride: shared
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/part-of: weather-forecast-system
+  app.kubernetes.io/managed-by: helm
+  tier: shared
+
+postgres:
+  name: weather-postgres
+  image: postgres:15-alpine
+  port: 5432
+  replicas: 1
+  environmentVariables:
+    database: weather_forecast
+    user: weather_user
+    password: weather_pass
+    pgdata: /var/lib/postgresql/data/pgdata
+  volumeMounts:
+    mountPath: /var/lib/postgresql/data
+    name: weather-postgres-storage
+  readinessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+postgresPvc:
+  name: weather-postgres-data-pvc
+  storage: 10Gi  # Increased for shared usage
+
+weatherForecastApi:
+  name: weather-forecast-service
+  image: ghcr.io/leotschritter/weather-forecast-service:latest
+  port: 8080
+  replicas: 2  # Increased replicas for shared service
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  resources:
+    requests:
+      memory: "1Gi"  # Increased for shared usage
+      cpu: "500m"
+    limits:
+      memory: "2Gi"
+      cpu: "2000m"
+
+  cors:
+    origins: "*"
+    methods: "GET,POST,PUT,DELETE,OPTIONS,HEAD,PATCH"
+    headers: "accept,authorization,content-type,x-requested-with,origin"
+    exposedHeaders: "Content-Disposition"
+    allowCredentials: "true"
+
+  quarkus:
+    acquisitionTimeout: "10"
+    backgroundValidationInterval: "2M"
+    idleRemovalInterval: "5M"
+    maxLifetime: "30M"
+
+  probes:
+    startup:
+      path: /q/health/started
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      failureThreshold: 30
+      timeoutSeconds: 3
+    readiness:
+      path: /q/health/ready
+      periodSeconds: 30
+      initialDelaySeconds: 5
+      failureThreshold: 3
+      timeoutSeconds: 5
+    liveness:
+      path: /q/health/live
+      periodSeconds: 30
+      initialDelaySeconds: 10
+      failureThreshold: 3
+      timeoutSeconds: 5
+
+meteosource:
+  apiKey: ""  # Set via: --set meteosource.apiKey=your-api-key
+
+weatherForecastConfig:
+  name: weather-forecast-config
+  meteosource:
+    sections: "daily,hourly"
+    language: "en"
+    units: "metric"
+  db:
+    url: "jdbc:postgresql://weather-postgres.shared.svc.cluster.local:5432/weather_forecast"
+
+ingress:
+  name: weather-forecast-ingress
+  enabled: true
+  useProd: true
+  prod:
+    host: ""
+    tlsSecretName: ""
+    sslRedirect: "true"
+    forceSslRedirect: "true"
+  dev:
+    host: weather-forecast.local
+
+# Autoscaling configuration - increased for shared usage
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+
+certificate:
+  name: weather-tls-cert
+  secretName: weather-tls
+  issuerName: letsencrypt-prod
