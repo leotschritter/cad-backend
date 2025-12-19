@@ -30,11 +30,7 @@ on:
 jobs:
   setup-namespaces:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
-    permissions:
-      contents: read
-      id-token: write
-
+    environment: ${{ github.ref_name == 'feature/namespaces-01' && 'production' || 'develop' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -63,7 +59,7 @@ jobs:
     needs: setup-namespaces
     if: ${{ inputs.tier == 'all' || inputs.tier == 'shared' }}
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ github.ref_name == 'feature/namespaces-01' && 'production' || 'develop' }}
     permissions:
       contents: read
       id-token: write
@@ -125,7 +121,7 @@ jobs:
     needs: setup-namespaces
     if: ${{ inputs.tier == 'all' || inputs.tier == 'freemium' }}
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ github.ref_name == 'feature/namespaces-01' && 'production' || 'develop' }}
     permissions:
       contents: read
       id-token: write
@@ -195,7 +191,7 @@ jobs:
     needs: setup-namespaces
     if: ${{ inputs.tier == 'all' || inputs.tier == 'standard' }}
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ github.ref_name == 'feature/namespaces-01' && 'production' || 'develop' }}
     permissions:
       contents: read
       id-token: write
