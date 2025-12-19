@@ -1,6 +1,11 @@
 name: Deploy Services to Multi-Namespace Architecture
 
 on:
+  push:
+    branches:
+      - feature/namespaces-01
+    paths:
+      - '.github/workflows/deploy-multi-namespace.yml'
   workflow_dispatch:
     inputs:
       tier:
