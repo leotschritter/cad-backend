@@ -159,31 +159,8 @@ jobs:
         run: |
           echo "Creating cert-manager DNS01 service account secret..."
 
-          # Check if secret is set
-          if [ -z "$CERT_MANAGER_SA_KEY" ]; then
-            echo "❌ ERROR: CERT_MANAGER_DNS01_SA_KEY_DEV is not set!"
-            echo "Please add the secret in GitHub: Settings → Secrets → Actions → Environment secrets (develop)"
-            exit 1
-          fi
-
-          # Debug: Check secret length
-          echo "✓ Secret is set (length: ${#CERT_MANAGER_SA_KEY} characters)"
-
           # Decode base64 secret and create JSON file
-          echo "$CERT_MANAGER_SA_KEY" | base64 -d > /tmp/cert-manager-dns01-key.json || {
-            echo "❌ ERROR: Failed to decode base64 secret!"
-            echo "Secret might have invalid characters or wrong format"
-            echo "First 50 chars of secret (for debugging): ${CERT_MANAGER_SA_KEY:0:50}..."
-            exit 1
-          }
-
-          # Verify JSON is valid
-          if ! jq empty /tmp/cert-manager-dns01-key.json 2>/dev/null; then
-            echo "❌ ERROR: Decoded secret is not valid JSON!"
-            exit 1
-          fi
-
-          echo "✓ Secret decoded successfully and is valid JSON"
+          echo "$CERT_MANAGER_SA_KEY" | base64 -d > /tmp/cert-manager-dns01-key.json
 
           # Create namespace if not exists
           kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
@@ -197,7 +174,7 @@ jobs:
           # Clean up temp file immediately
           rm -f /tmp/cert-manager-dns01-key.json
 
-          echo " Secret created/updated successfully"
+          echo "✅ Secret created/updated successfully"
 
       - name: Verify secret was created
         run: |
