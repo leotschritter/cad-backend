@@ -1,7 +1,6 @@
 name: Deploy Services to Multi-Namespace Architecture
 
 on:
-
   workflow_dispatch:
     inputs:
       tier:
