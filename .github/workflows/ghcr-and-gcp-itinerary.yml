@@ -144,9 +144,18 @@ jobs:
         with:
           version: 'latest'
 
+      - name: Set values file based on branch
+        id: set-values
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "VALUES_FILE=values-prod.yaml" >> $GITHUB_OUTPUT
+          else
+            echo "VALUES_FILE=values-dev.yaml" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create cert-manager DNS01 Service Account Secret
         env:
-          CERT_MANAGER_SA_KEY: ${{ secrets.CERT_MANAGER_DNS01_SA_KEY_DEV }}
+          CERT_MANAGER_SA_KEY: ${{ github.ref_name == 'main' && secrets.CERT_MANAGER_DNS01_SA_KEY_PROD || secrets.CERT_MANAGER_DNS01_SA_KEY_DEV }}
         run: |
           echo "Creating cert-manager DNS01 service account secret..."
 
@@ -204,12 +213,12 @@ jobs:
           helm dependency update ./cert-manager-chart
           helm dependency build ./cert-manager-chart
 
-          echo "Deploying cert-manager with values-dev.yaml"
+          echo "Deploying cert-manager with ${{ steps.set-values.outputs.VALUES_FILE }}"
 
           helm upgrade --install cert-manager ./cert-manager-chart \
             --namespace cert-manager \
             --create-namespace \
-            -f ./cert-manager-chart/values-dev.yaml \
+            -f ./cert-manager-chart/${{ steps.set-values.outputs.VALUES_FILE }} \
             --set cert-manager.installCRDs=true \
             --set cert-manager.global.rbac.create=true \
             --set cert-manager.serviceAccount.create=true \
