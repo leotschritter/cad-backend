@@ -1,0 +1,25 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shared
+  labels:
+    name: shared
+    tier: shared
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: freemium
+  labels:
+    name: freemium
+    tier: freemium
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: standard
+  labels:
+    name: standard
+    tier: standard
+

@@ -56,6 +56,18 @@ jobs:
             --region europe-west1 \
             --project ${{ vars.PROJECT_ID }}
 
+      - name: Create Namespaces
+        run: |
+          echo "Creating namespaces..."
+          kubectl apply -f infrastructure/kubernetes/namespaces/namespaces.yaml
+          
+          echo "Waiting for namespaces to be ready..."
+          kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/shared --timeout=60s
+          kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/freemium --timeout=60s
+          kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/standard --timeout=60s
+          
+          echo "Namespaces created successfully"
+
       - name: Apply Network Policies
         run: |
           echo "Applying network policies..."
