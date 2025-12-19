@@ -3,6 +3,7 @@ name: Deploy Services to Multi-Namespace Architecture
 on:
   push:
     branches:
+      - main
       - feature/namespaces-01
     paths:
       - '.github/workflows/deploy-multi-namespace.yml'
@@ -30,7 +31,7 @@ on:
 jobs:
   setup-namespaces:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment == 'prod' && 'production' || 'develop' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
     permissions:
       contents: read
       id-token: write
@@ -77,9 +78,9 @@ jobs:
 
   deploy-shared-services:
     needs: setup-namespaces
-    if: ${{ inputs.tier == 'all' || inputs.tier == 'shared' }}
+    if: ${{ github.event_name == 'push' || inputs.tier == 'all' || inputs.tier == 'shared' }}
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment == 'prod' && 'production' || 'develop' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
     permissions:
       contents: read
       id-token: write
@@ -127,9 +128,16 @@ jobs:
           version: '3.13.0'
 
       - name: Deploy ${{ matrix.service.name }} to shared namespace
+        env:
+          DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
         run: |
-          VALUES_FILE=${{ inputs.environment == 'prod' && matrix.service.values_prod || matrix.service.values_dev }}
-          DOMAIN=${{ inputs.environment == 'prod' && matrix.service.domain_prod || matrix.service.domain_dev }}
+          VALUES_FILE=${{ matrix.service.values_dev }}
+          DOMAIN=${{ matrix.service.domain_dev }}
+          
+          if [ "$DEPLOY_ENV" = "prod" ]; then
+            VALUES_FILE=${{ matrix.service.values_prod }}
+            DOMAIN=${{ matrix.service.domain_prod }}
+          fi
 
           helm upgrade --install ${{ matrix.service.name }} ${{ matrix.service.chart }} \
             --namespace shared \
@@ -143,9 +151,9 @@ jobs:
 
   deploy-freemium-services:
     needs: setup-namespaces
-    if: ${{ inputs.tier == 'all' || inputs.tier == 'freemium' }}
+    if: ${{ github.event_name == 'push' || inputs.tier == 'all' || inputs.tier == 'freemium' }}
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment == 'prod' && 'production' || 'develop' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
     permissions:
       contents: read
       id-token: write
@@ -199,9 +207,16 @@ jobs:
           version: '3.13.0'
 
       - name: Deploy ${{ matrix.service.name }} to freemium namespace
+        env:
+          DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
         run: |
-          VALUES_FILE=${{ inputs.environment == 'prod' && matrix.service.values_prod || matrix.service.values_dev }}
-          DOMAIN=${{ inputs.environment == 'prod' && matrix.service.domain_prod || matrix.service.domain_dev }}
+          VALUES_FILE=${{ matrix.service.values_dev }}
+          DOMAIN=${{ matrix.service.domain_dev }}
+          
+          if [ "$DEPLOY_ENV" = "prod" ]; then
+            VALUES_FILE=${{ matrix.service.values_prod }}
+            DOMAIN=${{ matrix.service.domain_prod }}
+          fi
 
           helm upgrade --install ${{ matrix.service.name }}-freemium ${{ matrix.service.chart }} \
             --namespace freemium \
@@ -217,9 +232,9 @@ jobs:
 
   deploy-standard-services:
     needs: setup-namespaces
-    if: ${{ inputs.tier == 'all' || inputs.tier == 'standard' }}
+    if: ${{ github.event_name == 'push' || inputs.tier == 'all' || inputs.tier == 'standard' }}
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment == 'prod' && 'production' || 'develop' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
     permissions:
       contents: read
       id-token: write
@@ -273,9 +288,16 @@ jobs:
           version: '3.13.0'
 
       - name: Deploy ${{ matrix.service.name }} to standard namespace
+        env:
+          DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
         run: |
-          VALUES_FILE=${{ inputs.environment == 'prod' && matrix.service.values_prod || matrix.service.values_dev }}
-          DOMAIN=${{ inputs.environment == 'prod' && matrix.service.domain_prod || matrix.service.domain_dev }}
+          VALUES_FILE=${{ matrix.service.values_dev }}
+          DOMAIN=${{ matrix.service.domain_dev }}
+          
+          if [ "$DEPLOY_ENV" = "prod" ]; then
+            VALUES_FILE=${{ matrix.service.values_prod }}
+            DOMAIN=${{ matrix.service.domain_prod }}
+          fi
 
           helm upgrade --install ${{ matrix.service.name }}-standard ${{ matrix.service.chart }} \
             --namespace standard \
@@ -297,7 +319,7 @@ jobs:
       (needs.deploy-freemium-services.result == 'success' || needs.deploy-freemium-services.result == 'skipped') &&
       (needs.deploy-standard-services.result == 'success' || needs.deploy-standard-services.result == 'skipped')
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment == 'prod' && 'production' || 'develop' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
     permissions:
       contents: read
       id-token: write
