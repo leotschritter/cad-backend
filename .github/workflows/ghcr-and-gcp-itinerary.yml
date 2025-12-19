@@ -147,9 +147,13 @@ jobs:
       - name: Set environment variables
         id: env
         run: |
-          if [ "${{ github.ref_name }}" == "develop" ]; then
+          if [ "${{ github.ref_name }}" = "develop" ]; then
             echo "VALUES_FILE=values-dev.yaml" >> $GITHUB_OUTPUT
             echo "CERT_MANAGER_SA_KEY=${{ secrets.CERT_MANAGER_DNS01_SA_KEY_DEV }}" >> $GITHUB_OUTPUT
+          else
+            echo "VALUES_FILE=values-prod.yaml" >> $GITHUB_OUTPUT
+            echo "CERT_MANAGER_SA_KEY=${{ secrets.CERT_MANAGER_DNS01_SA_KEY_PROD }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create cert-manager DNS01 Service Account Secret
         env:
