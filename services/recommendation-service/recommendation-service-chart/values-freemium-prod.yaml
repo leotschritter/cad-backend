@@ -116,6 +116,10 @@ ingress:
     sslRedirect: "true"
     forceSslRedirect: "true"
 
+serviceAccount:
+  name: recommendation-service-sa
+  gcpServiceAccount: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+
 certificate:
   name: recommendation-freemium-tls-cert
   issuerName: letsencrypt-prod

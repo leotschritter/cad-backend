@@ -10,8 +10,15 @@ fullnameOverride: ""
 serviceAccount:
   create: true
   annotations:
-    iam.gke.io/gcp-service-account: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+    iam.gke.io/gcp-service-account: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
   name: "itinerary-service-sa-freemium"
+
+gcp:
+  projectId: "graphite-plane-474510-s9"
+  serviceAccountEmail: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+  bucketName: "graphite-plane-474510-s9-tripico-images"
+
+backendUrl: "https://itinerary-freemium.tripico.fun"
 
 podAnnotations:
   tier: freemium

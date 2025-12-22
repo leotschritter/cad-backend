@@ -117,6 +117,10 @@ ingress:
     sslRedirect: "true"
     forceSslRedirect: "true"
 
+serviceAccount:
+  name: recommendation-service-sa
+  gcpServiceAccount: "travel-backend-sa@iaas-476910.iam.gserviceaccount.com"
+
 certificate:
   name: recommendation-freemium-dev-tls-cert
   issuerName: letsencrypt-prod  # Staging for dev
