@@ -144,8 +144,8 @@ jobs:
             --create-namespace \
             --values $VALUES_FILE \
             --set meteosource.apiKey=${{ secrets.METEOSOURCE_API_KEY }} \
-            --set ingress.host="$DOMAIN" \
-            --set ingress.tlsSecretName="${{ matrix.service.name }}-tls" \
+            --set ingress.prod.host="$DOMAIN" \
+            --set ingress.prod.tlsSecretName="${{ matrix.service.name }}-tls" \
             --wait \
             --timeout 10m
 
