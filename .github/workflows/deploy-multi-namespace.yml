@@ -1,0 +1,365 @@
+name: Deploy Services to Multi-Namespace Architecture
+
+on:
+  push:
+    branches:
+      - main
+      - feature/namespaces-01
+    paths:
+      - '.github/workflows/deploy-multi-namespace.yml'
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: 'Which tier to deploy'
+        required: true
+        type: choice
+        options:
+          - all
+          - shared
+          - freemium
+          - standard
+        default: all
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+
+jobs:
+  setup-namespaces:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE Credentials
+        run: |
+          gcloud container clusters get-credentials tripico-cluster \
+            --region europe-west1 \
+            --project ${{ vars.PROJECT_ID }}
+
+      - name: Create Namespaces
+        run: |
+          echo "Creating namespaces..."
+          kubectl apply -f infrastructure/kubernetes/namespaces/namespaces.yaml
+          
+          echo "Waiting for namespaces to be ready..."
+          kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/shared --timeout=60s
+          kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/freemium --timeout=60s
+          kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/standard --timeout=60s
+          
+          echo "Namespaces created successfully"
+
+      - name: Apply Network Policies
+        run: |
+          echo "Applying network policies..."
+          kubectl apply -f infrastructure/kubernetes/namespaces/network-policies.yaml
+
+          echo "Network policies applied successfully"
+
+  deploy-shared-services:
+    needs: setup-namespaces
+    if: ${{ github.event_name == 'push' || inputs.tier == 'all' || inputs.tier == 'shared' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
+    permissions:
+      contents: read
+      id-token: write
+
+    strategy:
+      matrix:
+        service:
+          - name: weather-forecast
+            chart: services/weather-forecast-service/helm/weather-forecast-service
+            values_dev: services/weather-forecast-service/helm/weather-forecast-service/values-shared-dev.yaml
+            values_prod: services/weather-forecast-service/helm/weather-forecast-service/values-shared-prod.yaml
+            domain_dev: "weather.dev.tripico.fun"
+            domain_prod: "weather.tripico.fun"
+          - name: travel-warnings
+            chart: services/travel_warnings/travel-warnings-chart
+            values_dev: services/travel_warnings/travel-warnings-chart/values-shared-dev.yaml
+            values_prod: services/travel_warnings/travel-warnings-chart/values-shared-prod.yaml
+            domain_dev: "warnings.dev.tripico.fun"
+            domain_prod: "warnings.tripico.fun"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE Credentials
+        run: |
+          gcloud container clusters get-credentials tripico-cluster \
+            --region europe-west1 \
+            --project ${{ vars.PROJECT_ID }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.13.0'
+
+      - name: Deploy ${{ matrix.service.name }} to shared namespace
+        env:
+          DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
+        run: |
+          VALUES_FILE=${{ matrix.service.values_dev }}
+          DOMAIN=${{ matrix.service.domain_dev }}
+          
+          if [ "$DEPLOY_ENV" = "prod" ]; then
+            VALUES_FILE=${{ matrix.service.values_prod }}
+            DOMAIN=${{ matrix.service.domain_prod }}
+          fi
+
+          helm upgrade --install ${{ matrix.service.name }} ${{ matrix.service.chart }} \
+            --namespace shared \
+            --create-namespace \
+            --values $VALUES_FILE \
+            --set meteosource.apiKey=${{ secrets.METEOSOURCE_API_KEY }} \
+            --set ingress.host="$DOMAIN" \
+            --set ingress.tlsSecretName="${{ matrix.service.name }}-tls" \
+            --wait \
+            --timeout 10m
+
+  deploy-freemium-services:
+    needs: setup-namespaces
+    if: ${{ github.event_name == 'push' || inputs.tier == 'all' || inputs.tier == 'freemium' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
+    permissions:
+      contents: read
+      id-token: write
+
+    strategy:
+      matrix:
+        service:
+          - name: itinerary-service
+            chart: services/itinerary-service/kubernetes/itinerary-service-chart
+            values_dev: services/itinerary-service/kubernetes/itinerary-service-chart/values-freemium-dev.yaml
+            values_prod: services/itinerary-service/kubernetes/itinerary-service-chart/values-freemium-prod.yaml
+            domain_dev: "itinerary-freemium.dev.tripico.fun"
+            domain_prod: "itinerary-freemium.tripico.fun"
+          - name: recommendation-service
+            chart: services/recommendation-service/recommendation-service-chart
+            values_dev: services/recommendation-service/recommendation-service-chart/values-freemium-dev.yaml
+            values_prod: services/recommendation-service/recommendation-service-chart/values-freemium-prod.yaml
+            domain_dev: "recommendation-freemium.dev.tripico.fun"
+            domain_prod: "recommendation-freemium.tripico.fun"
+          - name: comments-likes-service
+            chart: services/comments-likes-service/comments-likes-chart
+            values_dev: services/comments-likes-service/comments-likes-chart/values-freemium-dev.yaml
+            values_prod: services/comments-likes-service/comments-likes-chart/values-freemium-prod.yaml
+            domain_dev: "comments-likes-freemium.dev.tripico.fun"
+            domain_prod: "comments-likes-freemium.tripico.fun"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE Credentials
+        run: |
+          gcloud container clusters get-credentials tripico-cluster \
+            --region europe-west1 \
+            --project ${{ vars.PROJECT_ID }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.13.0'
+
+      - name: Deploy ${{ matrix.service.name }} to freemium namespace
+        env:
+          DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
+        run: |
+          VALUES_FILE=${{ matrix.service.values_dev }}
+          DOMAIN=${{ matrix.service.domain_dev }}
+          
+          if [ "$DEPLOY_ENV" = "prod" ]; then
+            VALUES_FILE=${{ matrix.service.values_prod }}
+            DOMAIN=${{ matrix.service.domain_prod }}
+          fi
+
+          helm upgrade --install ${{ matrix.service.name }}-freemium ${{ matrix.service.chart }} \
+            --namespace freemium \
+            --create-namespace \
+            --values $VALUES_FILE \
+            --set database.password=${{ secrets.DB_PASSWORD_FREEMIUM }} \
+            --set database.url=${{ secrets.DB_URL_FREEMIUM }} \
+            --set neo4j.password=${{ secrets.NEO4J_PASSWORD_FREEMIUM }} \
+            --set ingress.host="$DOMAIN" \
+            --set ingress.tlsSecretName="${{ matrix.service.name }}-freemium-tls" \
+            --wait \
+            --timeout 10m
+
+  deploy-standard-services:
+    needs: setup-namespaces
+    if: ${{ github.event_name == 'push' || inputs.tier == 'all' || inputs.tier == 'standard' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
+    permissions:
+      contents: read
+      id-token: write
+
+    strategy:
+      matrix:
+        service:
+          - name: itinerary-service
+            chart: services/itinerary-service/kubernetes/itinerary-service-chart
+            values_dev: services/itinerary-service/kubernetes/itinerary-service-chart/values-standard-dev.yaml
+            values_prod: services/itinerary-service/kubernetes/itinerary-service-chart/values-standard-prod.yaml
+            domain_dev: "itinerary-standard.dev.tripico.fun"
+            domain_prod: "itinerary-standard.tripico.fun"
+          - name: recommendation-service
+            chart: services/recommendation-service/recommendation-service-chart
+            values_dev: services/recommendation-service/recommendation-service-chart/values-standard-dev.yaml
+            values_prod: services/recommendation-service/recommendation-service-chart/values-standard-prod.yaml
+            domain_dev: "recommendation-standard.dev.tripico.fun"
+            domain_prod: "recommendation-standard.tripico.fun"
+          - name: comments-likes-service
+            chart: services/comments-likes-service/comments-likes-chart
+            values_dev: services/comments-likes-service/comments-likes-chart/values-standard-dev.yaml
+            values_prod: services/comments-likes-service/comments-likes-chart/values-standard-prod.yaml
+            domain_dev: "comments-likes-standard.dev.tripico.fun"
+            domain_prod: "comments-likes-standard.tripico.fun"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE Credentials
+        run: |
+          gcloud container clusters get-credentials tripico-cluster \
+            --region europe-west1 \
+            --project ${{ vars.PROJECT_ID }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.13.0'
+
+      - name: Deploy ${{ matrix.service.name }} to standard namespace
+        env:
+          DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
+        run: |
+          VALUES_FILE=${{ matrix.service.values_dev }}
+          DOMAIN=${{ matrix.service.domain_dev }}
+          
+          if [ "$DEPLOY_ENV" = "prod" ]; then
+            VALUES_FILE=${{ matrix.service.values_prod }}
+            DOMAIN=${{ matrix.service.domain_prod }}
+          fi
+
+          helm upgrade --install ${{ matrix.service.name }}-standard ${{ matrix.service.chart }} \
+            --namespace standard \
+            --create-namespace \
+            --values $VALUES_FILE \
+            --set database.password=${{ secrets.DB_PASSWORD_STANDARD }} \
+            --set database.url=${{ secrets.DB_URL_STANDARD }} \
+            --set neo4j.password=${{ secrets.NEO4J_PASSWORD_STANDARD }} \
+            --set ingress.host="$DOMAIN" \
+            --set ingress.tlsSecretName="${{ matrix.service.name }}-standard-tls" \
+            --wait \
+            --timeout 10m
+
+  verify-deployment:
+    needs: [deploy-shared-services, deploy-freemium-services, deploy-standard-services]
+    if: |
+      always() &&
+      (needs.deploy-shared-services.result == 'success' || needs.deploy-shared-services.result == 'skipped') &&
+      (needs.deploy-freemium-services.result == 'success' || needs.deploy-freemium-services.result == 'skipped') &&
+      (needs.deploy-standard-services.result == 'success' || needs.deploy-standard-services.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE Credentials
+        run: |
+          gcloud container clusters get-credentials tripico-cluster \
+            --region europe-west1 \
+            --project ${{ vars.PROJECT_ID }}
+
+      - name: Verify Deployments
+        run: |
+          echo "========== SHARED NAMESPACE =========="
+          kubectl get all -n shared
+          echo ""
+          echo "========== FREEMIUM NAMESPACE =========="
+          kubectl get all -n freemium
+          echo ""
+          echo "========== STANDARD NAMESPACE =========="
+          kubectl get all -n standard
+          echo ""
+          echo "========== RESOURCE QUOTAS =========="
+          kubectl describe quota -n shared || echo "No quotas in shared"
+          kubectl describe quota -n freemium || echo "No quotas in freemium"
+          kubectl describe quota -n standard || echo "No quotas in standard"
+          echo ""
+          echo "========== NETWORK POLICIES =========="
+          kubectl get networkpolicies --all-namespaces
