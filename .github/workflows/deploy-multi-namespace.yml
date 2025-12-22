@@ -31,7 +31,7 @@ on:
 jobs:
   setup-namespaces:
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
     permissions:
       contents: read
       id-token: write
@@ -80,7 +80,7 @@ jobs:
     needs: setup-namespaces
     if: ${{ github.event_name == 'push' || inputs.tier == 'all' || inputs.tier == 'shared' }}
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
     permissions:
       contents: read
       id-token: write
@@ -153,7 +153,7 @@ jobs:
     needs: setup-namespaces
     if: ${{ github.event_name == 'push' || inputs.tier == 'all' || inputs.tier == 'freemium' }}
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
     permissions:
       contents: read
       id-token: write
@@ -234,7 +234,7 @@ jobs:
     needs: setup-namespaces
     if: ${{ github.event_name == 'push' || inputs.tier == 'all' || inputs.tier == 'standard' }}
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
     permissions:
       contents: read
       id-token: write
@@ -319,7 +319,7 @@ jobs:
       (needs.deploy-freemium-services.result == 'success' || needs.deploy-freemium-services.result == 'skipped') &&
       (needs.deploy-standard-services.result == 'success' || needs.deploy-standard-services.result == 'skipped')
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
     permissions:
       contents: read
       id-token: write
