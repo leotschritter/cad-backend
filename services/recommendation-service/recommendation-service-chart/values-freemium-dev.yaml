@@ -47,7 +47,7 @@ neo4jPvc:
 
 recommendationApi:
   name: recommendation-service
-  image: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/recommendation-service:latest
+  image: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/recommendation-service:latest
   port: 8080
   strategy:
     type: RollingUpdate
@@ -98,7 +98,7 @@ recommendationConfig:
     fallbackHeader: "Authorization"
   recommendation:
     feedMaxItems: "30"
-  openapiServerUrl: "https://freemium-dev-recommendation.tripico.fun"
+  openapiServerUrl: "https://recommendation-freemium.dev.tripico.fun"
 
 # Autoscaling configuration
 autoscaling:
@@ -121,3 +121,5 @@ certificate:
   name: recommendation-freemium-dev-tls-cert
   issuerName: letsencrypt-prod  # Staging for dev
   secretName: recommendation-freemium-dev-tls
+  dnsNames:
+    - recommendation-freemium.dev.tripico.fun

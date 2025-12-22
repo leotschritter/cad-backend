@@ -97,7 +97,7 @@ recommendationConfig:
     fallbackHeader: "Authorization"
   recommendation:
     feedMaxItems: "30"
-  openapiServerUrl: "https://freemium-recommendation.tripico.fun"
+  openapiServerUrl: "https://recommendation-freemium.tripico.fun"
 
 # Autoscaling configuration
 autoscaling:
@@ -120,3 +120,5 @@ certificate:
   name: recommendation-freemium-tls-cert
   issuerName: letsencrypt-prod
   secretName: recommendation-freemium-tls
+  dnsNames:
+    - recommendation.tripico.fun
