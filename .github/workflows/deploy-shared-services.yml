@@ -1,0 +1,193 @@
+name: Deploy Shared Services (Weather & Travel Warnings)
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - feature/namespaces-01
+    paths:
+      - 'services/weather-forecast-service/**'
+      - 'services/travel_warnings/**'
+      - '.github/workflows/deploy-shared-services.yml'
+
+jobs:
+  setup-namespace:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE Credentials
+        run: |
+          gcloud container clusters get-credentials tripico-cluster \
+            --region europe-west1 \
+            --project ${{ vars.PROJECT_ID }}
+
+      - name: Create Shared Namespace
+        run: |
+          echo "Creating shared namespace..."
+          kubectl apply -f infrastructure/kubernetes/namespaces/namespaces.yaml
+
+          echo "Waiting for shared namespace to be ready..."
+          kubectl wait --for=jsonpath='{.status.phase}'=Active namespace/shared --timeout=60s
+
+          echo "Shared namespace ready"
+
+      - name: Apply Network Policies
+        run: |
+          echo "Applying network policies..."
+          kubectl apply -f infrastructure/kubernetes/namespaces/network-policies.yaml
+          echo "Network policies applied successfully"
+
+  deploy-shared-services:
+    needs: setup-namespace
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
+    permissions:
+      contents: read
+      id-token: write
+
+    strategy:
+      matrix:
+        service:
+          - name: weather-forecast
+            chart: services/weather-forecast-service/helm/weather-forecast-service
+            values_dev: services/weather-forecast-service/helm/weather-forecast-service/values-shared-dev.yaml
+            values_prod: services/weather-forecast-service/helm/weather-forecast-service/values-shared-prod.yaml
+            domain_dev: "weather.dev.tripico.fun"
+            domain_prod: "weather.tripico.fun"
+          - name: travel-warnings
+            chart: services/travel_warnings/travel-warnings-chart
+            values_dev: services/travel_warnings/travel-warnings-chart/values-shared-dev.yaml
+            values_prod: services/travel_warnings/travel-warnings-chart/values-shared-prod.yaml
+            domain_dev: "warnings.dev.tripico.fun"
+            domain_prod: "warnings.tripico.fun"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE Credentials
+        run: |
+          gcloud container clusters get-credentials tripico-cluster \
+            --region europe-west1 \
+            --project ${{ vars.PROJECT_ID }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.13.0'
+
+      - name: Deploy ${{ matrix.service.name }} to shared namespace
+        env:
+          DEPLOY_ENV: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+        run: |
+          VALUES_FILE=${{ matrix.service.values_dev }}
+          DOMAIN=${{ matrix.service.domain_dev }}
+
+          if [ "$DEPLOY_ENV" = "prod" ]; then
+            VALUES_FILE=${{ matrix.service.values_prod }}
+            DOMAIN=${{ matrix.service.domain_prod }}
+          fi
+
+          echo "Deploying ${{ matrix.service.name }} to shared namespace"
+          echo "Environment: $DEPLOY_ENV"
+          echo "Values file: $VALUES_FILE"
+          echo "Domain: $DOMAIN"
+
+          # Build common helm arguments
+          HELM_ARGS="--namespace shared --create-namespace --values $VALUES_FILE"
+          HELM_ARGS="$HELM_ARGS --set ingress.prod.host=$DOMAIN"
+          HELM_ARGS="$HELM_ARGS --set ingress.prod.tlsSecretName=${{ matrix.service.name }}-tls"
+
+          # Add service-specific secrets
+          if [ "${{ matrix.service.name }}" = "weather-forecast" ]; then
+            HELM_ARGS="$HELM_ARGS --set meteosource.apiKey=${{ secrets.METEOSOURCE_API_KEY }}"
+            # Optionally override image with vars.PROJECT_ID
+            HELM_ARGS="$HELM_ARGS --set weatherForecastApi.image=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/weather-forecast-service:latest"
+          elif [ "${{ matrix.service.name }}" = "travel-warnings" ]; then
+            HELM_ARGS="$HELM_ARGS --set smtp.user=${{ secrets.SMTP_USER }}"
+            HELM_ARGS="$HELM_ARGS --set smtp.password=${{ secrets.SMTP_PASSWORD }}"
+            # Optionally override image with vars.PROJECT_ID
+            HELM_ARGS="$HELM_ARGS --set travelWarningsApi.image=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/travel-warnings:latest"
+          fi
+
+          helm upgrade --install ${{ matrix.service.name }} ${{ matrix.service.chart }} \
+            $HELM_ARGS \
+            --wait \
+            --timeout 10m
+
+  verify-deployment:
+    needs: deploy-shared-services
+    if: always() && needs.deploy-shared-services.result == 'success'
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE Credentials
+        run: |
+          gcloud container clusters get-credentials tripico-cluster \
+            --region europe-west1 \
+            --project ${{ vars.PROJECT_ID }}
+
+      - name: Verify Shared Services Deployment
+        run: |
+          echo "========== SHARED NAMESPACE =========="
+          kubectl get all -n shared
+          echo ""
+          echo "========== INGRESSES =========="
+          kubectl get ingress -n shared
+          echo ""
+          echo "========== CERTIFICATES =========="
+          kubectl get certificate -n shared
+          echo ""
+          echo "========== PODS DETAILS =========="
+          kubectl get pods -n shared -o wide
+          echo ""
+          echo "========== SERVICES =========="
+          kubectl get svc -n shared
