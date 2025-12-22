@@ -8,10 +8,12 @@ nameOverride: ""
 fullnameOverride: ""
 
 serviceAccount:
-  create: true
   annotations:
-    iam.gke.io/gcp-service-account: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
-  name: "comments-likes-sa-freemium"
+    # This must match the GCP service account created by Terraform
+    iam.gke.io/gcp-service-account: "tripico-sa@iaas-476910.iam.gserviceaccount.com"
+
+# Backend URL
+backendUrl: "https://cl-freemium.dev.tripico.fun"
 
 podAnnotations:
   tier: freemium

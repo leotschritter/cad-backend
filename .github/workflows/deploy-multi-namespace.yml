@@ -112,8 +112,8 @@ jobs:
             chart: services/comments-likes-service/comments-likes-chart
             values_dev: services/comments-likes-service/comments-likes-chart/values-freemium-dev.yaml
             values_prod: services/comments-likes-service/comments-likes-chart/values-freemium-prod.yaml
-            domain_dev: "comments-likes-freemium.dev.tripico.fun"
-            domain_prod: "comments-likes-freemium.tripico.fun"
+            domain_dev: "cl-freemium.dev.tripico.fun"
+            domain_prod: "cl-freemium.tripico.fun"
 
     steps:
       - uses: actions/checkout@v4

@@ -110,7 +110,7 @@ autoscaling:
 ingress:
   name: recommendation-ingress
   enabled: true
-  useProd: false
+  useProd: true
   dev:
     host: ""
     tlsSecretName: ""

@@ -8,10 +8,8 @@ nameOverride: ""
 fullnameOverride: ""
 
 serviceAccount:
-  create: true
   annotations:
     iam.gke.io/gcp-service-account: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
-  name: "itinerary-service-sa-freemium"
 
 gcp:
   projectId: "graphite-plane-474510-s9"

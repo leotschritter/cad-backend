@@ -3,15 +3,26 @@ namespaceOverride: freemium
 
 replicaCount: 2
 
+image:
+  repository: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/comments-likes-service
+  pullPolicy: Always
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
 serviceAccount:
-  create: true
   annotations:
+    # This must match the GCP service account created by Terraform
     iam.gke.io/gcp-service-account: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
-  name: "comments-likes-sa-freemium"
+
+# GCP configuration
+gcp:
+  projectId: "graphite-plane-474510-s9"
+  serviceAccountEmail: "comments-likes-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+
+# Backend URL
+backendUrl: "https://cl-freemium.tripico.fun"
 
 podAnnotations:
   tier: freemium
