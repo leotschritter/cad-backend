@@ -15,7 +15,6 @@ on:
         type: choice
         options:
           - all
-          - shared
           - freemium
           - standard
         default: all
@@ -27,17 +26,26 @@ on:
           - prod
           - dev
         default: prod
+      tenant_number:
+        description: 'Tenant number for standard tier (e.g., 1, 2, 3)'
+        required: false
+        type: string
+        default: '1'
+  repository_dispatch:
+    types: [deploy-multi-namespace]
 
 jobs:
   setup-namespaces:
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
     permissions:
       contents: read
       id-token: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.ref || github.ref }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -76,92 +84,11 @@ jobs:
 
           echo "Network policies applied successfully"
 
-  deploy-shared-services:
-    needs: setup-namespaces
-    if: ${{ github.event_name == 'push' || inputs.tier == 'all' || inputs.tier == 'shared' }}
-    runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
-    permissions:
-      contents: read
-      id-token: write
-
-    strategy:
-      matrix:
-        service:
-          - name: weather-forecast
-            chart: services/weather-forecast-service/helm/weather-forecast-service
-            values_dev: services/weather-forecast-service/helm/weather-forecast-service/values-shared-dev.yaml
-            values_prod: services/weather-forecast-service/helm/weather-forecast-service/values-shared-prod.yaml
-            domain_dev: "weather.dev.tripico.fun"
-            domain_prod: "weather.tripico.fun"
-          - name: travel-warnings
-            chart: services/travel_warnings/travel-warnings-chart
-            values_dev: services/travel_warnings/travel-warnings-chart/values-shared-dev.yaml
-            values_prod: services/travel_warnings/travel-warnings-chart/values-shared-prod.yaml
-            domain_dev: "warnings.dev.tripico.fun"
-            domain_prod: "warnings.tripico.fun"
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Install GKE Auth Plugin
-        run: |
-          gcloud components install gke-gcloud-auth-plugin --quiet
-
-      - name: Get GKE Credentials
-        run: |
-          gcloud container clusters get-credentials tripico-cluster \
-            --region europe-west1 \
-            --project ${{ vars.PROJECT_ID }}
-
-      - name: Install Helm
-        uses: azure/setup-helm@v4
-        with:
-          version: '3.13.0'
-
-      - name: Deploy ${{ matrix.service.name }} to shared namespace
-        env:
-          DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
-        run: |
-          VALUES_FILE=${{ matrix.service.values_dev }}
-          DOMAIN=${{ matrix.service.domain_dev }}
-          
-          if [ "$DEPLOY_ENV" = "prod" ]; then
-            VALUES_FILE=${{ matrix.service.values_prod }}
-            DOMAIN=${{ matrix.service.domain_prod }}
-          fi
-
-          # Build common helm arguments
-          HELM_ARGS="--namespace shared --create-namespace --values $VALUES_FILE"
-          HELM_ARGS="$HELM_ARGS --set ingress.prod.host=$DOMAIN"
-          HELM_ARGS="$HELM_ARGS --set ingress.prod.tlsSecretName=${{ matrix.service.name }}-tls"
-
-          # Add service-specific secrets
-          if [ "${{ matrix.service.name }}" = "weather-forecast" ]; then
-            HELM_ARGS="$HELM_ARGS --set meteosource.apiKey=${{ secrets.METEOSOURCE_API_KEY }}"
-          elif [ "${{ matrix.service.name }}" = "travel-warnings" ]; then
-            HELM_ARGS="$HELM_ARGS --set smtp.user=${{ secrets.SMTP_USER }}"
-            HELM_ARGS="$HELM_ARGS --set smtp.password=${{ secrets.SMTP_PASSWORD }}"
-          fi
-
-          helm upgrade --install ${{ matrix.service.name }} ${{ matrix.service.chart }} \
-            $HELM_ARGS \
-            --wait \
-            --timeout 10m
-
   deploy-freemium-services:
     needs: setup-namespaces
-    if: ${{ github.event_name == 'push' || inputs.tier == 'all' || inputs.tier == 'freemium' }}
+    if: ${{ github.event_name == 'push' || github.event.client_payload.tier == 'all' || github.event.client_payload.tier == 'freemium' || inputs.tier == 'all' || inputs.tier == 'freemium' }}
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
     permissions:
       contents: read
       id-token: write
@@ -190,6 +117,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.ref || github.ref }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -240,9 +169,9 @@ jobs:
 
   deploy-standard-services:
     needs: setup-namespaces
-    if: ${{ github.event_name == 'push' || inputs.tier == 'all' || inputs.tier == 'standard' }}
+    if: ${{ github.event_name == 'push' || github.event.client_payload.tier == 'all' || github.event.client_payload.tier == 'standard' || inputs.tier == 'all' || inputs.tier == 'standard' }}
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
     permissions:
       contents: read
       id-token: write
@@ -271,6 +200,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.ref || github.ref }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -297,43 +228,55 @@ jobs:
 
       - name: Deploy ${{ matrix.service.name }} to standard namespace
         env:
-          DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
+          DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event.client_payload.environment || 'dev' }}
+          TENANT_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_number || github.event.client_payload.tenant_number || '1' }}
         run: |
           VALUES_FILE=${{ matrix.service.values_dev }}
           DOMAIN=${{ matrix.service.domain_dev }}
-          
+
           if [ "$DEPLOY_ENV" = "prod" ]; then
             VALUES_FILE=${{ matrix.service.values_prod }}
             DOMAIN=${{ matrix.service.domain_prod }}
           fi
 
-          helm upgrade --install ${{ matrix.service.name }}-standard ${{ matrix.service.chart }} \
-            --namespace standard \
+          # Build namespace with tenant number: standard-1, standard-2, etc.
+          NAMESPACE="standard-${TENANT_NUMBER}"
+
+          # Update domain to include tenant number
+          DOMAIN="${DOMAIN/standard/standard-${TENANT_NUMBER}}"
+
+          echo "Deploying to namespace: $NAMESPACE"
+          echo "Domain: $DOMAIN"
+          echo "Tenant number: $TENANT_NUMBER"
+
+          helm upgrade --install ${{ matrix.service.name }}-standard-${TENANT_NUMBER} ${{ matrix.service.chart }} \
+            --namespace $NAMESPACE \
             --create-namespace \
             --values $VALUES_FILE \
             --set database.password=${{ secrets.DB_PASSWORD_STANDARD }} \
             --set database.url=${{ secrets.DB_URL_STANDARD }} \
             --set neo4j.password=${{ secrets.NEO4J_PASSWORD_STANDARD }} \
             --set ingress.host="$DOMAIN" \
-            --set ingress.tlsSecretName="${{ matrix.service.name }}-standard-tls" \
+            --set ingress.tlsSecretName="${{ matrix.service.name }}-standard-${TENANT_NUMBER}-tls" \
             --wait \
             --timeout 10m
 
   verify-deployment:
-    needs: [deploy-shared-services, deploy-freemium-services, deploy-standard-services]
+    needs: [deploy-freemium-services, deploy-standard-services]
     if: |
       always() &&
-      (needs.deploy-shared-services.result == 'success' || needs.deploy-shared-services.result == 'skipped') &&
       (needs.deploy-freemium-services.result == 'success' || needs.deploy-freemium-services.result == 'skipped') &&
       (needs.deploy-standard-services.result == 'success' || needs.deploy-standard-services.result == 'skipped')
     runs-on: ubuntu-latest
-    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
     permissions:
       contents: read
       id-token: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.ref || github.ref }}
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
