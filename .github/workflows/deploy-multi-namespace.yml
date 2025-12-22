@@ -139,13 +139,21 @@ jobs:
             DOMAIN=${{ matrix.service.domain_prod }}
           fi
 
+          # Build common helm arguments
+          HELM_ARGS="--namespace shared --create-namespace --values $VALUES_FILE"
+          HELM_ARGS="$HELM_ARGS --set ingress.prod.host=$DOMAIN"
+          HELM_ARGS="$HELM_ARGS --set ingress.prod.tlsSecretName=${{ matrix.service.name }}-tls"
+
+          # Add service-specific secrets
+          if [ "${{ matrix.service.name }}" = "weather-forecast" ]; then
+            HELM_ARGS="$HELM_ARGS --set meteosource.apiKey=${{ secrets.METEOSOURCE_API_KEY }}"
+          elif [ "${{ matrix.service.name }}" = "travel-warnings" ]; then
+            HELM_ARGS="$HELM_ARGS --set smtp.user=${{ secrets.SMTP_USER }}"
+            HELM_ARGS="$HELM_ARGS --set smtp.password=${{ secrets.SMTP_PASSWORD }}"
+          fi
+
           helm upgrade --install ${{ matrix.service.name }} ${{ matrix.service.chart }} \
-            --namespace shared \
-            --create-namespace \
-            --values $VALUES_FILE \
-            --set meteosource.apiKey=${{ secrets.METEOSOURCE_API_KEY }} \
-            --set ingress.host="$DOMAIN" \
-            --set ingress.tlsSecretName="${{ matrix.service.name }}-tls" \
+            $HELM_ARGS \
             --wait \
             --timeout 10m
 
