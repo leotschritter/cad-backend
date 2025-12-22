@@ -13,6 +13,7 @@ commonLabels:
 travelWarningsApi:
   name: travel-warnings-service
   port: 8080
+  image: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/travel-warnings:latest
   replicas: 2  # Increased replicas for shared usage
 
   strategy:
@@ -70,3 +71,8 @@ certificate:
   name: warnings-tls-cert
   secretName: warnings-tls
   issuerName: letsencrypt-prod
+
+# SMTP credentials should be provided via --set or secrets
+smtp:
+  user: ""  # Set via --set smtp.user=XXX
+  password: ""  # Set via --set smtp.password=XXX

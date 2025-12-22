@@ -54,7 +54,7 @@ travelWarningsApi:
 ingress:
   name: travel-warnings-ingress
   enabled: true
-  useProd: false
+  useProd: true
   prod:
     host: ""
     tlsSecretName: ""

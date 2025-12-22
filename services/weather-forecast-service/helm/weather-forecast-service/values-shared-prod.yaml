@@ -35,7 +35,7 @@ postgresPvc:
 
 weatherForecastApi:
   name: weather-forecast-service
-  image: ghcr.io/leotschritter/weather-forecast-service:latest
+  image: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/weather-forecast-service:latest
   port: 8080
   replicas: 2  # Increased replicas for shared service
 
@@ -107,8 +107,6 @@ ingress:
     tlsSecretName: ""
     sslRedirect: "true"
     forceSslRedirect: "true"
-  dev:
-    host: weather-forecast.local
 
 # Autoscaling configuration - increased for shared usage
 autoscaling:
