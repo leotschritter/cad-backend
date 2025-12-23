@@ -85,6 +85,7 @@ recommendationApi:
 
 recommendationConfig:
   name: recommendation-service-config
+  googleCloudProject: "graphite-plane-474510-s9"
   neo4j:
     uri: "bolt://neo4j-service:7687"
     username: "neo4j"

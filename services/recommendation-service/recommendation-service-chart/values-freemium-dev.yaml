@@ -91,6 +91,7 @@ recommendationConfig:
   neo4j:
     uri: "bolt://neo4j-service-freemium.freemium.svc.cluster.local:7687"
     username: "neo4j"
+  googleCloudProject: "iaas-476910"
   itineraryServiceUrl: "http://itinerary-service.freemium.svc.cluster.local:8080"
   identityPlatform:
     authEnabled: "true"  # Disabled for dev

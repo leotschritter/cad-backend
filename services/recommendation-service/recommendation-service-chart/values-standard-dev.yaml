@@ -88,6 +88,7 @@ recommendationApi:
 
 recommendationConfig:
   name: recommendation-service-config
+  googleCloudProject: "iaas-476910"
   neo4j:
     uri: "bolt://neo4j-service-pro.standard.svc.cluster.local:7687"
     username: "neo4j"
