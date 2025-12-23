@@ -112,8 +112,8 @@ ingress:
 # Autoscaling configuration
 autoscaling:
   enabled: true
-  minReplicas: 3
-  maxReplicas: 20
+  minReplicas: 2
+  maxReplicas: 4
   targetCPUUtilizationPercentage: 70
 
 certificate:
