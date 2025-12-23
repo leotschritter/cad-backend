@@ -157,9 +157,9 @@ jobs:
 
           # Build helm arguments based on service type
           HELM_ARGS="--namespace freemium --create-namespace --values $VALUES_FILE"
-          HELM_ARGS="$HELM_ARGS --set database.password=${{ secrets.DB_PASSWORD_FREEMIUM }}"
-          HELM_ARGS="$HELM_ARGS --set database.url=${{ secrets.DB_URL_FREEMIUM }}"
-          HELM_ARGS="$HELM_ARGS --set neo4j.password=${{ secrets.NEO4J_PASSWORD_FREEMIUM }}"
+          HELM_ARGS="$HELM_ARGS --set database.password=${{ secrets.DB_PASSWORD }}"
+          HELM_ARGS="$HELM_ARGS --set database.url=${{ secrets.DB_URL }}"
+          HELM_ARGS="$HELM_ARGS --set neo4j.password=${{ secrets.NEO4J_PASSWORD }}"
 
           # recommendation-service uses ingress.prod.* for prod and ingress.dev.* for dev
           if [ "${{ matrix.service.name }}" = "recommendation-service" ]; then
@@ -265,9 +265,9 @@ jobs:
 
           # Build helm arguments
           HELM_ARGS="--namespace $NAMESPACE --create-namespace --values $VALUES_FILE"
-          HELM_ARGS="$HELM_ARGS --set database.password=${{ secrets.DB_PASSWORD_STANDARD }}"
-          HELM_ARGS="$HELM_ARGS --set database.url=${{ secrets.DB_URL_STANDARD }}"
-          HELM_ARGS="$HELM_ARGS --set neo4j.password=${{ secrets.NEO4J_PASSWORD_STANDARD }}"
+          HELM_ARGS="$HELM_ARGS --set database.password=${{ secrets.DB_PASSWORD }}"
+          HELM_ARGS="$HELM_ARGS --set database.url=${{ secrets.DB_URL }}"
+          HELM_ARGS="$HELM_ARGS --set neo4j.password=${{ secrets.NEO4J_PASSWORD }}"
 
           # recommendation-service uses ingress.prod.* for prod and ingress.dev.* for dev
           if [ "${{ matrix.service.name }}" = "recommendation-service" ]; then
