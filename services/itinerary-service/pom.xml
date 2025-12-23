@@ -20,7 +20,6 @@
         <commons-lang3.version>3.18.0</commons-lang3.version>
         <org.mapstruct.version>1.6.3</org.mapstruct.version>
         <lombok.version>1.18.38</lombok.version>
-        <cloud-sql.version>1.19.1</cloud-sql.version>
     </properties>
 
     <dependencyManagement>
@@ -89,12 +88,6 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-jdbc-postgresql</artifactId>
-        </dependency>
-        <!-- Google Cloud SQL Socket Factory -->
-        <dependency>
-            <groupId>com.google.cloud.sql</groupId>
-            <artifactId>postgres-socket-factory</artifactId>
-            <version>${cloud-sql.version}</version>
         </dependency>
 
         <!-- Testing -->

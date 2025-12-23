@@ -34,3 +34,99 @@ ingress:
   host: ""
   # TLS secret name will be set via --set ingress.tlsSecretName in pipeline
   tlsSecretName: ""
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 70
+
+# Quarkus application configuration
+quarkus:
+  http:
+    port: 8080
+    host: "0.0.0.0"
+  profile: "dev"
+
+# Database configuration
+database:
+  user: "itinerary_user"
+  password: "" # provided via --set
+  url: "jdbc:postgresql://itinerary-postgres-standard:5432/itinerary_db"
+
+# PostgreSQL Database Pod Configuration
+postgres:
+  name: itinerary-postgres-standard
+  image: postgres:15-alpine
+  port: 5432
+  replicas: 1
+  environmentVariables:
+    database: itinerary_db
+    user: itinerary_user
+    pgdata: /var/lib/postgresql/data/pgdata
+  volumeMounts:
+    mountPath: /var/lib/postgresql/data
+    name: itinerary-postgres-storage
+  readinessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+postgresPvc:
+  name: itinerary-postgres-standard-pvc
+  storage: 5Gi
+
+# GCP Configuration
+gcp:
+  projectId: "graphite-plane-474510-s9"
+  serviceAccountEmail: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+  bucketName: "graphite-plane-474510-s9-tripico-images"
+
+backendUrl: "https://itinerary-standard.dev.tripico.fun"
+
+# Identity Platform Authentication Configuration
+identityPlatform:
+  authEnabled: "true"
+  primaryHeader: "X-Forwarded-Authorization"
+  fallbackHeader: "Authorization"
+
+# Service discovery for shared services
+sharedServices:
+  weatherService:
+    url: "http://weather-forecast-service.shared.svc.cluster.local:8080"
+  travelWarningsService:
+    url: "http://travel-warnings-service.shared.svc.cluster.local:8080"
+
+# Health check probes
+probes:
+  startup:
+    httpGet:
+      path: /q/health/started
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+  liveness:
+    httpGet:
+      path: /q/health/live
+      port: 8080
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 5
+  readiness:
+    httpGet:
+      path: /q/health/ready
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5

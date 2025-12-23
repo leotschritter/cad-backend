@@ -63,9 +63,32 @@ quarkus:
 
 # Database configuration - separate DB for freemium dev
 database:
-  user: "cad_db_user"
+  user: "itinerary_user"
   password: "" # provided via --set
-  url: "" # provided via --set - should point to freemium dev DB instance
+  url: "jdbc:postgresql://itinerary-postgres-freemium:5432/itinerary_db"
+
+# PostgreSQL Database Pod Configuration
+postgres:
+  name: itinerary-postgres-freemium
+  image: postgres:15-alpine
+  port: 5432
+  replicas: 1
+  environmentVariables:
+    database: itinerary_db
+    user: itinerary_user
+    pgdata: /var/lib/postgresql/data/pgdata
+  volumeMounts:
+    mountPath: /var/lib/postgresql/data
+    name: itinerary-postgres-storage
+  readinessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+postgresPvc:
+  name: itinerary-postgres-freemium-pvc
+  storage: 5Gi
 
 # Identity Platform Authentication Configuration
 identityPlatform:
