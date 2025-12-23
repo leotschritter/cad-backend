@@ -161,15 +161,10 @@ jobs:
           HELM_ARGS="$HELM_ARGS --set database.url=${{ secrets.DB_URL }}"
           HELM_ARGS="$HELM_ARGS --set neo4j.password=${{ secrets.NEO4J_PASSWORD }}"
 
-          # recommendation-service uses ingress.prod.* for prod and ingress.dev.* for dev
+          # recommendation-service uses ingress.prod.* for both dev and prod
           if [ "${{ matrix.service.name }}" = "recommendation-service" ]; then
-            if [ "$DEPLOY_ENV" = "prod" ]; then
-              HELM_ARGS="$HELM_ARGS --set ingress.prod.host=$DOMAIN"
-              HELM_ARGS="$HELM_ARGS --set ingress.prod.tlsSecretName=${{ matrix.service.name }}-freemium-tls"
-            else
-              HELM_ARGS="$HELM_ARGS --set ingress.dev.host=$DOMAIN"
-              HELM_ARGS="$HELM_ARGS --set ingress.dev.tlsSecretName=${{ matrix.service.name }}-freemium-tls"
-            fi
+            HELM_ARGS="$HELM_ARGS --set ingress.prod.host=$DOMAIN"
+            HELM_ARGS="$HELM_ARGS --set ingress.prod.tlsSecretName=${{ matrix.service.name }}-freemium-tls"
           else
             # Other services use ingress.host
             HELM_ARGS="$HELM_ARGS --set ingress.host=$DOMAIN"
@@ -269,15 +264,10 @@ jobs:
           HELM_ARGS="$HELM_ARGS --set database.url=${{ secrets.DB_URL }}"
           HELM_ARGS="$HELM_ARGS --set neo4j.password=${{ secrets.NEO4J_PASSWORD }}"
 
-          # recommendation-service uses ingress.prod.* for prod and ingress.dev.* for dev
+          # recommendation-service uses ingress.prod.* for both dev and prod
           if [ "${{ matrix.service.name }}" = "recommendation-service" ]; then
-            if [ "$DEPLOY_ENV" = "prod" ]; then
-              HELM_ARGS="$HELM_ARGS --set ingress.prod.host=$DOMAIN"
-              HELM_ARGS="$HELM_ARGS --set ingress.prod.tlsSecretName=${{ matrix.service.name }}-standard-${TENANT_NUMBER}-tls"
-            else
-              HELM_ARGS="$HELM_ARGS --set ingress.dev.host=$DOMAIN"
-              HELM_ARGS="$HELM_ARGS --set ingress.dev.tlsSecretName=${{ matrix.service.name }}-standard-${TENANT_NUMBER}-tls"
-            fi
+            HELM_ARGS="$HELM_ARGS --set ingress.prod.host=$DOMAIN"
+            HELM_ARGS="$HELM_ARGS --set ingress.prod.tlsSecretName=${{ matrix.service.name }}-standard-${TENANT_NUMBER}-tls"
           else
             # Other services use ingress.host
             HELM_ARGS="$HELM_ARGS --set ingress.host=$DOMAIN"
