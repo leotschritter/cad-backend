@@ -7,10 +7,19 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+image:
+  repository: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/comments-likes-service
+  pullPolicy: Always
+# Lower resources for dev
+
 serviceAccount:
   annotations:
     # This must match the GCP service account created by Terraform
     iam.gke.io/gcp-service-account: "tripico-sa@iaas-476910.iam.gserviceaccount.com"
+
+gcp:
+  projectId: "iaas-476910"
+  serviceAccountEmail: "comments-likes-sa@iaas-476910.iam.gserviceaccount.com"
 
 # Backend URL
 backendUrl: "https://cl-freemium.dev.tripico.fun"
