@@ -65,7 +65,7 @@ quarkus:
 database:
   user: "itinerary_user"
   password: "" # provided via --set
-  url: "jdbc:postgresql://itinerary-postgres-freemium:5432/itinerary_db"
+  url: "jdbc:postgresql://itinerary-postgres-freemium.freemium.svc.cluster.local:5432/itinerary_db"
 
 # PostgreSQL Database Pod Configuration
 postgres:
