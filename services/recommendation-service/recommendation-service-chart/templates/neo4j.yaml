@@ -1,9 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.neo4j.name }}
+  name: {{ include "recommendation-service.fullname" . }}-neo4j
   labels:
-    app: {{ .Values.neo4j.name }}
+    app: {{ include "recommendation-service.fullname" . }}-neo4j
+    {{- include "recommendation-service.neo4j.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.neo4j.replicas }}
   {{- if .Values.neo4j.strategy }}
@@ -12,15 +13,15 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      app: {{ .Values.neo4j.name }}
+      app: {{ include "recommendation-service.fullname" . }}-neo4j
   template:
     metadata:
       labels:
-        app: {{ .Values.neo4j.name }}
+        app: {{ include "recommendation-service.fullname" . }}-neo4j
     spec:
       enableServiceLinks: false
       containers:
-        - name: {{ .Values.neo4j.name }}
+        - name: neo4j
           image: {{ .Values.neo4j.image }}
           imagePullPolicy: IfNotPresent
           ports:
@@ -69,18 +70,19 @@ spec:
       volumes:
         - name: {{ .Values.neo4j.volumeMounts.name }}
           persistentVolumeClaim:
-            claimName: {{ .Values.neo4jPvc.name }}
+            claimName: {{ include "recommendation-service.fullname" . }}-neo4j-pvc
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: neo4j-service-{{ .Values.commonLabels.tier | default "default" }}
+  name: {{ include "recommendation-service.fullname" . }}-neo4j
   labels:
-    app: {{ .Values.neo4j.name }}
+    app: {{ include "recommendation-service.fullname" . }}-neo4j
+    {{- include "recommendation-service.neo4j.labels" . | nindent 4 }}
 spec:
   type: ClusterIP
   selector:
-    app: {{ .Values.neo4j.name }}
+    app: {{ include "recommendation-service.fullname" . }}-neo4j
   ports:
     - port: {{ .Values.neo4j.port.bolt }}
       targetPort: {{ .Values.neo4j.port.bolt }}

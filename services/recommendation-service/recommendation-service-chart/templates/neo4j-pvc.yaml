@@ -1,7 +1,10 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Values.neo4jPvc.name }}
+  name: {{ include "recommendation-service.fullname" . }}-neo4j-pvc
+  labels:
+    app: {{ include "recommendation-service.fullname" . }}-neo4j
+    {{- include "recommendation-service.neo4j.labels" . | nindent 4 }}
 spec:
   accessModes:
     - ReadWriteOnce
