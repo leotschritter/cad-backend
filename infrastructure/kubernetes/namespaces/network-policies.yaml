@@ -69,18 +69,14 @@ spec:
   # Allow within same namespace
   - to:
     - podSelector: {}
-  # Allow DNS
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: kube-system
-    ports:
+  # Allow DNS - removed namespace selector to allow any DNS server
+  - ports:
     - protocol: UDP
       port: 53
+    - protocol: TCP
+      port: 53
   # Allow external traffic (internet)
-  - to:
-    - namespaceSelector: {}
-    ports:
+  - ports:
     - protocol: TCP
       port: 443
     - protocol: TCP
@@ -121,18 +117,14 @@ spec:
   # Allow within same namespace
   - to:
     - podSelector: {}
-  # Allow DNS
-  - to:
-    - namespaceSelector:
-        matchLabels:
-          name: kube-system
-    ports:
+  # Allow DNS - removed namespace selector to allow any DNS server
+  - ports:
     - protocol: UDP
       port: 53
+    - protocol: TCP
+      port: 53
   # Allow external traffic (internet)
-  - to:
-    - namespaceSelector: {}
-    ports:
+  - ports:
     - protocol: TCP
       port: 443
     - protocol: TCP
