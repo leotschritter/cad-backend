@@ -21,7 +21,7 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: {{ .Values.recommendationApi.name }}
+                name: {{ include "recommendation-service-chart.fullname" . }}
                 port:
                   number: {{ .Values.recommendationApi.port }}
 {{- end }}

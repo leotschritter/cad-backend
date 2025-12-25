@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.recommendationApi.name }}
+  name: {{ include "recommendation-service-chart.fullname" . }}
   labels:
-    app: {{ .Values.recommendationApi.name }}
+    app: {{ include "recommendation-service-chart.fullname" . }}
     service: recommendation
 spec:
   replicas: {{ .Values.recommendationApi.replicas }}
@@ -16,11 +16,11 @@ spec:
     {{- end }}
   selector:
     matchLabels:
-      app: {{ .Values.recommendationApi.name }}
+      app: {{ include "recommendation-service-chart.fullname" . }}
   template:
     metadata:
       labels:
-        app: {{ .Values.recommendationApi.name }}
+        app: {{ include "recommendation-service-chart.fullname" . }}
         service: recommendation
     spec:
       enableServiceLinks: false
@@ -129,11 +129,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Values.recommendationApi.name }}
+  name: {{ include "recommendation-service-chart.fullname" . }}
 spec:
   type: ClusterIP
   selector:
-    app: {{ .Values.recommendationApi.name }}
+    app: {{ include "recommendation-service-chart.fullname" . }}
   ports:
     - name: http
       port: {{ .Values.recommendationApi.port }}
