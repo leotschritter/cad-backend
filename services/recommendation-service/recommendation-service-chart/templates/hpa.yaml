@@ -2,15 +2,15 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "recommendation-service-chart.fullname" . }}-hpa
+  name: {{ include "recommendation-service.fullname" . }}-hpa
   labels:
-    app: {{ include "recommendation-service-chart.fullname" . }}
+    app: {{ include "recommendation-service.fullname" . }}
     service: recommendation
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "recommendation-service-chart.fullname" . }}
+    name: {{ include "recommendation-service.fullname" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:

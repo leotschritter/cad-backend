@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "recommendation-service-chart.name" -}}
+{{- define "recommendation-service.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Create a default fully qualified app name.
 */}}
-{{- define "recommendation-service-chart.fullname" -}}
+{{- define "recommendation-service.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -24,16 +24,16 @@ Create a default fully qualified app name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "recommendation-service-chart.chart" -}}
+{{- define "recommendation-service.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "recommendation-service-chart.labels" -}}
-helm.sh/chart: {{ include "recommendation-service-chart.chart" . }}
-{{ include "recommendation-service-chart.selectorLabels" . }}
+{{- define "recommendation-service.labels" -}}
+helm.sh/chart: {{ include "recommendation-service.chart" . }}
+{{ include "recommendation-service.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -46,23 +46,23 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "recommendation-service-chart.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "recommendation-service-chart.name" . }}
+{{- define "recommendation-service.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "recommendation-service.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
 Neo4j labels
 */}}
-{{- define "recommendation-service-chart.neo4j.labels" -}}
-{{ include "recommendation-service-chart.labels" . }}
+{{- define "recommendation-service.neo4j.labels" -}}
+{{ include "recommendation-service.labels" . }}
 app.kubernetes.io/component: database
 {{- end }}
 
 {{/*
 API labels
 */}}
-{{- define "recommendation-service-chart.api.labels" -}}
-{{ include "recommendation-service-chart.labels" . }}
+{{- define "recommendation-service.api.labels" -}}
+{{ include "recommendation-service.labels" . }}
 app.kubernetes.io/component: api
 {{- end }}
