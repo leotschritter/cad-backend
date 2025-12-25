@@ -271,6 +271,9 @@ jobs:
           # All services use their own PostgreSQL pods - database.url is set in values files
           HELM_ARGS="$HELM_ARGS --set neo4j.password=${{ secrets.NEO4J_PASSWORD }}"
 
+          # Set backendUrl based on the domain (for services that use it)
+          HELM_ARGS="$HELM_ARGS --set backendUrl=https://$DOMAIN"
+
           # recommendation-service uses ingress.prod.* for both dev and prod
           if [ "${{ matrix.service.name }}" = "recommendation-service" ]; then
             HELM_ARGS="$HELM_ARGS --set ingress.prod.host=$DOMAIN"

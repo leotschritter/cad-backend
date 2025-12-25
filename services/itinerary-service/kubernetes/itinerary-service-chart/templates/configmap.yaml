@@ -6,7 +6,7 @@ metadata:
     {{- include "itinerary-service.labels" . | nindent 4 }}
 data:
   db_user: {{ .Values.database.user | quote }}
-  db_url: {{ .Values.database.url | quote }}
+  db_url: {{ printf "jdbc:postgresql://%s-postgres.%s.svc.cluster.local:5432/itinerary_db" (include "itinerary-service.fullname" .) .Release.Namespace | quote }}
   bucket_name: {{ .Values.gcp.bucketName | quote }}
   project_id: {{ .Values.gcp.projectId | quote }}
   service_account_email: {{ .Values.gcp.serviceAccountEmail | quote }}

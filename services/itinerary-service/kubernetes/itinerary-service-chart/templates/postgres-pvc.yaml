@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: {{ .Values.postgresPvc.name }}
+  name: {{ include "itinerary-service.fullname" . }}-postgres-pvc
   labels:
-    app: {{ .Values.postgres.name }}
+    app: {{ include "itinerary-service.fullname" . }}-postgres
 spec:
   accessModes:
     - ReadWriteOnce

@@ -8,10 +8,17 @@ nameOverride: ""
 fullnameOverride: ""
 
 serviceAccount:
-  create: true
   annotations:
+    # This must match the GCP service account created by Terraform
     iam.gke.io/gcp-service-account: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
-  name: "comments-likes-sa-standard"
+
+# GCP configuration
+gcp:
+  projectId: "graphite-plane-474510-s9"
+  serviceAccountEmail: "comments-likes-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+
+# Backend URL
+backendUrl: ""
 
 podAnnotations:
   tier: standard

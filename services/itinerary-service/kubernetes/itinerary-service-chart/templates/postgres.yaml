@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.postgres.name }}
+  name: {{ include "itinerary-service.fullname" . }}-postgres
 spec:
   replicas: {{ .Values.postgres.replicas }}
   selector:
     matchLabels:
-      app: {{ .Values.postgres.name }}
+      app: {{ include "itinerary-service.fullname" . }}-postgres
   template:
     metadata:
       labels:
-        app: {{ .Values.postgres.name }}
+        app: {{ include "itinerary-service.fullname" . }}-postgres
     spec:
       containers:
         - name: postgres
@@ -45,17 +45,17 @@ spec:
       volumes:
         - name: {{ .Values.postgres.volumeMounts.name }}
           persistentVolumeClaim:
-            claimName: {{ .Values.postgresPvc.name }}
+            claimName: {{ include "itinerary-service.fullname" . }}-postgres-pvc
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Values.postgres.name }}
+  name: {{ include "itinerary-service.fullname" . }}-postgres
 spec:
   type: ClusterIP
   selector:
-    app: {{ .Values.postgres.name }}
+    app: {{ include "itinerary-service.fullname" . }}-postgres
   ports:
     - name: postgres
       port: {{ .Values.postgres.port }}

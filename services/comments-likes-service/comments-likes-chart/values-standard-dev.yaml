@@ -1,17 +1,27 @@
-# Helm values for comments-likes-service in freemium namespace (DEV)
+# Helm values for comments-likes-service in standard namespace (DEV)
 namespaceOverride: standard
 
 replicaCount: 2
+
+image:
+  repository: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/comments-likes-service
+  pullPolicy: Always
 
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
 serviceAccount:
-  create: true
   annotations:
-    iam.gke.io/gcp-service-account: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
-  name: "comments-likes-sa-standard"
+    # This must match the GCP service account created by Terraform
+    iam.gke.io/gcp-service-account: "tripico-sa@iaas-476910.iam.gserviceaccount.com"
+
+gcp:
+  projectId: "iaas-476910"
+  serviceAccountEmail: "comments-likes-sa@iaas-476910.iam.gserviceaccount.com"
+
+# Backend URL - placeholder, will be overridden by pipeline based on ingress domain
+backendUrl: ""
 
 podAnnotations:
   tier: standard
