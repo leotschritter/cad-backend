@@ -88,6 +88,64 @@ spec:
                   name: {{ include "tenant-service.fullname" . }}-config
                   key: mongodb_database
             {{- end }}
+            # SMTP Configuration
+            - name: SMTP_FROM
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: smtp_from
+            - name: SMTP_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: smtp_host
+            - name: SMTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: smtp_port
+            - name: SMTP_START_TLS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: smtp_start_tls
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-smtp-secret
+                  key: smtp_user
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-smtp-secret
+                  key: smtp_password
+            # GitHub Configuration
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-github-secret
+                  key: github_token
+            - name: GITHUB_REPO_OWNER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: github_repo_owner
+            - name: GITHUB_REPO_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: github_repo_name
+            # Tenant Configuration
+            - name: TENANT_BASE_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: tenant_base_domain
+            - name: TENANT_POLLING_INTERVAL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: tenant_polling_interval_seconds
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.probes.startup }}

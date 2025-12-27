@@ -77,6 +77,33 @@ identityPlatform:
   primaryHeader: "X-Forwarded-Authorization"
   fallbackHeader: "Authorization"
 
+# SMTP Configuration for email notifications
+smtp:
+  from: "noreply.tenant@htwg-konstanz.de"
+  host: "smtp.htwg-konstanz.de"
+  port: "587"
+  startTls: "REQUIRED"
+  # Username and password should be provided via --set or separate values file
+  user: ""
+  password: ""
+
+# GitHub Actions Configuration
+github:
+  # GitHub personal access token with workflow permissions
+  # Should be provided via --set or separate values file
+  token: ""
+  repository:
+    owner: ""  # e.g., "your-org"
+    name: ""   # e.g., "cad-backend"
+  workflow:
+    provision: "provision-tenant.yml"
+    deprovision: "deprovision-tenant.yml"
+
+# Tenant Configuration
+tenant:
+  baseDomain: "tripico.fun"
+  pollingIntervalSeconds: "30"
+
 # Health check probes
 probes:
   startup:

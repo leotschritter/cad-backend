@@ -99,3 +99,24 @@ mongodb:
       cpu: 500m
       memory: 1Gi
 
+# SMTP Configuration (provide via --set for security)
+smtp:
+  from: "noreply.tenant@htwg-konstanz.de"
+  host: "smtp.htwg-konstanz.de"
+  port: "587"
+  startTls: "REQUIRED"
+  user: ""  # Set via: --set smtp.user=your-username
+  password: ""  # Set via: --set smtp.password=your-password
+
+# GitHub Configuration (provide via --set for security)
+github:
+  token: ""  # Set via: --set github.token=your-token
+  repository:
+    owner: ""  # Set via: --set github.repository.owner=your-org
+    name: ""   # Set via: --set github.repository.name=your-repo
+
+# Tenant Configuration
+tenant:
+  baseDomain: "tripico.fun"
+  pollingIntervalSeconds: "30"
+

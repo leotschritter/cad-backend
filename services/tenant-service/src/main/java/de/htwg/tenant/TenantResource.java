@@ -1,21 +1,171 @@
 package de.htwg.tenant;
 
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
+import de.htwg.tenant.dto.CreateTenantRequest;
+import de.htwg.tenant.dto.TenantCreatedResponse;
+import de.htwg.tenant.dto.TenantResponse;
+import de.htwg.tenant.model.Tenant;
+import de.htwg.tenant.service.TenantService;
+import jakarta.inject.Inject;
+import jakarta.validation.Valid;
+import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.logging.Logger;
+
+import java.util.List;
+import java.util.Optional;
 
 /**
- * Simple greeting resource to verify the service is running.
- * This can be replaced with actual tenant service endpoints.
+ * REST API for tenant management.
  */
-@Path("/tenants")
+@Path("/api/v1/tenants")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+@Tag(name = "Tenant Management", description = "Endpoints for managing tenants")
 public class TenantResource {
 
-    @GET
-    @Produces(MediaType.TEXT_PLAIN)
-    public String hello() {
-        return "Hello from Tenant Service!";
+    private static final Logger LOG = Logger.getLogger(TenantResource.class);
+
+    @Inject
+    TenantService tenantService;
+
+    /**
+     * Create a new tenant (Standard tier).
+     */
+    @POST
+    @Operation(summary = "Create a new tenant", 
+               description = "Creates a new Standard tier tenant and triggers provisioning workflow")
+    public Response createTenant(@Valid CreateTenantRequest request) {
+        try {
+            LOG.infof("📝 Received tenant creation request: %s", request.getName());
+            
+            Tenant tenant = tenantService.createTenant(request);
+            
+            TenantCreatedResponse response = TenantCreatedResponse.from(
+                tenant.id.toString(),
+                tenant.tenantId,
+                tenant.name,
+                tenant.subdomain,
+                tenant.state.toString()
+            );
+
+            return Response.status(Response.Status.ACCEPTED)
+                .entity(response)
+                .build();
+
+        } catch (IllegalArgumentException e) {
+            LOG.warnf("⚠️ Invalid tenant creation request: %s", e.getMessage());
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity(new ErrorResponse(e.getMessage()))
+                .build();
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to create tenant: %s", e.getMessage());
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(new ErrorResponse("Failed to create tenant: " + e.getMessage()))
+                .build();
+        }
     }
+
+    /**
+     * Get all tenants.
+     */
+    @GET
+    @Operation(summary = "Get all tenants", 
+               description = "Returns a list of all tenants with their current status")
+    public Response getAllTenants() {
+        try {
+            List<TenantResponse> tenants = tenantService.getAllTenants();
+            return Response.ok(tenants).build();
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to get tenants: %s", e.getMessage());
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(new ErrorResponse("Failed to retrieve tenants"))
+                .build();
+        }
+    }
+
+    /**
+     * Get a specific tenant by tenant ID.
+     */
+    @GET
+    @Path("/{tenantId}")
+    @Operation(summary = "Get tenant by ID", 
+               description = "Returns details of a specific tenant")
+    public Response getTenant(@PathParam("tenantId") String tenantId) {
+        try {
+            Optional<Tenant> tenant = tenantService.getTenant(tenantId);
+
+            if (tenant.isEmpty()) {
+                return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Tenant not found: " + tenantId))
+                    .build();
+            }
+
+            return Response.ok(TenantResponse.from(tenant.get())).build();
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to get tenant %s: %s", tenantId, e.getMessage());
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(new ErrorResponse("Failed to retrieve tenant"))
+                .build();
+        }
+    }
+
+    /**
+     * Delete a tenant.
+     */
+    @DELETE
+    @Path("/{tenantId}")
+    @Operation(summary = "Delete a tenant", 
+               description = "Triggers deprovisioning workflow to remove all tenant resources")
+    public Response deleteTenant(@PathParam("tenantId") String tenantId) {
+        try {
+            LOG.infof("🗑️ Received tenant deletion request: %s", tenantId);
+            
+            tenantService.deleteTenant(tenantId);
+
+            return Response.status(Response.Status.ACCEPTED)
+                .entity(new SuccessResponse("Tenant deletion initiated. You will receive an email when complete."))
+                .build();
+
+        } catch (IllegalArgumentException e) {
+            LOG.warnf("⚠️ Tenant not found: %s", tenantId);
+            return Response.status(Response.Status.NOT_FOUND)
+                .entity(new ErrorResponse(e.getMessage()))
+                .build();
+
+        } catch (IllegalStateException e) {
+            LOG.warnf("⚠️ Invalid state for deletion: %s", e.getMessage());
+            return Response.status(Response.Status.CONFLICT)
+                .entity(new ErrorResponse(e.getMessage()))
+                .build();
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to delete tenant %s: %s", tenantId, e.getMessage());
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(new ErrorResponse("Failed to delete tenant: " + e.getMessage()))
+                .build();
+        }
+    }
+
+    /**
+     * Health check endpoint.
+     */
+    @GET
+    @Path("/health")
+    @Produces(MediaType.TEXT_PLAIN)
+    @Operation(summary = "Health check", 
+               description = "Simple health check endpoint")
+    public String health() {
+        return "Tenant Service is running";
+    }
+
+    // Helper response classes
+    public record ErrorResponse(String error) {}
+    public record SuccessResponse(String message) {}
 }
 
