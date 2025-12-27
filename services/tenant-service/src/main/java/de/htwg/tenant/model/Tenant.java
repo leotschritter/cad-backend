@@ -57,6 +57,21 @@ public class Tenant extends PanacheMongoEntity {
     public String namespace;
 
     /**
+     * Identity Platform tenant ID (created by GitHub workflow)
+     */
+    public String identityPlatformTenantId;
+
+    /**
+     * Firestore database ID for this tenant (same as tenantId)
+     */
+    public String firestoreDatabaseId;
+
+    /**
+     * Owner's user UID in Identity Platform (created after provisioning)
+     */
+    public String ownerUid;
+
+    /**
      * GitHub Actions workflow run ID for provisioning
      */
     public Long provisioningWorkflowRunId;

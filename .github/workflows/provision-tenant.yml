@@ -1,0 +1,298 @@
+name: Provision Standard Tier Tenant
+
+on:
+  workflow_dispatch:
+    inputs:
+      tenant_id:
+        description: 'Sanitized tenant ID (e.g., acme-corp)'
+        required: true
+        type: string
+      namespace:
+        description: 'Kubernetes namespace (e.g., tenant-acme-corp)'
+        required: true
+        type: string
+      subdomain:
+        description: 'Full subdomain (e.g., acme-corp.tripico.fun)'
+        required: true
+        type: string
+      owner_email:
+        description: 'Email of tenant owner'
+        required: true
+        type: string
+
+jobs:
+  provision-tenant:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Configure kubectl for GKE
+        run: |
+          gcloud container clusters get-credentials tripico-cluster --region europe-west1
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Install jq
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y jq
+
+      - name: Create Kubernetes namespace
+        run: |
+          kubectl create namespace ${{ inputs.namespace }} || echo "Namespace already exists"
+          kubectl label namespace ${{ inputs.namespace }} tenant-id=${{ inputs.tenant_id }} --overwrite
+
+      - name: Create Identity Platform Tenant
+        run: |
+          echo "Creating Identity Platform tenant for ${{ inputs.tenant_id }}..."
+          
+          # Create tenant using gcloud
+          gcloud identity tenants create ${{ inputs.tenant_id }} \
+            --display-name="${{ inputs.tenant_id }}" \
+            --allow-password-signup \
+            --enable-email-link-signin \
+            --project=${{ vars.PROJECT_ID }} || echo "Tenant may already exist"
+          
+          # Get tenant config
+          TENANT_ID=$(gcloud identity tenants describe ${{ inputs.tenant_id }} \
+            --project=${{ vars.PROJECT_ID }} \
+            --format="value(name)" | cut -d'/' -f2)
+          
+          echo "Identity Platform Tenant ID: $TENANT_ID"
+          echo "IDENTITY_PLATFORM_TENANT_ID=$TENANT_ID" >> $GITHUB_ENV
+
+      - name: Create Firestore Database for Tenant
+        run: |
+          echo "Creating Firestore database for tenant ${{ inputs.tenant_id }}..."
+          
+          # Firestore database name format: tenant-{tenant_id}
+          DATABASE_NAME="${{ inputs.tenant_id }}"
+          
+          # Create Firestore database (requires gcloud firestore databases create)
+          gcloud firestore databases create \
+            --database="${DATABASE_NAME}" \
+            --location=europe-west1 \
+            --type=firestore-native \
+            --project=${{ vars.PROJECT_ID }} || echo "Database may already exist"
+          
+          echo "Firestore database created/verified: ${DATABASE_NAME}"
+          echo "FIRESTORE_DATABASE_ID=${DATABASE_NAME}" >> $GITHUB_ENV
+
+      - name: Deploy Itinerary Service
+        working-directory: ./services/itinerary-service/kubernetes
+        run: |
+          echo "Deploying Itinerary Service to namespace ${{ inputs.namespace }}..."
+          
+          if helm list --namespace ${{ inputs.namespace }} | grep -q "^itinerary-service"; then
+            echo "Upgrading existing release..."
+            helm upgrade itinerary-service ./itinerary-service-chart \
+              -f ./itinerary-service-chart/${{ vars.VALUES_FILENAME }} \
+              --namespace ${{ inputs.namespace }} \
+              --set database.url="${{ vars.DB_URL }}" \
+              --set database.password="${{ secrets.DB_PASSWORD }}" \
+              --set gcp.projectId="${{ vars.PROJECT_ID }}" \
+              --set identityPlatform.tenantId="${{ env.IDENTITY_PLATFORM_TENANT_ID }}" \
+              --cleanup-on-fail \
+              --wait --timeout 5m
+          else
+            echo "Installing new release..."
+            helm install itinerary-service ./itinerary-service-chart \
+              -f ./itinerary-service-chart/${{ vars.VALUES_FILENAME }} \
+              --namespace ${{ inputs.namespace }} \
+              --set database.url="${{ vars.DB_URL }}" \
+              --set database.password="${{ secrets.DB_PASSWORD }}" \
+              --set gcp.projectId="${{ vars.PROJECT_ID }}" \
+              --set identityPlatform.tenantId="${{ env.IDENTITY_PLATFORM_TENANT_ID }}" \
+              --create-namespace \
+              --wait --timeout 5m
+          fi
+
+      - name: Deploy Weather Service
+        working-directory: ./services/weather-forecast-service
+        run: |
+          echo "Deploying Weather Service to namespace ${{ inputs.namespace }}..."
+          
+          if helm list --namespace ${{ inputs.namespace }} | grep -q "^weather-service"; then
+            helm upgrade weather-service ./helm/weather-service-chart \
+              --namespace ${{ inputs.namespace }} \
+              -f ./helm/weather-service-chart/${{ vars.VALUES_FILENAME }} \
+              --cleanup-on-fail \
+              --wait --timeout 5m
+          else
+            helm install weather-service ./helm/weather-service-chart \
+              --namespace ${{ inputs.namespace }} \
+              -f ./helm/weather-service-chart/${{ vars.VALUES_FILENAME }} \
+              --wait --timeout 5m
+          fi
+
+      - name: Deploy Travel Warnings Service
+        working-directory: ./services/travel_warnings
+        run: |
+          echo "Deploying Travel Warnings Service to namespace ${{ inputs.namespace }}..."
+          
+          if helm list --namespace ${{ inputs.namespace }} | grep -q "^travel-warnings-service"; then
+            helm upgrade travel-warnings-service ./travel-warnings-chart \
+              --namespace ${{ inputs.namespace }} \
+              -f ./travel-warnings-chart/${{ vars.VALUES_FILENAME }} \
+              --cleanup-on-fail \
+              --wait --timeout 5m
+          else
+            helm install travel-warnings-service ./travel-warnings-chart \
+              --namespace ${{ inputs.namespace }} \
+              -f ./travel-warnings-chart/${{ vars.VALUES_FILENAME }} \
+              --wait --timeout 5m
+          fi
+
+      - name: Deploy Recommendation Service
+        working-directory: ./services/recommendation-service
+        run: |
+          echo "Deploying Recommendation Service to namespace ${{ inputs.namespace }}..."
+          
+          if helm list --namespace ${{ inputs.namespace }} | grep -q "^recommendation-service"; then
+            helm upgrade recommendation-service ./recommendation-service-chart \
+              --namespace ${{ inputs.namespace }} \
+              -f ./recommendation-service-chart/${{ vars.VALUES_FILENAME }} \
+              --cleanup-on-fail \
+              --wait --timeout 5m
+          else
+            helm install recommendation-service ./recommendation-service-chart \
+              --namespace ${{ inputs.namespace }} \
+              -f ./recommendation-service-chart/${{ vars.VALUES_FILENAME }} \
+              --wait --timeout 5m
+          fi
+
+      - name: Deploy Comments & Likes Service
+        working-directory: ./services/comments-likes-service
+        run: |
+          echo "Deploying Comments & Likes Service to namespace ${{ inputs.namespace }}..."
+          
+          if helm list --namespace ${{ inputs.namespace }} | grep -q "^comments-likes-service"; then
+            helm upgrade comments-likes-service ./comments-likes-chart \
+              --namespace ${{ inputs.namespace }} \
+              -f ./comments-likes-chart/${{ vars.VALUES_FILENAME }} \
+              --set firestore.database="${{ env.FIRESTORE_DATABASE_ID }}" \
+              --set gcp.projectId="${{ vars.PROJECT_ID }}" \
+              --cleanup-on-fail \
+              --wait --timeout 5m
+          else
+            helm install comments-likes-service ./comments-likes-chart \
+              --namespace ${{ inputs.namespace }} \
+              -f ./comments-likes-chart/${{ vars.VALUES_FILENAME }} \
+              --set firestore.database="${{ env.FIRESTORE_DATABASE_ID }}" \
+              --set gcp.projectId="${{ vars.PROJECT_ID }}" \
+              --wait --timeout 5m
+          fi
+
+      - name: Configure Ingress
+        run: |
+          cat <<EOF | kubectl apply -f -
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: ${{ inputs.tenant_id }}-ingress
+            namespace: ${{ inputs.namespace }}
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
+              nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+          spec:
+            ingressClassName: nginx
+            tls:
+              - hosts:
+                  - ${{ inputs.subdomain }}
+                secretName: ${{ inputs.tenant_id }}-tls
+            rules:
+              - host: ${{ inputs.subdomain }}
+                http:
+                  paths:
+                    - path: /api/itinerary
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: itinerary-service
+                          port:
+                            number: 8080
+                    - path: /api/weather
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: weather-service
+                          port:
+                            number: 8080
+                    - path: /api/warnings
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: travel-warnings-service
+                          port:
+                            number: 8080
+                    - path: /api/recommendations
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: recommendation-service
+                          port:
+                            number: 8080
+                    - path: /api/comments
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: comments-likes-service
+                          port:
+                            number: 8080
+                    - path: /api/likes
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: comments-likes-service
+                          port:
+                            number: 8080
+          EOF
+
+      - name: Verify Deployment
+        run: |
+          echo "Waiting for all pods to be ready..."
+          kubectl wait --for=condition=ready pod \
+            --all \
+            --namespace ${{ inputs.namespace }} \
+            --timeout=600s || true
+
+          echo ""
+          echo "=== Deployment Summary ==="
+          echo "Namespace: ${{ inputs.namespace }}"
+          echo "Subdomain: ${{ inputs.subdomain }}"
+          echo "Owner: ${{ inputs.owner_email }}"
+          echo "Identity Platform Tenant: ${{ env.IDENTITY_PLATFORM_TENANT_ID }}"
+          echo "Firestore Database: ${{ env.FIRESTORE_DATABASE_ID }}"
+          echo ""
+          echo "=== Pod Status ==="
+          kubectl get pods --namespace ${{ inputs.namespace }}
+          echo ""
+          echo "=== Services ==="
+          kubectl get svc --namespace ${{ inputs.namespace }}
+          echo ""
+          echo "=== Ingress ==="
+          kubectl get ingress --namespace ${{ inputs.namespace }}
+          echo ""
+          echo "✅ Tenant ${{ inputs.tenant_id }} provisioned successfully!"
+

@@ -1,6 +1,20 @@
 # Tenant Service
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework, and integrates with Google Cloud Firestore and Firebase Authentication.
+Multi-tenant SaaS management service built with Quarkus. Handles the complete lifecycle of Standard tier tenants including provisioning, monitoring, and deprovisioning through GitHub Actions workflows.
+
+## Features
+
+- 🏢 **Tenant Management**: Create, read, and delete Standard tier tenants
+- 🚀 **GitHub Actions Integration**: Automated provisioning via workflow dispatch
+- 📊 **State Tracking**: Real-time monitoring of provisioning/deprovisioning status
+- 📧 **Email Notifications**: SMTP-based notifications for success/failure
+- 💾 **MongoDB Persistence**: Tenant metadata and state storage
+- 🔄 **Automatic Polling**: Background jobs monitor workflow progress
+- 📝 **OpenAPI Documentation**: Auto-generated API documentation
+
+## Quick Start
+
+See [IMPLEMENTATION_GUIDE.md](./IMPLEMENTATION_GUIDE.md) for detailed setup instructions and [github-workflows-template/README.md](./github-workflows-template/README.md) for workflow configuration.
 
 If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
 

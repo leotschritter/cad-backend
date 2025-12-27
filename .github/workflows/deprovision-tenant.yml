@@ -1,0 +1,105 @@
+name: Deprovision Standard Tier Tenant
+
+on:
+  workflow_dispatch:
+    inputs:
+      tenant_id:
+        description: 'Tenant ID to delete'
+        required: true
+        type: string
+      namespace:
+        description: 'Kubernetes namespace to delete'
+        required: true
+        type: string
+
+jobs:
+  deprovision-tenant:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Configure kubectl for GKE
+        run: |
+          gcloud container clusters get-credentials tripico-cluster --region europe-west1
+
+      - name: Delete Kubernetes Namespace
+        run: |
+          echo "Deleting namespace ${{ inputs.namespace }}..."
+          kubectl delete namespace ${{ inputs.namespace }} --wait=false || echo "Namespace not found or already being deleted"
+          
+          # Wait for deletion to complete (with timeout)
+          echo "Waiting for namespace deletion to complete..."
+          kubectl wait --for=delete namespace/${{ inputs.namespace }} --timeout=300s || echo "Timeout waiting for namespace deletion"
+
+      - name: Delete Firestore Database
+        run: |
+          echo "Deleting Firestore database for tenant ${{ inputs.tenant_id }}..."
+          
+          DATABASE_NAME="${{ inputs.tenant_id }}"
+          
+          gcloud firestore databases delete "${DATABASE_NAME}" \
+            --project=${{ vars.PROJECT_ID }} \
+            --quiet || echo "Database not found or already deleted"
+
+      - name: Delete Identity Platform Tenant
+        run: |
+          echo "Deleting Identity Platform tenant ${{ inputs.tenant_id }}..."
+          
+          gcloud identity tenants delete ${{ inputs.tenant_id }} \
+            --project=${{ vars.PROJECT_ID }} \
+            --quiet || echo "Tenant not found or already deleted"
+
+      - name: Clean up Storage (if any tenant-specific buckets exist)
+        run: |
+          echo "Checking for tenant-specific storage buckets..."
+          
+          # List buckets with tenant ID prefix
+          BUCKETS=$(gsutil ls | grep "gs://${{ inputs.tenant_id }}-" || true)
+          
+          if [ -n "$BUCKETS" ]; then
+            echo "Found tenant buckets to delete:"
+            echo "$BUCKETS"
+            echo "$BUCKETS" | while read bucket; do
+              echo "Deleting $bucket..."
+              gsutil -m rm -r "$bucket" || echo "Failed to delete $bucket"
+            done
+          else
+            echo "No tenant-specific buckets found"
+          fi
+
+      - name: Verify Cleanup
+        run: |
+          echo ""
+          echo "=== Cleanup Summary ==="
+          echo "Tenant ID: ${{ inputs.tenant_id }}"
+          echo "Namespace: ${{ inputs.namespace }}"
+          echo ""
+          
+          # Check if namespace still exists
+          if kubectl get namespace ${{ inputs.namespace }} &>/dev/null; then
+            echo "⚠️ Warning: Namespace still exists (may be in terminating state)"
+            kubectl get namespace ${{ inputs.namespace }}
+          else
+            echo "✅ Namespace deleted successfully"
+          fi
+          
+          echo ""
+          echo "✅ Tenant ${{ inputs.tenant_id }} deprovisioned successfully!"
+

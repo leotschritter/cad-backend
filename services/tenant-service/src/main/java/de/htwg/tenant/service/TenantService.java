@@ -67,6 +67,7 @@ public class TenantService {
         tenant.tenantId = tenantId;
         tenant.subdomain = TenantIdGenerator.generateSubdomain(tenantId, baseDomain);
         tenant.namespace = TenantIdGenerator.generateNamespace(tenantId);
+        tenant.firestoreDatabaseId = tenantId; // Firestore DB name = tenant ID
         tenant.ownerEmail = request.getOwnerEmail();
         tenant.ownerPasswordHash = hashPassword(request.getOwnerPassword()); // TODO: Use proper hashing
         tenant.state = Tenant.ProvisioningState.PENDING;
