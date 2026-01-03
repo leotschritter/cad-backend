@@ -42,11 +42,11 @@ ingress:
 
 resources:
   limits:
-    cpu: 500m
-    memory: 512Mi
-  requests:
-    cpu: 100m
+    cpu: 200m  # Optimized for dev - mehr Pods auf Cluster
     memory: 256Mi
+  requests:
+    cpu: 10m   # 10x reduziert für mehr Pods
+    memory: 128Mi
 
 autoscaling:
   enabled: false

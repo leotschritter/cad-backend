@@ -26,11 +26,11 @@ neo4j:
     name: neo4j-data
   resources:
     requests:
-      memory: "512Mi"
-      cpu: "250m"
+      memory: "128Mi"  # Optimized for dev - mehr Pods
+      cpu: "10m"       # 25x reduziert
     limits:
-      memory: "1Gi"
-      cpu: "500m"
+      memory: "256Mi"
+      cpu: "200m"
   probes:
     liveness:
       initialDelaySeconds: 60
@@ -57,11 +57,11 @@ recommendationApi:
 
   resources:
     requests:
-      memory: "256Mi"
-      cpu: "100m"
+      memory: "128Mi"  # Optimized for dev - mehr Pods
+      cpu: "10m"       # 10x reduziert
     limits:
-      memory: "512Mi"
-      cpu: "500m"
+      memory: "256Mi"
+      cpu: "200m"
 
   cors:
     origins: "*"

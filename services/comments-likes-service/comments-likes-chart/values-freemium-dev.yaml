@@ -1,7 +1,7 @@
 # Helm values for comments-likes-service in freemium namespace (DEV)
 namespaceOverride: freemium
 
-replicaCount: 2
+replicaCount: 1  # Optimized for dev - weniger Pods
 
 imagePullSecrets: []
 nameOverride: ""
@@ -52,11 +52,11 @@ ingress:
 
 resources:
   limits:
-    cpu: 1000m
-    memory: 1Gi
+    cpu: 200m     # Optimized for dev - mehr Pods
+    memory: 256Mi
   requests:
-    cpu: 250m
-    memory: 512Mi
+    cpu: 10m      # 25x reduziert
+    memory: 128Mi
 
 autoscaling:
   enabled: true
