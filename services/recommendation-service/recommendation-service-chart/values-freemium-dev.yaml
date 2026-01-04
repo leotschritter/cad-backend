@@ -18,19 +18,19 @@ neo4j:
   environmentVariables:
     plugins: '["apoc"]'
     dbmsSecurityProceduresUnrestricted: "apoc.*"
-    serverMemoryHeapInitialSize: "256m"
-    serverMemoryHeapMaxSize: "512m"
-    serverMemoryPagecacheSize: "256m"
+    serverMemoryHeapInitialSize: "128m"  # Reduziert für weniger Memory
+    serverMemoryHeapMaxSize: "256m"      # Passt zu limit
+    serverMemoryPagecacheSize: "128m"    # Reduziert
   volumeMounts:
     mountPath: /data
     name: neo4j-data
   resources:
     requests:
-      memory: "128Mi"  # Optimized for dev - mehr Pods
-      cpu: "10m"       # 25x reduziert
+      memory: "256Mi"  # Neo4j braucht mindestens 256Mi
+      cpu: "50m"       # Etwas mehr für Startup
     limits:
-      memory: "256Mi"
-      cpu: "200m"
+      memory: "512Mi"  # Genug für Heap + Pagecache + Overhead
+      cpu: "500m"
   probes:
     liveness:
       initialDelaySeconds: 60
