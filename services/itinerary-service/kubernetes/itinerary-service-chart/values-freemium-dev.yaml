@@ -42,11 +42,11 @@ ingress:
 
 resources:
   limits:
-    cpu: 200m  # Optimized for dev - mehr Pods auf Cluster
-    memory: 256Mi
+    cpu: 500m     # Erhöht für stabile Ausführung
+    memory: 512Mi # Erhöht - Java braucht mehr Memory
   requests:
-    cpu: 10m   # 10x reduziert für mehr Pods
-    memory: 128Mi
+    cpu: 50m      # Erhöht
+    memory: 256Mi # Erhöht
 
 autoscaling:
   enabled: false  # Disabled for dev

@@ -57,11 +57,11 @@ recommendationApi:
 
   resources:
     requests:
-      memory: "128Mi"  # Optimized for dev - mehr Pods
-      cpu: "10m"       # 10x reduziert
+      memory: "256Mi"  # Erhöht für stabile Ausführung
+      cpu: "50m"       # Erhöht
     limits:
-      memory: "256Mi"
-      cpu: "200m"
+      memory: "512Mi"  # Erhöht - Java braucht mehr Memory
+      cpu: "500m"
 
   cors:
     origins: "*"
