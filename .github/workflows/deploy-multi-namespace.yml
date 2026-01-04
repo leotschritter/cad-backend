@@ -94,6 +94,7 @@ jobs:
       id-token: write
 
     strategy:
+      max-parallel: 1  # Deploy one service at a time to avoid Helm conflicts
       matrix:
         service:
           - name: itinerary-service
@@ -193,6 +194,7 @@ jobs:
       id-token: write
 
     strategy:
+      max-parallel: 1  # Deploy one service at a time to avoid Helm conflicts
       matrix:
         service:
           - name: itinerary-service
