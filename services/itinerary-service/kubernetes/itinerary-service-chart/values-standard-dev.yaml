@@ -80,6 +80,13 @@ postgres:
   volumeMounts:
     mountPath: /var/lib/postgresql/data
     name: itinerary-postgres-storage
+  resources:
+    requests:
+      cpu: 50m       # Klein halten für mehr Pods
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
   readinessProbe:
     initialDelaySeconds: 30
     periodSeconds: 10

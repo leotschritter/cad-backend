@@ -32,6 +32,10 @@ spec:
           volumeMounts:
             - mountPath: {{ .Values.postgres.volumeMounts.mountPath }}
               name: {{ .Values.postgres.volumeMounts.name }}
+          {{- if .Values.postgres.resources }}
+          resources:
+            {{- toYaml .Values.postgres.resources | nindent 12 }}
+          {{- end }}
           readinessProbe:
             exec:
               command:
