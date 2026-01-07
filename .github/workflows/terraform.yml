@@ -327,7 +327,18 @@ jobs:
           echo "api_gateway_url=$(terraform output -raw api_gateway_url)" >> $GITHUB_OUTPUT
           echo "gke_cluster_name=$(terraform output -raw gke_cluster_name)" >> $GITHUB_OUTPUT
 
-  terraform-destroy:
+      - name: Export Terraform outputs as JSON
+        working-directory: terraform/environment/free
+        run: |
+          terraform output -json > tf-outputs.json
+
+      - name: Upload Terraform outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs
+          path: terraform/environment/free/tf-outputs.json
+
+    terraform-destroy:
     name: Terraform Destroy
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
