@@ -27,6 +27,19 @@ on:
           - apply
           - destroy
           - validate
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        default: 'free'
+        options:
+          - free
+          - standard
+      tenant_number:
+        description: 'Tenant number for standard environment (e.g., 1, 2, 3)'
+        required: false
+        type: string
+        default: '1'
 
 env:
   TF_VERSION: '1.14.0'
@@ -37,6 +50,9 @@ env:
   BACKEND_CONF_HCL: ${{ github.ref_name == 'main' && 'backend-config.hcl' || 'backend-config-dev.hcl' }}
   TF_VAR_is_prod_environment: ${{ github.ref_name == 'main' && 'true' || 'false' }}
   TF_VAR_domain_name: ${{ github.ref_name == 'main' && 'tripico.fun' || 'dev.tripico.fun' }}
+  # Environment and tenant configuration (for workflow_dispatch)
+  TF_ENVIRONMENT: ${{ inputs.environment || 'free' }}
+  TENANT_NUMBER: ${{ inputs.tenant_number || '1' }}
 
 jobs:
   terraform-validate:
@@ -59,16 +75,42 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Set environment variables
+        id: set-env
+        run: |
+          # Determine environment and tenant
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TF_ENV="${{ inputs.environment }}"
+            TENANT_NUM="${{ inputs.tenant_number }}"
+          else
+            TF_ENV="free"
+            TENANT_NUM="1"
+          fi
+
+          echo "TF_ENV=$TF_ENV" >> $GITHUB_OUTPUT
+          echo "TENANT_NUM=$TENANT_NUM" >> $GITHUB_OUTPUT
+          echo "WORKING_DIR=terraform/environment/$TF_ENV" >> $GITHUB_OUTPUT
+
+          # Set state prefix based on environment
+          if [ "$TF_ENV" = "standard" ]; then
+            echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+          else
+            echo "STATE_PREFIX=terraform/state/free" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
+          fi
+
       - name: Configure Terraform backend
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: |
           cat > ${{ env.BACKEND_CONF_HCL }} << EOF
           bucket = "${{ env.TF_STATE_BUCKET }}"
-          prefix = "terraform/state"
+          prefix = "${{ steps.set-env.outputs.STATE_PREFIX }}"
           EOF
+          echo "Backend configured with prefix: ${{ steps.set-env.outputs.STATE_PREFIX }}"
 
       - name: Terraform Init
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
 
       - name: Install gke-gcloud-auth-plugin
@@ -95,11 +137,11 @@ jobs:
           fi
 
       - name: Terraform Validate
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: terraform validate
 
       - name: Terraform Format Check
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: terraform fmt -check -recursive
 
   terraform-plan:
@@ -127,16 +169,42 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Set environment variables
+        id: set-env
+        run: |
+          # Determine environment and tenant
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TF_ENV="${{ inputs.environment }}"
+            TENANT_NUM="${{ inputs.tenant_number }}"
+          else
+            TF_ENV="free"
+            TENANT_NUM="1"
+          fi
+
+          echo "TF_ENV=$TF_ENV" >> $GITHUB_OUTPUT
+          echo "TENANT_NUM=$TENANT_NUM" >> $GITHUB_OUTPUT
+          echo "WORKING_DIR=terraform/environment/$TF_ENV" >> $GITHUB_OUTPUT
+
+          # Set state prefix based on environment
+          if [ "$TF_ENV" = "standard" ]; then
+            echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+          else
+            echo "STATE_PREFIX=terraform/state/free" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
+          fi
+
       - name: Configure Terraform backend
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: |
           cat > ${{ env.BACKEND_CONF_HCL }} << EOF
           bucket = "${{ env.TF_STATE_BUCKET }}"
-          prefix = "terraform/state"
+          prefix = "${{ steps.set-env.outputs.STATE_PREFIX }}"
           EOF
+          echo "Backend configured with prefix: ${{ steps.set-env.outputs.STATE_PREFIX }}"
 
       - name: Terraform Init
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
 
       - name: Install gke-gcloud-auth-plugin
@@ -167,7 +235,7 @@ jobs:
 
       - name: Remove problematic Helm release from state (if exists)
         continue-on-error: true
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: |
           echo "Checking if Helm release exists in state..."
           if terraform state list | grep -q "module.dns.helm_release.ingress_nginx"; then
@@ -179,9 +247,8 @@ jobs:
 
       - name: Terraform Plan
         id: tf-plan
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         env:
-          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
           TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
@@ -201,7 +268,7 @@ jobs:
       - name: Upload Plan Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: terraform-plan
+          name: terraform-plan-${{ steps.set-env.outputs.TENANT_NAME }}
           path: terraform/tfplan
           retention-days: 5
 
@@ -233,16 +300,42 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Set environment variables
+        id: set-env
+        run: |
+          # Determine environment and tenant
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TF_ENV="${{ inputs.environment }}"
+            TENANT_NUM="${{ inputs.tenant_number }}"
+          else
+            TF_ENV="free"
+            TENANT_NUM="1"
+          fi
+
+          echo "TF_ENV=$TF_ENV" >> $GITHUB_OUTPUT
+          echo "TENANT_NUM=$TENANT_NUM" >> $GITHUB_OUTPUT
+          echo "WORKING_DIR=terraform/environment/$TF_ENV" >> $GITHUB_OUTPUT
+
+          # Set state prefix based on environment
+          if [ "$TF_ENV" = "standard" ]; then
+            echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+          else
+            echo "STATE_PREFIX=terraform/state/free" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
+          fi
+
       - name: Configure Terraform backend
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: |
           cat > ${{ env.BACKEND_CONF_HCL }} << EOF
           bucket = "${{ env.TF_STATE_BUCKET }}"
-          prefix = "terraform/state"
+          prefix = "${{ steps.set-env.outputs.STATE_PREFIX }}"
           EOF
+          echo "Backend configured with prefix: ${{ steps.set-env.outputs.STATE_PREFIX }}"
 
       - name: Terraform Init
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
 
       - name: Install gke-gcloud-auth-plugin
@@ -273,7 +366,7 @@ jobs:
 
       - name: Remove problematic Helm release from state (if exists)
         continue-on-error: true
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: |
           echo "Checking if Helm release exists in state..."
           if terraform state list | grep -q "module.dns.helm_release.ingress_nginx"; then
@@ -289,14 +382,13 @@ jobs:
       - name: Download Plan Artifact (if present)
         uses: actions/download-artifact@v4
         with:
-          name: terraform-plan
+          name: terraform-plan-${{ steps.set-env.outputs.TENANT_NAME }}
           path: terraform
         continue-on-error: true
 
       - name: Apply plan (use artifact if present, otherwise create+apply)
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         env:
-          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
           TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
@@ -322,23 +414,23 @@ jobs:
 
       - name: Terraform Outputs
         id: tf-outputs
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: |
           echo "api_gateway_url=$(terraform output -raw api_gateway_url)" >> $GITHUB_OUTPUT
           echo "gke_cluster_name=$(terraform output -raw gke_cluster_name)" >> $GITHUB_OUTPUT
 
       - name: Export Terraform outputs as JSON
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: |
           terraform output -json > tf-outputs.json
 
       - name: Upload Terraform outputs
         uses: actions/upload-artifact@v4
         with:
-          name: terraform-outputs
-          path: terraform/environment/free/tf-outputs.json
+          name: terraform-outputs-${{ steps.set-env.outputs.TENANT_NAME }}
+          path: ${{ steps.set-env.outputs.WORKING_DIR }}/tf-outputs.json
 
-    terraform-destroy:
+  terraform-destroy:
     name: Terraform Destroy
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy'
@@ -361,22 +453,47 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Set environment variables
+        id: set-env
+        run: |
+          # Determine environment and tenant
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TF_ENV="${{ inputs.environment }}"
+            TENANT_NUM="${{ inputs.tenant_number }}"
+          else
+            TF_ENV="free"
+            TENANT_NUM="1"
+          fi
+
+          echo "TF_ENV=$TF_ENV" >> $GITHUB_OUTPUT
+          echo "TENANT_NUM=$TENANT_NUM" >> $GITHUB_OUTPUT
+          echo "WORKING_DIR=terraform/environment/$TF_ENV" >> $GITHUB_OUTPUT
+
+          # Set state prefix based on environment
+          if [ "$TF_ENV" = "standard" ]; then
+            echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+          else
+            echo "STATE_PREFIX=terraform/state/free" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
+          fi
+
       - name: Configure Terraform backend
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: |
           cat > ${{ env.BACKEND_CONF_HCL }} << EOF
           bucket = "${{ env.TF_STATE_BUCKET }}"
-          prefix = "terraform/state"
+          prefix = "${{ steps.set-env.outputs.STATE_PREFIX }}"
           EOF
+          echo "Backend configured with prefix: ${{ steps.set-env.outputs.STATE_PREFIX }}"
 
       - name: Terraform Init
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
 
       - name: Terraform Destroy
-        working-directory: terraform/environment/free
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         env:
-          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
           TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
