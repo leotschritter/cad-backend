@@ -399,31 +399,6 @@ jobs:
             if [[ "$GITHUB_REF_NAME" == "main" ]]; then
               terraform apply -auto-approve tfplan
             else
-              terraform import \
-                module.api_gateway.google_api_gateway_api.api_gateway \
-                projects/iaas-476910/locations/global/apis/tripico-api
-              terraform import \
-                'module.artifact_registry[0].google_artifact_registry_repository.docker_repo' \
-                projects/iaas-476910/locations/europe-west1/repositories/docker-repo
-              terraform import \
-                'module.dns.google_dns_managed_zone.dev_tripico_fun[0]' \
-                projects/iaas-476910/managedZones/tripico-fun-zone
-              terraform import \
-                module.dns.google_compute_address.ingress_ip \
-                projects/iaas-476910/regions/europe-west1/addresses/tripico-ingress-ip
-              terraform import \
-                module.firestore.google_firestore_database.database \
-                'projects/iaas-476910/databases/(default)'
-              terraform import \
-                module.gke.google_compute_network.gke_network \
-                projects/iaas-476910/global/networks/tripico-network
-              terraform import \
-                module.iam.google_service_account.kubernetes_sa \
-                tripico-sa@iaas-476910.iam.gserviceaccount.com
-              terraform import \
-                module.storage.google_storage_bucket.app_bucket \
-                iaas-476910-tripico-images
-              terraform import module.project.google_identity_platform_config.default iaas-476910
               terraform apply -var-file="dev-environment.tfvars" -auto-approve tfplan
             fi
           else
@@ -432,31 +407,6 @@ jobs:
               terraform plan -out=tfplan
               terraform apply -auto-approve tfplan
             else
-              terraform import \
-                module.api_gateway.google_api_gateway_api.api_gateway \
-                projects/iaas-476910/locations/global/apis/tripico-api
-              terraform import \
-                'module.artifact_registry[0].google_artifact_registry_repository.docker_repo' \
-                projects/iaas-476910/locations/europe-west1/repositories/docker-repo
-              terraform import \
-                'module.dns.google_dns_managed_zone.dev_tripico_fun[0]' \
-                projects/iaas-476910/managedZones/tripico-fun-zone
-              terraform import \
-                module.dns.google_compute_address.ingress_ip \
-                projects/iaas-476910/regions/europe-west1/addresses/tripico-ingress-ip
-              terraform import \
-                module.firestore.google_firestore_database.database \
-                'projects/iaas-476910/databases/(default)'
-              terraform import \
-                module.gke.google_compute_network.gke_network \
-                projects/iaas-476910/global/networks/tripico-network
-              terraform import \
-                module.iam.google_service_account.kubernetes_sa \
-                tripico-sa@iaas-476910.iam.gserviceaccount.com
-              terraform import \
-                module.storage.google_storage_bucket.app_bucket \
-                iaas-476910-tripico-images
-              terraform import module.project.google_identity_platform_config.default iaas-476910
               terraform plan -var-file="dev-environment.tfvars" -out=tfplan
               terraform apply -var-file="dev-environment.tfvars" -auto-approve tfplan
             fi
