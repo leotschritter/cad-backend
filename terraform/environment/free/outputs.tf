@@ -10,32 +10,6 @@ output "region" {
   value       = var.region
 }
 
-# Cloud SQL Outputs
-output "db_instance_name" {
-  description = "The name of the Cloud SQL instance"
-  value       = module.database.db_instance_name
-}
-
-output "db_connection_name" {
-  description = "The connection name of the Cloud SQL instance"
-  value       = module.database.db_connection_name
-}
-
-output "db_name" {
-  description = "The name of the database"
-  value       = module.database.db_name
-}
-
-output "db_user" {
-  description = "The database user name"
-  value       = module.database.db_user
-}
-
-output "db_password_secret_id" {
-  description = "The Secret Manager secret ID for the database password"
-  value       = module.database.db_password_secret_id
-}
-
 # Storage Outputs
 output "bucket_name" {
   description = "The name of the Cloud Storage bucket"
@@ -90,19 +64,9 @@ output "resource_suffix" {
   value       = local.suffix
 }
 
-output "actual_db_instance_name" {
-  description = "The actual Cloud SQL instance name with suffix"
-  value       = local.db_instance_name
-}
-
 output "service_account_id" {
   description = "The service account ID with suffix"
   value       = local.service_account_name
-}
-
-output "secret_name" {
-  description = "The secret name with suffix"
-  value       = local.secret_name
 }
 
 output "actual_bucket_name" {

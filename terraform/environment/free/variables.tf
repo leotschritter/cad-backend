@@ -35,43 +35,6 @@ variable "environment" {
   default     = "prod"
 }
 
-# Cloud SQL Configuration
-variable "db_name" {
-  description = "The name of the database"
-  type        = string
-  default     = "travel-db"
-}
-
-variable "db_user" {
-  description = "The database user name"
-  type        = string
-  default     = "cad_db_user"
-}
-
-variable "db_instance_name" {
-  description = "The name of the Cloud SQL instance"
-  type        = string
-  default     = "cad-travel-db"
-}
-
-variable "db_tier" {
-  description = "The machine type for Cloud SQL instance"
-  type        = string
-  default     = "db-f1-micro" # Change to db-g1-small or higher for production
-}
-
-variable "db_availability_type" {
-  description = "Availability type for Cloud SQL (ZONAL or REGIONAL)"
-  type        = string
-  default     = "ZONAL" # Use REGIONAL for high availability
-}
-
-variable "db_disk_size" {
-  description = "Disk size in GB for Cloud SQL instance"
-  type        = number
-  default     = 10
-}
-
 variable "deletion_protection" {
   description = "Enable deletion protection for critical resources"
   type        = bool
@@ -88,7 +51,6 @@ variable "required_apis" {
   description = "List of Google Cloud APIs to enable"
   type        = list(string)
   default = [
-    "sqladmin.googleapis.com",
     "artifactregistry.googleapis.com",
     "firestore.googleapis.com",
     "storage-api.googleapis.com",
@@ -115,13 +77,6 @@ variable "authorized_domains" {
     "iaas-476910.firebaseapp.com",
     "iaas-476910.web.app",
   ]
-}
-
-variable "db_password" {
-  description = "Database password (optional - if not provided, will be auto-generated). Set via environment variable TF_VAR_db_password or CI/CD secrets. NEVER commit to version control."
-  type        = string
-  sensitive   = true
-  default     = null
 }
 
 # Cloud Storage Configuration

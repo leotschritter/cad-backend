@@ -2,18 +2,12 @@
 resource "google_service_account" "kubernetes_sa" {
   account_id   = var.service_account_name
   display_name = "Kubernetes SA for ${var.app_name}"
-  description  = "Service account for Kubernetes workloads to access Cloud SQL, Firestore, and Cloud Storage"
+  description  = "Service account for Kubernetes workloads to access Firestore and Cloud Storage"
 
   depends_on = [var.project_apis_enabled]
 }
 
 # IAM Bindings
-resource "google_project_iam_member" "kubernetes_sql_client" {
-  project = var.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.kubernetes_sa.email}"
-}
-
 resource "google_project_iam_member" "kubernetes_firestore_user" {
   project = var.project_id
   role    = "roles/datastore.user"

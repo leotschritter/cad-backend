@@ -7,7 +7,6 @@ variable "required_apis" {
   description = "List of Google Cloud APIs to enable"
   type        = list(string)
   default = [
-    "sqladmin.googleapis.com",
     "artifactregistry.googleapis.com",
     "firestore.googleapis.com",
     "storage-api.googleapis.com",

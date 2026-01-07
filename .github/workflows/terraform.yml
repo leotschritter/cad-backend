@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - feature/tenant-terraform
     paths:
       - 'terraform/**'
       - '.github/workflows/terraform.yml'

@@ -1,9 +1,7 @@
 # Local variables for resource naming
 locals {
   suffix               = var.resource_suffix != "" ? var.resource_suffix : (var.use_random_suffix ? random_id.suffix.hex : "")
-  db_instance_name     = var.resource_suffix != "" || var.use_random_suffix ? "${var.db_instance_name}-${local.suffix}" : var.db_instance_name
   service_account_name = var.use_random_suffix ? "${var.app_name}-sa-${local.suffix}" : "${var.app_name}-sa"
-  secret_name          = var.use_random_suffix ? "${var.app_name}-db-password-${local.suffix}" : "${var.app_name}-db-password"
   bucket_name          = var.use_random_suffix ? "${var.project_id}-${var.bucket_name}-${local.suffix}" : "${var.project_id}-${var.bucket_name}"
 }
 
@@ -29,25 +27,6 @@ module "iam" {
   app_name             = var.app_name
   service_account_name = local.service_account_name
   project_apis_enabled = module.project.identity_platform_config_id
-}
-
-# Database Module
-module "database" {
-  source = "../../modules/database"
-
-  project_id            = var.project_id
-  region                = var.region
-  db_name               = var.db_name
-  db_user               = var.db_user
-  db_instance_name      = local.db_instance_name
-  db_tier               = var.db_tier
-  db_availability_type  = var.db_availability_type
-  disk_size             = var.db_disk_size
-  db_password           = var.db_password
-  secret_name           = local.secret_name
-  service_account_email = module.iam.service_account_email
-  deletion_protection   = var.deletion_protection
-  project_apis_enabled  = module.project.identity_platform_config_id
 }
 
 # Storage Module
