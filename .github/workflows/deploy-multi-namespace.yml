@@ -195,6 +195,12 @@ jobs:
             --wait \
             --timeout 10m
 
+      - name: Force rollout restart for ${{ matrix.service.name }}
+        run: |
+          echo "Restarting ${{ matrix.service.name }}-freemium to pull latest image..."
+          kubectl rollout restart deployment/${{ matrix.service.name }}-freemium -n freemium
+          kubectl rollout status deployment/${{ matrix.service.name }}-freemium -n freemium --timeout=5m
+
   deploy-standard-services:
     needs: setup-namespaces
     if: ${{ github.event.client_payload.tier == 'standard' || inputs.tier == 'standard' }}
@@ -310,6 +316,15 @@ jobs:
             $HELM_ARGS \
             --wait \
             --timeout 10m
+
+      - name: Force rollout restart for ${{ matrix.service.name }}
+        env:
+          TENANT_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_number || github.event.client_payload.tenant_number || '1' }}
+        run: |
+          NAMESPACE="standard-${TENANT_NUMBER}"
+          echo "Restarting ${{ matrix.service.name }}-standard-${TENANT_NUMBER} to pull latest image..."
+          kubectl rollout restart deployment/${{ matrix.service.name }}-standard-${TENANT_NUMBER} -n $NAMESPACE
+          kubectl rollout status deployment/${{ matrix.service.name }}-standard-${TENANT_NUMBER} -n $NAMESPACE --timeout=5m
 
   verify-deployment:
     needs: [deploy-freemium-services, deploy-standard-services]

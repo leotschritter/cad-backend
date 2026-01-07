@@ -3,6 +3,7 @@ namespaceOverride: standard
 
 itineraryService:
   image: "ghcr.io/leotschritter/cad-backend:latest"
+  imagePullPolicy: Always
 
 nameOverride: ""
 fullnameOverride: ""
