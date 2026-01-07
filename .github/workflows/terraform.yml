@@ -405,6 +405,9 @@ jobs:
               terraform import \
                 module.gke.google_compute_subnetwork.gke_subnet \
                 projects/iaas-476910/regions/europe-west1/subnetworks/tripico-subnet || true
+              terraform import \
+                module.gke.google_container_cluster.main \
+                projects/iaas-476910/locations/europe-west1/clusters/tripico-cluster || true
               terraform plan -var-file="dev-environment.tfvars" -out=tfplan
               terraform apply -var-file="dev-environment.tfvars" -auto-approve tfplan
             fi
@@ -420,6 +423,9 @@ jobs:
               terraform import \
                 module.gke.google_compute_subnetwork.gke_subnet \
                 projects/iaas-476910/regions/europe-west1/subnetworks/tripico-subnet || true
+              terraform import \
+                module.gke.google_container_cluster.main \
+                projects/iaas-476910/locations/europe-west1/clusters/tripico-cluster || true
               terraform plan -var-file="dev-environment.tfvars" -out=tfplan
               terraform apply -var-file="dev-environment.tfvars" -auto-approve tfplan
             fi
