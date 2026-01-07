@@ -399,9 +399,9 @@ jobs:
             if [[ "$GITHUB_REF_NAME" == "main" ]]; then
               terraform apply -auto-approve tfplan
             else
-              terraform import \
-                module.api_gateway.google_api_gateway_api_config.api_config \
-                projects/iaas-476910/locations/global/apis/tripico-api/configs/tripico-api-config-18d26375 || true
+              # Delete old API config (hash-based ID changed)
+              gcloud api-gateway api-configs delete tripico-api-config-18d26375 \
+                --api=tripico-api --project=iaas-476910 --quiet || true
               terraform import \
                 module.gke.google_compute_subnetwork.gke_subnet \
                 projects/iaas-476910/regions/europe-west1/subnetworks/tripico-subnet || true
@@ -417,9 +417,9 @@ jobs:
               terraform plan -out=tfplan
               terraform apply -auto-approve tfplan
             else
-              terraform import \
-                module.api_gateway.google_api_gateway_api_config.api_config \
-                projects/iaas-476910/locations/global/apis/tripico-api/configs/tripico-api-config-18d26375 || true
+              # Delete old API config (hash-based ID changed)
+              gcloud api-gateway api-configs delete tripico-api-config-18d26375 \
+                --api=tripico-api --project=iaas-476910 --quiet || true
               terraform import \
                 module.gke.google_compute_subnetwork.gke_subnet \
                 projects/iaas-476910/regions/europe-west1/subnetworks/tripico-subnet || true
