@@ -90,7 +90,7 @@ resource "google_dns_record_set" "dev_delegation" {
 }
 
 # Ingress controller (both environments)
-resource "helm_release" "ingress_nginx" {
+/*resource "helm_release" "ingress_nginx" {
   name             = var.ingress_namespace
   repository       = "https://kubernetes.github.io/ingress-nginx"
   chart            = var.ingress_namespace
@@ -110,3 +110,4 @@ resource "helm_release" "ingress_nginx" {
 
   depends_on = [var.gke_cluster_ready]
 }
+*/
