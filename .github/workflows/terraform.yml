@@ -47,12 +47,8 @@ env:
   GCP_CREDENTIALS: ${{ github.ref_name == 'main' && secrets.GCP_SERVICE_ACCOUNT_KEY || secrets.GCP_SERVICE_ACCOUNT_KEY_2 }}
   TF_STATE_BUCKET: ${{ github.ref_name == 'main' && 'graphite-plane-474510-s9-terraform-state' || 'iaas-476910-terraform-state' }}
   TF_VAR_project_id: ${{ github.ref_name == 'main' && 'graphite-plane-474510-s9' || 'iaas-476910' }}
-  BACKEND_CONF_HCL: ${{ github.ref_name == 'main' && 'backend-config.hcl' || 'backend-config-dev.hcl' }}
   TF_VAR_is_prod_environment: ${{ github.ref_name == 'main' && 'true' || 'false' }}
   TF_VAR_domain_name: ${{ github.ref_name == 'main' && 'tripico.fun' || 'dev.tripico.fun' }}
-  # Environment and tenant configuration (for workflow_dispatch)
-  TF_ENVIRONMENT: ${{ inputs.environment || 'free' }}
-  TENANT_NUMBER: ${{ inputs.tenant_number || '1' }}
 
 jobs:
   terraform-validate:
@@ -100,18 +96,12 @@ jobs:
             echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
           fi
 
-      - name: Configure Terraform backend
-        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
-        run: |
-          cat > ${{ env.BACKEND_CONF_HCL }} << EOF
-          bucket = "${{ env.TF_STATE_BUCKET }}"
-          prefix = "${{ steps.set-env.outputs.STATE_PREFIX }}"
-          EOF
-          echo "Backend configured with prefix: ${{ steps.set-env.outputs.STATE_PREFIX }}"
-
       - name: Terraform Init
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
-        run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="prefix=${{ steps.set-env.outputs.STATE_PREFIX }}"
 
       - name: Install gke-gcloud-auth-plugin
         run: |
@@ -194,18 +184,12 @@ jobs:
             echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
           fi
 
-      - name: Configure Terraform backend
-        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
-        run: |
-          cat > ${{ env.BACKEND_CONF_HCL }} << EOF
-          bucket = "${{ env.TF_STATE_BUCKET }}"
-          prefix = "${{ steps.set-env.outputs.STATE_PREFIX }}"
-          EOF
-          echo "Backend configured with prefix: ${{ steps.set-env.outputs.STATE_PREFIX }}"
-
       - name: Terraform Init
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
-        run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="prefix=${{ steps.set-env.outputs.STATE_PREFIX }}"
 
       - name: Install gke-gcloud-auth-plugin
         run: |
@@ -253,14 +237,9 @@ jobs:
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
           TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
+          TF_VAR_tenant_name: ${{ steps.set-env.outputs.TENANT_NAME }}
         run: |
-          # produce a human-readable plan and save a binary plan for apply
-          if [[ "$GITHUB_REF_NAME" == "main" ]]; then
-            terraform plan -no-color -out=tfplan | tee plan.txt
-          else
-            terraform plan -var-file="dev-environment.tfvars" -no-color -out=tfplan | tee plan.txt
-          fi
-          # expose the plan text as a step output for PR comments
+          terraform plan -no-color -out=tfplan | tee plan.txt
           echo "plan<<EOF" >> $GITHUB_OUTPUT
           cat plan.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -325,18 +304,12 @@ jobs:
             echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
           fi
 
-      - name: Configure Terraform backend
-        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
-        run: |
-          cat > ${{ env.BACKEND_CONF_HCL }} << EOF
-          bucket = "${{ env.TF_STATE_BUCKET }}"
-          prefix = "${{ steps.set-env.outputs.STATE_PREFIX }}"
-          EOF
-          echo "Backend configured with prefix: ${{ steps.set-env.outputs.STATE_PREFIX }}"
-
       - name: Terraform Init
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
-        run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="prefix=${{ steps.set-env.outputs.STATE_PREFIX }}"
 
       - name: Install gke-gcloud-auth-plugin
         run: |
@@ -393,23 +366,15 @@ jobs:
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
           TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
+          TF_VAR_tenant_name: ${{ steps.set-env.outputs.TENANT_NAME }}
         run: |
           if [ -f tfplan ]; then
             echo "Found uploaded plan artifact; applying it"
-            if [[ "$GITHUB_REF_NAME" == "main" ]]; then
-              terraform apply -auto-approve tfplan
-            else
-              terraform apply -var-file="dev-environment.tfvars" -auto-approve tfplan
-            fi
+            terraform apply -auto-approve tfplan
           else
             echo "No plan artifact found; running plan then apply"
-            if [[ "$GITHUB_REF_NAME" == "main" ]]; then
-              terraform plan -out=tfplan
-              terraform apply -auto-approve tfplan
-            else
-              terraform plan -var-file="dev-environment.tfvars" -out=tfplan
-              terraform apply -var-file="dev-environment.tfvars" -auto-approve tfplan
-            fi
+            terraform plan -out=tfplan
+            terraform apply -auto-approve tfplan
           fi
 
       - name: Terraform Outputs
@@ -478,18 +443,12 @@ jobs:
             echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
           fi
 
-      - name: Configure Terraform backend
-        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
-        run: |
-          cat > ${{ env.BACKEND_CONF_HCL }} << EOF
-          bucket = "${{ env.TF_STATE_BUCKET }}"
-          prefix = "${{ steps.set-env.outputs.STATE_PREFIX }}"
-          EOF
-          echo "Backend configured with prefix: ${{ steps.set-env.outputs.STATE_PREFIX }}"
-
       - name: Terraform Init
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
-        run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="prefix=${{ steps.set-env.outputs.STATE_PREFIX }}"
 
       - name: Terraform Destroy
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
@@ -498,5 +457,6 @@ jobs:
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
           TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
+          TF_VAR_tenant_name: ${{ steps.set-env.outputs.TENANT_NAME }}
         run: terraform destroy -auto-approve
 

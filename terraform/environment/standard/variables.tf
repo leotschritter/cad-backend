@@ -23,6 +23,12 @@ variable "app_name" {
   default     = "tripico"
 }
 
+variable "tenant_name" {
+  description = "Tenant name for multi-tenant deployments (e.g., standard-1, standard-2)"
+  type        = string
+  default     = "standard-1"
+}
+
 variable "app_version" {
   description = "The version/tag of the application to deploy"
   type        = string
