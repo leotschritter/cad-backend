@@ -14,10 +14,9 @@ on:
         required: true
         type: choice
         options:
-          - all
           - freemium
           - standard
-        default: all
+        default: freemium
       environment:
         description: 'Environment to deploy to'
         required: true
@@ -96,7 +95,7 @@ jobs:
 
   deploy-freemium-services:
     needs: setup-namespaces
-    if: ${{ github.event_name == 'push' || github.event.client_payload.tier == 'all' || github.event.client_payload.tier == 'freemium' || inputs.tier == 'all' || inputs.tier == 'freemium' }}
+    if: ${{ github.event.client_payload.tier == 'freemium' || inputs.tier == 'freemium' }}
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
     permissions:
@@ -198,7 +197,7 @@ jobs:
 
   deploy-standard-services:
     needs: setup-namespaces
-    if: ${{ github.event_name == 'push' || github.event.client_payload.tier == 'all' || github.event.client_payload.tier == 'standard' || inputs.tier == 'all' || inputs.tier == 'standard' }}
+    if: ${{ github.event.client_payload.tier == 'standard' || inputs.tier == 'standard' }}
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
     permissions:
