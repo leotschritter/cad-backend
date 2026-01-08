@@ -3,17 +3,8 @@ info:
   title: "${app_name} API Gateway"
   version: "1.0.0"
 
-host: "${app_name}-api.endpoints.${firebase_project_id}.cloud.goog"
-
 schemes:
   - https
-
-# ---------------------------------------------------------
-# CORS Configuration - Allow preflight requests to pass through to backend
-# ---------------------------------------------------------
-x-google-endpoints:
-  - name: "${app_name}-api.endpoints.${firebase_project_id}.cloud.goog"
-    allowCors: True
 
 # ---------------------------------------------------------
 # Firebase Authentication (global)
