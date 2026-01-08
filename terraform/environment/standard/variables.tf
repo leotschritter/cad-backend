@@ -127,14 +127,6 @@ variable "firestore_location" {
   default     = "europe-west1"
 }
 
-variable "firebase_project_id" {
-  description = "Firebase Auth Project ID"
-  type        = string
-  default     = "graphite-plane-474510-s9"
-}
-
-
-
 # Tags and Labels
 variable "labels" {
   description = "Labels to apply to resources"

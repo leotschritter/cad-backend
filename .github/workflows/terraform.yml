@@ -233,7 +233,6 @@ jobs:
         id: tf-plan
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         env:
-          TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
           TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
@@ -362,7 +361,6 @@ jobs:
       - name: Apply plan (use artifact if present, otherwise create+apply)
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         env:
-          TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
           TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
@@ -453,7 +451,6 @@ jobs:
       - name: Terraform Destroy
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         env:
-          TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
           TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
