@@ -7,6 +7,13 @@ schemes:
   - https
 
 # ---------------------------------------------------------
+# CORS Configuration - Pass CORS headers from backend
+# ---------------------------------------------------------
+x-google-endpoints:
+  - name: "${app_name}-api.endpoints.${firebase_project_id}.cloud.goog"
+    allowCors: true
+
+# ---------------------------------------------------------
 # Firebase Authentication (global)
 # ---------------------------------------------------------
 securityDefinitions:
