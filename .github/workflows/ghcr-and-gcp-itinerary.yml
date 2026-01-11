@@ -272,7 +272,7 @@ jobs:
         run: |
           echo "This job is outdated and is not being executed anymore."
           echo "Please manually deploy through the deploy-multi-namespace.yml workflow."
-          exit 0
+          exit 1
 
       # Authenticate again for kubectl
       - name: Authenticate to Google Cloud
