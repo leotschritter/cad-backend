@@ -121,6 +121,8 @@ jobs:
             values_prod: services/recommendation-service/recommendation-service-chart/values-freemium-prod.yaml
             domain_dev: "recommendation-freemium.dev.tripico.fun"
             domain_prod: "recommendation-freemium.tripico.fun"
+            frontend_domain_dev: "https://frontend-freemium.dev.tripico.fun"
+            frontend_domain_prod: "https://frontend-freemium.tripico.fun"
           - name: comments-likes-service
             chart: services/comments-likes-service/comments-likes-chart
             values_dev: services/comments-likes-service/comments-likes-chart/values-freemium-dev.yaml
@@ -197,12 +199,15 @@ jobs:
             HELM_ARGS="$HELM_ARGS --set ingress.tlsSecretName=${{ matrix.service.name }}-freemium-tls"
           fi
 
-          # Set CORS origins for itinerary-service and comments-likes-service
+          # Set CORS origins for services
           if [ "${{ matrix.service.name }}" = "itinerary-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
             HELM_ARGS="$HELM_ARGS --set itineraryService.cors.origins=$FRONTEND_DOMAIN"
           fi
           if [ "${{ matrix.service.name }}" = "comments-likes-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
             HELM_ARGS="$HELM_ARGS --set commentsLikesService.cors.origins=$FRONTEND_DOMAIN"
+          fi
+          if [ "${{ matrix.service.name }}" = "recommendation-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
+            HELM_ARGS="$HELM_ARGS --set recommendationApi.cors.origins=$FRONTEND_DOMAIN"
           fi
 
           helm upgrade --install ${{ matrix.service.name }}-freemium ${{ matrix.service.chart }} \
@@ -237,6 +242,8 @@ jobs:
             values_prod: services/recommendation-service/recommendation-service-chart/values-standard-prod.yaml
             domain_dev: "recommendation-standard.dev.tripico.fun"
             domain_prod: "recommendation-standard.tripico.fun"
+            frontend_domain_dev: "https://frontend-standard.dev.tripico.fun"
+            frontend_domain_prod: "https://frontend-standard.tripico.fun"
           - name: comments-likes-service
             chart: services/comments-likes-service/comments-likes-chart
             values_dev: services/comments-likes-service/comments-likes-chart/values-standard-dev.yaml
@@ -331,12 +338,15 @@ jobs:
             HELM_ARGS="$HELM_ARGS --set ingress.tlsSecretName=${{ matrix.service.name }}-standard-${TENANT_NUMBER}-tls"
           fi
 
-          # Set CORS origins for itinerary-service and comments-likes-service
+          # Set CORS origins for services
           if [ "${{ matrix.service.name }}" = "itinerary-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
             HELM_ARGS="$HELM_ARGS --set itineraryService.cors.origins=$FRONTEND_DOMAIN"
           fi
           if [ "${{ matrix.service.name }}" = "comments-likes-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
             HELM_ARGS="$HELM_ARGS --set commentsLikesService.cors.origins=$FRONTEND_DOMAIN"
+          fi
+          if [ "${{ matrix.service.name }}" = "recommendation-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
+            HELM_ARGS="$HELM_ARGS --set recommendationApi.cors.origins=$FRONTEND_DOMAIN"
           fi
 
           helm upgrade --install ${{ matrix.service.name }}-standard-${TENANT_NUMBER} ${{ matrix.service.chart }} \
