@@ -127,6 +127,8 @@ jobs:
             values_prod: services/comments-likes-service/comments-likes-chart/values-freemium-prod.yaml
             domain_dev: "cl-freemium.dev.tripico.fun"
             domain_prod: "cl-freemium.tripico.fun"
+            frontend_domain_dev: "https://frontend-freemium.dev.tripico.fun"
+            frontend_domain_prod: "https://frontend-freemium.tripico.fun"
 
     steps:
       - uses: actions/checkout@v4
@@ -195,9 +197,12 @@ jobs:
             HELM_ARGS="$HELM_ARGS --set ingress.tlsSecretName=${{ matrix.service.name }}-freemium-tls"
           fi
 
-          # Set CORS origins for itinerary-service
+          # Set CORS origins for itinerary-service and comments-likes-service
           if [ "${{ matrix.service.name }}" = "itinerary-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
             HELM_ARGS="$HELM_ARGS --set itineraryService.cors.origins=$FRONTEND_DOMAIN"
+          fi
+          if [ "${{ matrix.service.name }}" = "comments-likes-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
+            HELM_ARGS="$HELM_ARGS --set commentsLikesService.cors.origins=$FRONTEND_DOMAIN"
           fi
 
           helm upgrade --install ${{ matrix.service.name }}-freemium ${{ matrix.service.chart }} \
@@ -238,6 +243,8 @@ jobs:
             values_prod: services/comments-likes-service/comments-likes-chart/values-standard-prod.yaml
             domain_dev: "comments-likes-standard.dev.tripico.fun"
             domain_prod: "comments-likes-standard.tripico.fun"
+            frontend_domain_dev: "https://frontend-standard.dev.tripico.fun"
+            frontend_domain_prod: "https://frontend-standard.tripico.fun"
 
     steps:
       - uses: actions/checkout@v4
@@ -324,9 +331,12 @@ jobs:
             HELM_ARGS="$HELM_ARGS --set ingress.tlsSecretName=${{ matrix.service.name }}-standard-${TENANT_NUMBER}-tls"
           fi
 
-          # Set CORS origins for itinerary-service
+          # Set CORS origins for itinerary-service and comments-likes-service
           if [ "${{ matrix.service.name }}" = "itinerary-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
             HELM_ARGS="$HELM_ARGS --set itineraryService.cors.origins=$FRONTEND_DOMAIN"
+          fi
+          if [ "${{ matrix.service.name }}" = "comments-likes-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
+            HELM_ARGS="$HELM_ARGS --set commentsLikesService.cors.origins=$FRONTEND_DOMAIN"
           fi
 
           helm upgrade --install ${{ matrix.service.name }}-standard-${TENANT_NUMBER} ${{ matrix.service.chart }} \

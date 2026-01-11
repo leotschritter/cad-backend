@@ -76,6 +76,13 @@ spec:
                 configMapKeyRef:
                   name: {{ include "comments-likes-service.fullname" . }}-config
                   key: backend_url
+            # CORS configuration
+            - name: QUARKUS_HTTP_CORS_ORIGINS
+              value: {{ .Values.commentsLikesService.cors.origins | quote }}
+            - name: QUARKUS_HTTP_CORS_METHODS
+              value: {{ .Values.commentsLikesService.cors.methods | quote }}
+            - name: QUARKUS_HTTP_CORS_HEADERS
+              value: {{ .Values.commentsLikesService.cors.headers | quote }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.probes.startup }}

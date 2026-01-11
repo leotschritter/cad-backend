@@ -1,6 +1,12 @@
-# Default values for itinerary-service
+# Default values for comments-likes-service
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+
+commentsLikesService:
+  cors:
+    origins: "*"
+    methods: "GET,POST,PUT,DELETE,OPTIONS"
+    headers: "accept,authorization,content-type,x-requested-with"
 
 replicaCount: 1
 
