@@ -268,6 +268,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Deprecated – Job deactivated
+        shell: bash
         run: |
           echo "This job is outdated and is not being executed anymore."
           echo "Please manually deploy through the deploy-multi-namespace.yml workflow."
