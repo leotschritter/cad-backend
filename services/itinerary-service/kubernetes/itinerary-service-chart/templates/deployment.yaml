@@ -96,6 +96,13 @@ spec:
                 configMapKeyRef:
                   name: {{ include "itinerary-service.fullname" . }}-config
                   key: backend_url
+            # CORS configuration
+            - name: QUARKUS_HTTP_CORS_ORIGINS
+            value: {{ .Values.itineraryService.cors.origins | quote }}
+            - name: QUARKUS_HTTP_CORS_METHODS
+              value: {{ .Values.itineraryService.cors.methods | quote }}
+            - name: QUARKUS_HTTP_CORS_HEADERS
+              value: {{ .Values.itineraryService.cors.headers | quote }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.probes.startup }}
