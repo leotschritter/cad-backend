@@ -71,13 +71,13 @@ output "service_urls" {
     api_gateway = module.api_gateway.api_gateway_url
 
     # Tenant-specific API endpoints via API Gateway
-    comment_api        = "${module.api_gateway.api_gateway_url}/comment"
-    itinerary_api      = "${module.api_gateway.api_gateway_url}/itinerary"
-    like_api           = "${module.api_gateway.api_gateway_url}/like"
-    location_api       = "${module.api_gateway.api_gateway_url}/location"
-    user_api           = "${module.api_gateway.api_gateway_url}/user"
-    feed_api           = "${module.api_gateway.api_gateway_url}/feed"
-    graph_api          = "${module.api_gateway.api_gateway_url}/graph"
+    comment_api   = "${module.api_gateway.api_gateway_url}/comment"
+    itinerary_api = "${module.api_gateway.api_gateway_url}/itinerary"
+    like_api      = "${module.api_gateway.api_gateway_url}/like"
+    location_api  = "${module.api_gateway.api_gateway_url}/location"
+    user_api      = "${module.api_gateway.api_gateway_url}/user"
+    feed_api      = "${module.api_gateway.api_gateway_url}/feed"
+    graph_api     = "${module.api_gateway.api_gateway_url}/graph"
 
     # Shared services (routed through tenant's gateway)
     warnings_api = "${module.api_gateway.api_gateway_url}/warnings"

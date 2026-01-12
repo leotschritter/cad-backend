@@ -7,4 +7,3 @@ output "service_account_name" {
   description = "The name of the Kubernetes service account"
   value       = google_service_account.kubernetes_sa.name
 }
-

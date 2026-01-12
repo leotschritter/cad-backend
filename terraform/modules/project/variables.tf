@@ -33,4 +33,3 @@ variable "authorized_domains" {
     "iaas-476910.web.app",
   ]
 }
-

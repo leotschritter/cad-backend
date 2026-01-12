@@ -27,4 +27,3 @@ resource "google_identity_platform_config" "default" {
 
   depends_on = [google_project_service.identitytoolkit]
 }
-

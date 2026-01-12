@@ -61,4 +61,3 @@ resource "google_api_gateway_gateway" "api_gateway" {
     google_api_gateway_api_config.api_config
   ]
 }
-

@@ -161,4 +161,3 @@ output "service_urls" {
     warnings_api  = "${module.api_gateway.api_gateway_url}/warnings"
   }
 }
-
