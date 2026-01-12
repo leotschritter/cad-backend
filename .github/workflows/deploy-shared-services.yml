@@ -210,3 +210,4 @@ jobs:
           echo ""
           echo "========== SERVICES =========="
           kubectl get svc -n shared
+
