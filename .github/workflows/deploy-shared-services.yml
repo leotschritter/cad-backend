@@ -119,20 +119,13 @@ jobs:
             DOMAIN=${{ matrix.service.domain_prod }}
           fi
 
-          # Build CORS origins for all tenants (freemium + standard 1-30)
+          # Build CORS origins using regex pattern for all tenants (freemium + standard-*)
+          # Quarkus interprets URLs enclosed in forward slashes as regex
           if [ "$DEPLOY_ENV" = "prod" ]; then
-            CORS_ORIGINS="https://frontend-freemium.tripico.fun"
-            for i in $(seq 1 30); do
-              CORS_ORIGINS="$CORS_ORIGINS,https://frontend-standard-${i}.tripico.fun"
-            done
+            CORS_ORIGINS="/https://frontend-(freemium|standard-[0-9]+)\\.tripico\\.fun/"
           else
-            CORS_ORIGINS="https://frontend-freemium.dev.tripico.fun"
-            for i in $(seq 1 30); do
-              CORS_ORIGINS="$CORS_ORIGINS,https://frontend-standard-${i}.dev.tripico.fun"
-            done
+            CORS_ORIGINS="/https://frontend-(freemium|standard-[0-9]+)\\.dev\\.tripico\\.fun/"
           fi
-          # Escape commas for Helm --set
-          CORS_ORIGINS_ESCAPED="${CORS_ORIGINS//,/\\,}"
 
           echo "Deploying ${{ matrix.service.name }} to shared namespace"
           echo "Environment: $DEPLOY_ENV"
@@ -155,8 +148,8 @@ jobs:
             HELM_ARGS="$HELM_ARGS --set smtp.password=${{ secrets.SMTP_PASSWORD }}"
             # Optionally override image with vars.PROJECT_ID
             HELM_ARGS="$HELM_ARGS --set travelWarningsApi.image=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/travel-warnings:latest"
-            # Set CORS origins for travel-warnings
-            HELM_ARGS="$HELM_ARGS --set travelWarningsApi.cors.origins=$CORS_ORIGINS_ESCAPED"
+            # Set CORS origins for travel-warnings (regex pattern)
+            HELM_ARGS="$HELM_ARGS --set travelWarningsApi.cors.origins=$CORS_ORIGINS"
           fi
 
           helm upgrade --install ${{ matrix.service.name }} ${{ matrix.service.chart }} \
