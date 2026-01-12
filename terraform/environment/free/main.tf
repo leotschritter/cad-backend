@@ -50,18 +50,18 @@ locals {
     }
     travel-warnings = {
       name         = "travel-warnings-service"
-      ingress_url  = "https://warnings-freemium.${var.domain_name}"
+      ingress_url  = "https://warnings.${var.domain_name}"
       path_prefix  = "/warnings"
       service_name = "travel-warnings-service"
-      namespace    = "default"
+      namespace    = "shared"
       port         = 8080
     }
     weather = {
-      name         = "weather-service"
-      ingress_url  = "https://weather-freemium.${var.domain_name}"
+      name         = "weather-forecast-service"
+      ingress_url  = "https://weather.${var.domain_name}"
       path_prefix  = "/api/weather"
-      service_name = "weather-service"
-      namespace    = "default"
+      service_name = "weather-forecast-service"
+      namespace    = "shared"
       port         = 8080
     }
     feed = {
