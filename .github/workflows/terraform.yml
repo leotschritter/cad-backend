@@ -380,7 +380,12 @@ jobs:
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: |
           echo "api_gateway_url=$(terraform output -raw api_gateway_url)" >> $GITHUB_OUTPUT
-          echo "gke_cluster_name=$(terraform output -raw gke_cluster_name)" >> $GITHUB_OUTPUT
+          # GKE cluster name only exists in free tier (shared infrastructure)
+          if [ "${{ steps.set-env.outputs.TF_ENV }}" = "free" ]; then
+            echo "gke_cluster_name=$(terraform output -raw gke_cluster_name)" >> $GITHUB_OUTPUT
+          else
+            echo "tenant_name=$(terraform output -raw tenant_name)" >> $GITHUB_OUTPUT
+          fi
 
       - name: Export Terraform outputs as JSON
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}

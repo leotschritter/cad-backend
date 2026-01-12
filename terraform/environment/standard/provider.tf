@@ -1,3 +1,10 @@
+# =============================================================================
+# Standard Tier Tenant Terraform Configuration
+# =============================================================================
+# This configuration only creates tenant-specific resources (API Gateway,
+# Storage, IAM). It does NOT require helm or random providers.
+# =============================================================================
+
 terraform {
   required_version = ">= 1.0"
 
@@ -10,18 +17,11 @@ terraform {
       source  = "hashicorp/google-beta"
       version = "~> 6.38"
     }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.5"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.13"
-    }
   }
 
   # Remote backend configuration
-  # The bucket must be created manually before first use (see SETUP.md)
+  # Each tenant gets isolated state via unique prefix
+  # The actual prefix is set dynamically in CI/CD (see backend-config-dev.hcl)
   backend "gcs" {
     bucket = "" # Set via backend-config.hcl or -backend-config flag
     prefix = "terraform/state"
@@ -40,10 +40,4 @@ provider "google-beta" {
   region                = var.region
   user_project_override = true
   billing_project       = var.project_id
-}
-
-provider "helm" {
-  kubernetes {
-    config_path = pathexpand("~/.kube/config")
-  }
 }

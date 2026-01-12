@@ -1,10 +1,29 @@
+# =============================================================================
+# Standard Tier Tenant Configuration
+# =============================================================================
+# This configuration creates tenant-specific resources for Standard tier.
+# It assumes shared infrastructure (GKE, DNS, Artifact Registry, Firestore)
+# already exists from the base/free tier deployment.
+#
+# Standard tier tenants:
+# - Get their own API Gateway, Storage bucket, and Service Account
+# - Share GKE cluster, DNS zone, Artifact Registry with all tenants
+# - Use shared services for Weather and Travel Warnings
+# - Get dedicated namespace in GKE for their microservices
+# =============================================================================
+
 # Local variables for resource naming
 locals {
-  suffix               = var.resource_suffix != "" ? var.resource_suffix : (var.use_random_suffix ? random_id.suffix.hex : "")
-  service_account_name = var.use_random_suffix ? "${var.app_name}-sa-${local.suffix}" : "${var.app_name}-sa"
-  bucket_name          = var.use_random_suffix ? "${var.project_id}-${var.bucket_name}-${local.suffix}" : "${var.project_id}-${var.bucket_name}"
+  # Tenant-specific naming
+  tenant_suffix        = var.tenant_name
+  service_account_name = "${var.app_name}-${var.tenant_name}-sa"
+  bucket_name          = "${var.project_id}-${var.bucket_name}-${var.tenant_name}"
+  api_gateway_name     = "${var.app_name}-${var.tenant_name}"
 
   # Build tenant-specific microservices URLs
+  # Tenant-specific services: itinerary, comments-likes, recommendation
+  # Shared services: weather, travel-warnings (from shared namespace)
+  #
   # For dev: https://itinerary-standard-1.dev.tripico.fun
   # For prod: https://itinerary-standard-1.tripico.fun
   microservices = {
@@ -13,7 +32,7 @@ locals {
       ingress_url  = "https://cl-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/comment"
       service_name = "comment-service"
-      namespace    = "default"
+      namespace    = var.tenant_name
       port         = 8080
     }
     itinerary = {
@@ -21,7 +40,7 @@ locals {
       ingress_url  = "https://itinerary-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/itinerary"
       service_name = "itinerary-service"
-      namespace    = "default"
+      namespace    = var.tenant_name
       port         = 8080
     }
     like = {
@@ -29,7 +48,7 @@ locals {
       ingress_url  = "https://cl-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/like"
       service_name = "like-service"
-      namespace    = "default"
+      namespace    = var.tenant_name
       port         = 8080
     }
     location = {
@@ -37,7 +56,7 @@ locals {
       ingress_url  = "https://itinerary-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/location"
       service_name = "location-service"
-      namespace    = "default"
+      namespace    = var.tenant_name
       port         = 8080
     }
     user = {
@@ -45,23 +64,24 @@ locals {
       ingress_url  = "https://itinerary-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/user"
       service_name = "user-service"
-      namespace    = "default"
+      namespace    = var.tenant_name
       port         = 8080
     }
+    # Shared services - point to shared namespace URLs
     travel-warnings = {
       name         = "travel-warnings-service"
-      ingress_url  = "https://warnings-${var.tenant_name}.${var.domain_name}"
+      ingress_url  = "https://warnings.${var.domain_name}"
       path_prefix  = "/warnings"
       service_name = "travel-warnings-service"
-      namespace    = "default"
+      namespace    = "shared"
       port         = 8080
     }
     weather = {
-      name         = "weather-service"
-      ingress_url  = "https://weather-${var.tenant_name}.${var.domain_name}"
+      name         = "weather-forecast-service"
+      ingress_url  = "https://weather.${var.domain_name}"
       path_prefix  = "/api/weather"
-      service_name = "weather-service"
-      namespace    = "default"
+      service_name = "weather-forecast-service"
+      namespace    = "shared"
       port         = 8080
     }
     feed = {
@@ -69,7 +89,7 @@ locals {
       ingress_url  = "https://recommendation-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/feed"
       service_name = "recommendation-service"
-      namespace    = "default"
+      namespace    = var.tenant_name
       port         = 8080
     }
     graph = {
@@ -77,37 +97,29 @@ locals {
       ingress_url  = "https://recommendation-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/graph"
       service_name = "recommendation-service"
-      namespace    = "default"
+      namespace    = var.tenant_name
       port         = 8080
     }
   }
 }
 
-# Generate random suffix for unique resource names
-resource "random_id" "suffix" {
-  byte_length = 4
-}
+# =============================================================================
+# Tenant-Specific Resources
+# =============================================================================
+# These resources are created for each Standard tier tenant.
+# Shared infrastructure (GKE, DNS, etc.) is NOT created here.
+# =============================================================================
 
-# Project Services Module
-module "project" {
-  source = "../../modules/project"
-
-  project_id         = var.project_id
-  required_apis      = var.required_apis
-  authorized_domains = var.authorized_domains
-}
-
-# IAM Module
+# IAM Module - Tenant-specific service account
 module "iam" {
   source = "../../modules/iam"
 
   project_id           = var.project_id
-  app_name             = var.app_name
+  app_name             = local.api_gateway_name
   service_account_name = local.service_account_name
-  project_apis_enabled = module.project.identity_platform_config_id
 }
 
-# Storage Module
+# Storage Module - Tenant-specific bucket
 module "storage" {
   source = "../../modules/storage"
 
@@ -116,65 +128,18 @@ module "storage" {
   bucket_location       = var.bucket_location
   force_destroy         = var.bucket_force_destroy
   service_account_email = module.iam.service_account_email
-  labels                = var.labels
-  project_apis_enabled  = module.project.identity_platform_config_id
+  labels = merge(var.labels, {
+    tenant = var.tenant_name
+  })
 }
 
-# Firestore Module
-module "firestore" {
-  source = "../../modules/firestore"
-
-  project_id           = var.project_id
-  firestore_location   = var.firestore_location
-  project_apis_enabled = module.project.identity_platform_config_id
-}
-
-# Artifact Registry Module
-module "artifact_registry" {
-  count  = var.create_artifact_registry ? 1 : 0
-  source = "../../modules/artifact-registry"
-
-  project_id           = var.project_id
-  region               = var.region
-  app_name             = var.app_name
-  repository_id        = var.artifact_registry_name
-  labels               = var.labels
-  project_apis_enabled = module.project.identity_platform_config_id
-}
-
-# GKE Module
-module "gke" {
-  source = "../../modules/gke"
-
-  project_id           = var.project_id
-  region               = var.region
-  app_name             = var.app_name
-  gke_subnet_cidr      = var.gke_subnet_cidr
-  gke_services_cidr    = var.gke_services_cidr
-  gke_pods_cidr        = var.gke_pods_cidr
-  deletion_protection  = var.deletion_protection
-  project_apis_enabled = module.project.identity_platform_config_id
-}
-
-# API Gateway Module
+# API Gateway Module - Tenant-specific gateway
 module "api_gateway" {
   source = "../../modules/api-gateway"
 
   project_id            = var.project_id
   region                = var.region
-  app_name              = var.app_name
+  app_name              = local.api_gateway_name
   service_account_email = module.iam.service_account_email
   microservices         = local.microservices
-  project_apis_enabled  = module.project.identity_platform_config_id
-}
-
-module "dns" {
-  source = "../../modules/dns"
-
-  project_id           = var.project_id
-  region               = var.region
-  domain_name          = var.domain_name
-  is_prod_environment  = var.is_prod_environment
-  project_apis_enabled = module.project.identity_platform_config_id
-  gke_cluster_ready    = module.gke.cluster_ready
 }
