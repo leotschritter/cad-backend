@@ -12,6 +12,12 @@ image:
   pullPolicy: Always
 # Lower resources for dev
 
+commentsLikesService:
+  cors:
+    origins: "*"
+    methods: "GET,POST,PUT,DELETE,OPTIONS,PATCH,HEAD"
+    headers: "accept,authorization,content-type,x-requested-with,cache-control,if-modified-since"
+
 serviceAccount:
   annotations:
     # This must match the GCP service account created by Terraform
