@@ -138,10 +138,9 @@ jobs:
     name: Terraform Plan
     runs-on: ubuntu-latest
     needs: terraform-validate
-    # Run plan on PRs, on pushes (when terraform changed), or when manually
-    # dispatched with action == 'plan'. This produces a plan artifact for
-    # later manual apply.
-    if: github.event_name == 'pull_request' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'plan')
+    # Run plan on PRs, pushes, or when manually dispatched with action == 'plan' or 'apply'.
+    # The plan is required before apply can run.
+    if: github.event_name == 'pull_request' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'))
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
