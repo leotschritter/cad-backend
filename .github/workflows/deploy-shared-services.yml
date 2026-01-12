@@ -120,15 +120,16 @@ jobs:
           fi
 
           # Build CORS origins for all tenants (freemium + standard 1-30)
+          # Commas must be escaped for Helm --set
           if [ "$DEPLOY_ENV" = "prod" ]; then
             CORS_ORIGINS="https://frontend-freemium.tripico.fun"
             for i in $(seq 1 30); do
-              CORS_ORIGINS="$CORS_ORIGINS,https://frontend-standard-${i}.tripico.fun"
+              CORS_ORIGINS="$CORS_ORIGINS\,https://frontend-standard-${i}.tripico.fun"
             done
           else
             CORS_ORIGINS="https://frontend-freemium.dev.tripico.fun"
             for i in $(seq 1 30); do
-              CORS_ORIGINS="$CORS_ORIGINS,https://frontend-standard-${i}.dev.tripico.fun"
+              CORS_ORIGINS="$CORS_ORIGINS\,https://frontend-standard-${i}.dev.tripico.fun"
             done
           fi
 
