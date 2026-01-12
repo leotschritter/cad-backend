@@ -2,7 +2,7 @@ name: Build Docker Image and Deploy to GCP/GHCR for Travel Warnings Microservice
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "main", "develop", "feature/tenant-terraform" ]
     tags: [ "v*.*.*" ]
     paths:
       - "services/travel_warnings/travel-warnings-chart/Chart.yaml"
