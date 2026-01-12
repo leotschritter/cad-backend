@@ -6,6 +6,7 @@ on:
       - main
       - develop
       - feature/namespaces-01
+      - feature/tenant-terraform
     paths:
       - 'services/weather-forecast-service/**'
       - 'services/travel_warnings/**'
