@@ -165,8 +165,8 @@ mongodb:
     storageClass: ""  # Use default storage class, or specify e.g., "standard", "ssd"
     accessModes:
       - ReadWriteOnce
-    size: 10Gi
-    configSize: 1Gi
+    size: 2Gi
+    configSize: 512Mi
 
   # Resources
   resources:

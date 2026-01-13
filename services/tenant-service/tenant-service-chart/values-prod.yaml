@@ -90,8 +90,8 @@ mongodb:
   persistence:
     enabled: true
     storageClass: "standard"  # Adjust based on your cluster
-    size: 20Gi
-    configSize: 2Gi
+    size: 2Gi
+    configSize: 512Mi
   resources:
     limits:
       cpu: 2000m
