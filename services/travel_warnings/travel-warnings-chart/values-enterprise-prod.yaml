@@ -1,0 +1,86 @@
+# Helm values for travel-warnings-service in enterprise tier (PROD)
+# Enterprise tier gets dedicated services in their own cluster
+
+# Override namespace (enterprise uses 'default' namespace in dedicated cluster)
+namespaceOverride: default
+
+# Common labels
+commonLabels:
+  app.kubernetes.io/part-of: travel-warnings-system
+  app.kubernetes.io/managed-by: helm
+  tier: enterprise
+
+travelWarningsApi:
+  name: travel-warnings-service
+  port: 8080
+  image: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-warnings:latest
+  replicas: 3  # Higher replicas for enterprise
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  resources:
+    requests:
+      memory: "1Gi"  # Higher resources for enterprise
+      cpu: "1000m"
+    limits:
+      memory: "2Gi"
+      cpu: "2000m"
+
+  cors:
+    origins: "*"
+    methods: "GET,POST,PUT,DELETE,OPTIONS,HEAD,PATCH"
+    headers: "accept,authorization,content-type,x-requested-with,origin"
+    exposedHeaders: "Content-Disposition"
+    allowCredentials: "true"
+
+  probes:
+    startup:
+      path: /q/health/started
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      failureThreshold: 30
+      timeoutSeconds: 3
+    readiness:
+      path: /q/health/ready
+      periodSeconds: 30
+      initialDelaySeconds: 5
+      failureThreshold: 3
+      timeoutSeconds: 5
+    liveness:
+      path: /q/health/live
+      periodSeconds: 30
+      initialDelaySeconds: 10
+      failureThreshold: 3
+      timeoutSeconds: 5
+
+ingress:
+  name: travel-warnings-ingress
+  enabled: true
+  useProd: true
+  prod:
+    host: ""
+    tlsSecretName: ""
+    sslRedirect: "true"
+    forceSslRedirect: "true"
+
+# Autoscaling configuration - higher for enterprise
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+certificate:
+  name: warnings-tls-cert
+  secretName: warnings-tls
+  issuerName: letsencrypt-prod
+
+# SMTP credentials should be provided via --set or secrets
+smtp:
+  user: ""  # Set via --set smtp.user=XXX
+  password: ""  # Set via --set smtp.password=XXX
+
