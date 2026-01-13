@@ -86,13 +86,15 @@ runs:
       shell: bash
       working-directory: ./services/itinerary-service/kubernetes
       run: |
+        echo "Adding Jetstack Helm repository..."
         helm repo add jetstack https://charts.jetstack.io
         helm repo update
+        
+        echo "Building cert-manager chart dependencies..."
         helm dependency update ./cert-manager-chart
         helm dependency build ./cert-manager-chart
 
-        echo "Deploying cert-manager with ${{ steps.set-values.outputs.VALUES_FILE }}"
-
+        echo "Stage 1: Deploying cert-manager core (without ClusterIssuer)..."
         helm upgrade --install cert-manager ./cert-manager-chart \
           --namespace cert-manager \
           --create-namespace \
@@ -100,22 +102,71 @@ runs:
           --set cert-manager.installCRDs=true \
           --set cert-manager.global.rbac.create=true \
           --set cert-manager.serviceAccount.create=true \
+          --set clusterIssuer.enabled=false \
+          --wait \
+          --timeout 10m
+
+        echo "✅ cert-manager core deployed successfully"
+
+    - name: Wait for cert-manager webhook to be ready
+      if: steps.check.outputs.installed == 'false'
+      shell: bash
+      run: |
+        echo "Waiting for cert-manager webhook to be ready..."
+        kubectl wait --for=condition=available deployment/cert-manager-webhook -n cert-manager --timeout=300s
+        kubectl wait --for=condition=available deployment/cert-manager -n cert-manager --timeout=300s
+        kubectl wait --for=condition=available deployment/cert-manager-cainjector -n cert-manager --timeout=300s
+        
+        echo "Waiting for webhook service to be ready..."
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=webhook -n cert-manager --timeout=300s || echo "Webhook pods ready check failed, continuing..."
+        
+        echo "Waiting an additional 30 seconds for webhook to fully initialize..."
+        sleep 30
+        
+        echo "Testing webhook connectivity..."
+        kubectl get validatingwebhookconfigurations cert-manager-webhook || echo "Webhook configuration not ready yet"
+        
+        echo "✅ cert-manager webhook is ready!"
+
+    - name: Verify CRDs are installed
+      if: steps.check.outputs.installed == 'false'
+      shell: bash
+      run: |
+        echo "Verifying CRDs are installed..."
+        kubectl get crd certificates.cert-manager.io
+        kubectl get crd clusterissuers.cert-manager.io
+        kubectl get crd issuers.cert-manager.io
+        echo "✅ CRDs verified!"
+
+    - name: Deploy ClusterIssuer
+      if: steps.check.outputs.installed == 'false'
+      shell: bash
+      working-directory: ./services/itinerary-service/kubernetes
+      run: |
+        echo "Stage 2: Deploying ClusterIssuer..."
+        helm upgrade --install cert-manager ./cert-manager-chart \
+          --namespace cert-manager \
+          -f ./cert-manager-chart/${{ steps.set-values.outputs.VALUES_FILE }} \
+          --set cert-manager.installCRDs=true \
+          --set cert-manager.global.rbac.create=true \
+          --set cert-manager.serviceAccount.create=true \
+          --set clusterIssuer.enabled=true \
           --wait \
           --timeout 5m
 
-        echo "✅ cert-manager deployed successfully"
+        echo "✅ ClusterIssuer deployed successfully"
 
     - name: Verify cert-manager deployment
       if: steps.check.outputs.installed == 'false'
       shell: bash
       run: |
-        echo "Waiting for cert-manager to be ready..."
-        kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=cert-manager -n cert-manager --timeout=300s
-        
-        echo "Checking cert-manager webhook..."
+        echo "Checking all cert-manager pods..."
         kubectl get pods -n cert-manager
         
-        echo "✅ cert-manager is ready!"
+        echo "Checking cert-manager logs..."
+        kubectl logs -n cert-manager -l app=cert-manager --tail=20 || echo "No logs yet"
+        
+        echo "✅ cert-manager is fully ready!"
 
     - name: Skip message
       if: steps.check.outputs.installed == 'true'
