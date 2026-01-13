@@ -18,6 +18,8 @@ commentsLikesService:
     headers: "accept,authorization,content-type,x-requested-with,cache-control,if-modified-since"
 
 serviceAccount:
+  create: true
+  name: "comments-likes-sa"
   annotations:
     # This must match the GCP service account created by Terraform
     iam.gke.io/gcp-service-account: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
