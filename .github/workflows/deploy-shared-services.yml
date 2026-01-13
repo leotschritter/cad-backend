@@ -207,9 +207,9 @@ jobs:
           if [ "$TIER" = "enterprise" ] && [ -n "$ENTERPRISE_NAME" ]; then
             # For enterprise: allow only that tenant's frontend
             if [ "$DEPLOY_ENV" = "prod" ]; then
-              CORS_ORIGINS="https://frontend-${ENTERPRISE_NAME}.tripico.fun"
+              CORS_ORIGINS="https://frontend.${ENTERPRISE_NAME}.tripico.fun"
             else
-              CORS_ORIGINS="https://frontend-${ENTERPRISE_NAME}.dev.tripico.fun"
+              CORS_ORIGINS="https://frontend.${ENTERPRISE_NAME}.dev.tripico.fun"
             fi
           else
             # For shared tier: use regex pattern for all tenants (freemium + standard-*)
