@@ -365,6 +365,30 @@ jobs:
           TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
           TF_VAR_tenant_name: ${{ steps.set-env.outputs.TENANT_NAME }}
         run: |
+          # First, import the API
+          terraform import \
+            -var="project_id=iaas-476910" \
+            -var="tenant_name=standard-1" \
+            -var="domain_name=dev.tripico.fun" \
+            'module.api_gateway.google_api_gateway_api.api_gateway' \
+            'projects/iaas-476910/locations/global/apis/tripico-standard-1-api'
+        
+          # Then import the config
+          terraform import \
+            -var="project_id=iaas-476910" \
+            -var="tenant_name=standard-1" \
+            -var="domain_name=dev.tripico.fun" \
+            'module.api_gateway.google_api_gateway_api_config.api_config' \
+            'projects/iaas-476910/locations/global/apis/tripico-standard-1-api/configs/tripico-standard-1-api-config-57287595'
+        
+          # Then import the gateway
+          terraform import \
+            -var="project_id=iaas-476910" \
+            -var="tenant_name=standard-1" \
+            -var="domain_name=dev.tripico.fun" \
+            'module.api_gateway.google_api_gateway_gateway.api_gateway' \
+            'projects/iaas-476910/locations/europe-west1/gateways/tripico-standard-1-gateway'
+          
           if [ -f tfplan ]; then
             echo "Found uploaded plan artifact; applying it"
             terraform apply -auto-approve tfplan
