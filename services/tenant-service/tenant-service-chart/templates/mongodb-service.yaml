@@ -1,0 +1,20 @@
+{{- if .Values.mongodb.enabled }}
+{{- end }}
+    app: mongodb
+  selector:
+      name: mongodb
+      protocol: TCP
+      targetPort: 27017
+    - port: 27017
+  ports:
+  clusterIP: None  # Headless service for StatefulSet
+  type: ClusterIP
+spec:
+    {{- include "tenant-service.labels" . | nindent 4 }}
+    app: mongodb
+  labels:
+  name: {{ .Values.mongodb.serviceName }}
+metadata:
+kind: Service
+apiVersion: v1
+
