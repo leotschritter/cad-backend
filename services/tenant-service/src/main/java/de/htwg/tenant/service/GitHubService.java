@@ -1,7 +1,7 @@
 package de.htwg.tenant.service;
 
 import de.htwg.tenant.client.GitHubActionsClient;
-import de.htwg.tenant.client.dto.WorkflowDispatchRequest;
+import de.htwg.tenant.client.dto.RepositoryDispatchRequest;
 import de.htwg.tenant.client.dto.WorkflowRun;
 import de.htwg.tenant.client.dto.WorkflowRunsResponse;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -10,17 +10,19 @@ import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
- * Service for interacting with GitHub Actions.
+ * Service for interacting with GitHub Actions via repository dispatch.
  */
 @ApplicationScoped
 public class GitHubService {
 
     private static final Logger LOG = Logger.getLogger(GitHubService.class);
-    private static final String GITHUB_API_VERSION = "2022-11-28";
+    private static final String DEPLOY_EVENT_TYPE = "deploy-multi-namespace";
 
     @RestClient
     GitHubActionsClient githubClient;
@@ -34,86 +36,104 @@ public class GitHubService {
     @ConfigProperty(name = "github.repository.name")
     String repoName;
 
-    @ConfigProperty(name = "github.workflow.provision")
-    String provisionWorkflow;
-
-    @ConfigProperty(name = "github.workflow.deprovision")
-    String deprovisionWorkflow;
+    @ConfigProperty(name = "github.branch", defaultValue = "main")
+    String branch;
 
     /**
-     * Trigger the provision-tenant workflow.
+     * Trigger deployment for a standard tier tenant.
+     * Uses repository_dispatch to trigger deploy-multi-namespace workflow.
+     *
+     * @param tenantNumber The numeric tenant identifier (1, 2, 3, etc.)
+     * @param environment "prod" or "dev"
+     * @param cluster Cluster name (e.g., "tripico-cluster")
+     * @return Dispatch ID for tracking
      */
-    public void triggerProvisionWorkflow(String tenantId, String namespace, String subdomain, String ownerEmail) {
+    public String triggerTenantDeployment(Integer tenantNumber, String environment, String cluster) {
         try {
-            Map<String, String> inputs = Map.of(
-                "tenant_id", tenantId,
-                "namespace", namespace,
-                "subdomain", subdomain,
-                "owner_email", ownerEmail
+            String dispatchId = UUID.randomUUID().toString();
+            
+            Map<String, Object> clientPayload = new HashMap<>();
+            clientPayload.put("tier", "standard");
+            clientPayload.put("tenant_number", tenantNumber.toString());
+            clientPayload.put("environment", environment);
+            clientPayload.put("cluster", cluster);
+            clientPayload.put("ref", branch);
+            clientPayload.put("dispatch_id", dispatchId); // For tracking
+
+            RepositoryDispatchRequest request = new RepositoryDispatchRequest(
+                DEPLOY_EVENT_TYPE,
+                clientPayload
             );
 
-            WorkflowDispatchRequest request = new WorkflowDispatchRequest("main", inputs);
+            LOG.infof("🚀 Triggering deployment for tenant number %d (dispatch ID: %s)", tenantNumber, dispatchId);
 
-            LOG.infof("🚀 Triggering provision workflow for tenant: %s", tenantId);
-
-            githubClient.dispatchWorkflow(
+            githubClient.dispatchRepository(
                 repoOwner,
                 repoName,
-                provisionWorkflow,
                 "Bearer " + githubToken,
                 "application/vnd.github+json",
                 request
             );
 
-            LOG.infof("✅ Provision workflow triggered successfully for tenant: %s", tenantId);
+            LOG.infof("✅ Deployment triggered successfully for tenant number %d", tenantNumber);
+            return dispatchId;
 
         } catch (Exception e) {
-            LOG.errorf(e, "❌ Failed to trigger provision workflow for tenant: %s", tenantId);
-            throw new RuntimeException("Failed to trigger provision workflow", e);
+            LOG.errorf(e, "❌ Failed to trigger deployment for tenant number: %d", tenantNumber);
+            throw new RuntimeException("Failed to trigger tenant deployment", e);
         }
     }
 
     /**
-     * Trigger the deprovision-tenant workflow.
+     * Trigger cleanup for a tenant namespace.
+     * This will delete the namespace and all resources within it.
+     *
+     * @param namespace The namespace to delete (e.g., "standard-1")
+     * @return Dispatch ID for tracking
      */
-    public void triggerDeprovisionWorkflow(String tenantId, String namespace) {
+    public String triggerTenantCleanup(String namespace) {
         try {
-            Map<String, String> inputs = Map.of(
-                "tenant_id", tenantId,
-                "namespace", namespace
+            String dispatchId = UUID.randomUUID().toString();
+            
+            Map<String, Object> clientPayload = new HashMap<>();
+            clientPayload.put("action", "cleanup");
+            clientPayload.put("namespace", namespace);
+            clientPayload.put("dispatch_id", dispatchId);
+
+            RepositoryDispatchRequest request = new RepositoryDispatchRequest(
+                "cleanup-tenant",
+                clientPayload
             );
 
-            WorkflowDispatchRequest request = new WorkflowDispatchRequest("main", inputs);
+            LOG.infof("🗑️ Triggering cleanup for namespace %s (dispatch ID: %s)", namespace, dispatchId);
 
-            LOG.infof("🚀 Triggering deprovision workflow for tenant: %s", tenantId);
-
-            githubClient.dispatchWorkflow(
+            githubClient.dispatchRepository(
                 repoOwner,
                 repoName,
-                deprovisionWorkflow,
                 "Bearer " + githubToken,
                 "application/vnd.github+json",
                 request
             );
 
-            LOG.infof("✅ Deprovision workflow triggered successfully for tenant: %s", tenantId);
+            LOG.infof("✅ Cleanup triggered successfully for namespace %s", namespace);
+            return dispatchId;
 
         } catch (Exception e) {
-            LOG.errorf(e, "❌ Failed to trigger deprovision workflow for tenant: %s", tenantId);
-            throw new RuntimeException("Failed to trigger deprovision workflow", e);
+            LOG.errorf(e, "❌ Failed to trigger cleanup for namespace: %s", namespace);
+            throw new RuntimeException("Failed to trigger tenant cleanup", e);
         }
     }
 
     /**
-     * Get the latest workflow run for a specific workflow.
-     * This is used to track the workflow that was just triggered.
+     * Get recent workflow runs for the deploy-multi-namespace workflow.
+     * Can be used to check deployment status.
      */
-    public Optional<WorkflowRun> getLatestWorkflowRun(String workflowId) {
+    public Optional<WorkflowRun> getLatestDeploymentRun() {
         try {
             WorkflowRunsResponse response = githubClient.getWorkflowRuns(
                 repoOwner,
                 repoName,
-                workflowId,
+                "deploy-multi-namespace.yml",
                 "Bearer " + githubToken,
                 "application/vnd.github+json",
                 5  // Get last 5 runs
@@ -128,28 +148,7 @@ public class GitHubService {
             return Optional.empty();
 
         } catch (Exception e) {
-            LOG.errorf(e, "❌ Failed to get workflow runs for: %s", workflowId);
-            return Optional.empty();
-        }
-    }
-
-    /**
-     * Get a specific workflow run by ID.
-     */
-    public Optional<WorkflowRun> getWorkflowRun(Long runId) {
-        try {
-            WorkflowRun run = githubClient.getWorkflowRun(
-                repoOwner,
-                repoName,
-                runId,
-                "Bearer " + githubToken,
-                "application/vnd.github+json"
-            );
-
-            return Optional.of(run);
-
-        } catch (Exception e) {
-            LOG.errorf(e, "❌ Failed to get workflow run: %d", runId);
+            LOG.errorf(e, "❌ Failed to get workflow runs");
             return Optional.empty();
         }
     }

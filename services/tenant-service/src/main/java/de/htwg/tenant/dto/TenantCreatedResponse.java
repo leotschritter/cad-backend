@@ -14,19 +14,24 @@ public class TenantCreatedResponse {
 
     private String id;
     private String tenantId;
+    private Integer tenantNumber;
     private String name;
-    private String subdomain;
+    private String namespace;
+    private String frontendDomain;
     private String state;
     private String message;
 
-    public static TenantCreatedResponse from(String id, String tenantId, String name, String subdomain, String state) {
+    public static TenantCreatedResponse from(Tenant tenant) {
         return new TenantCreatedResponse(
-            id,
-            tenantId,
-            name,
-            subdomain,
-            state,
-            "Tenant provisioning initiated. You will receive an email when your tenant is ready."
+            tenant.id.toString(),
+            tenant.tenantId,
+            tenant.tenantNumber,
+            tenant.name,
+            tenant.namespace,
+            tenant.frontendDomain,
+            tenant.state.toString(),
+            String.format("Tenant provisioning initiated in namespace %s. You will receive an email when your tenant is ready at %s", 
+                tenant.namespace, tenant.frontendDomain)
         );
     }
 }

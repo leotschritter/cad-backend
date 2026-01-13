@@ -1,6 +1,6 @@
 package de.htwg.tenant.client;
 
-import de.htwg.tenant.client.dto.WorkflowDispatchRequest;
+import de.htwg.tenant.client.dto.RepositoryDispatchRequest;
 import de.htwg.tenant.client.dto.WorkflowRun;
 import de.htwg.tenant.client.dto.WorkflowRunsResponse;
 import jakarta.ws.rs.*;
@@ -8,7 +8,7 @@ import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
 /**
- * REST client for GitHub Actions API.
+ * REST client for GitHub API.
  */
 @RegisterRestClient(configKey = "github-api")
 @Path("/repos/{owner}/{repo}")
@@ -17,17 +17,16 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 public interface GitHubActionsClient {
 
     /**
-     * Trigger a workflow dispatch event.
+     * Trigger a repository dispatch event.
      */
     @POST
-    @Path("/actions/workflows/{workflow_id}/dispatches")
-    void dispatchWorkflow(
+    @Path("/dispatches")
+    void dispatchRepository(
         @PathParam("owner") String owner,
         @PathParam("repo") String repo,
-        @PathParam("workflow_id") String workflowId,
         @HeaderParam("Authorization") String authorization,
         @HeaderParam("Accept") String accept,
-        WorkflowDispatchRequest request
+        RepositoryDispatchRequest request
     );
 
     /**

@@ -43,13 +43,7 @@ public class TenantResource {
             
             Tenant tenant = tenantService.createTenant(request);
             
-            TenantCreatedResponse response = TenantCreatedResponse.from(
-                tenant.id.toString(),
-                tenant.tenantId,
-                tenant.name,
-                tenant.subdomain,
-                tenant.state.toString()
-            );
+            TenantCreatedResponse response = TenantCreatedResponse.from(tenant);
 
             return Response.status(Response.Status.ACCEPTED)
                 .entity(response)

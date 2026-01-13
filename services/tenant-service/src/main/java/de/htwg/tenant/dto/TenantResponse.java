@@ -18,31 +18,51 @@ public class TenantResponse {
     private String id;
     private String name;
     private String tenantId;
-    private String subdomain;
+    private Integer tenantNumber;
+    private String namespace;
+    private String frontendDomain;
     private String ownerEmail;
     private String state;
     private String tier;
-    private String namespace;
     private String errorMessage;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime activatedAt;
 
+    // Service endpoints for this tenant
+    private String itineraryUrl;
+    private String weatherUrl;
+    private String warningsUrl;
+    private String recommendationsUrl;
+    private String commentsUrl;
+
     public static TenantResponse from(Tenant tenant) {
-        return new TenantResponse(
-            tenant.id.toString(),
-            tenant.name,
-            tenant.tenantId,
-            tenant.subdomain,
-            tenant.ownerEmail,
-            tenant.state.toString(),
-            tenant.tier.toString(),
-            tenant.namespace,
-            tenant.errorMessage,
-            tenant.createdAt,
-            tenant.updatedAt,
-            tenant.activatedAt
-        );
+        TenantResponse response = new TenantResponse();
+        response.setId(tenant.id.toString());
+        response.setName(tenant.name);
+        response.setTenantId(tenant.tenantId);
+        response.setTenantNumber(tenant.tenantNumber);
+        response.setNamespace(tenant.namespace);
+        response.setFrontendDomain(tenant.frontendDomain);
+        response.setOwnerEmail(tenant.ownerEmail);
+        response.setState(tenant.state.toString());
+        response.setTier(tenant.tier.toString());
+        response.setErrorMessage(tenant.errorMessage);
+        response.setCreatedAt(tenant.createdAt);
+        response.setUpdatedAt(tenant.updatedAt);
+        response.setActivatedAt(tenant.activatedAt);
+
+        // Build service URLs based on tenant number
+        if (tenant.tenantNumber != null) {
+            String domain = tenant.frontendDomain.replace("frontend-", "");
+            response.setItineraryUrl(String.format("https://itinerary-%s", domain));
+            response.setWeatherUrl(String.format("https://weather.%s", domain.replace("standard-" + tenant.tenantNumber + ".", "")));
+            response.setWarningsUrl(String.format("https://warnings.%s", domain.replace("standard-" + tenant.tenantNumber + ".", "")));
+            response.setRecommendationsUrl(String.format("https://recommendation-%s", domain));
+            response.setCommentsUrl(String.format("https://cl-%s", domain));
+        }
+
+        return response;
     }
 }
 

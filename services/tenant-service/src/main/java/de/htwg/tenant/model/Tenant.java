@@ -21,14 +21,20 @@ public class Tenant extends PanacheMongoEntity {
     public String name;
 
     /**
-     * Sanitized tenant ID used for namespaces, subdomains, etc. (e.g., "acme-corp")
+     * Sanitized tenant ID used for identification (e.g., "acme-corp")
      */
     public String tenantId;
 
     /**
-     * Full subdomain (e.g., "acme-corp.tripico.fun")
+     * Numeric tenant identifier for namespace (e.g., 1, 2, 3)
+     * Used to create namespace: standard-{tenantNumber}
      */
-    public String subdomain;
+    public Integer tenantNumber;
+
+    /**
+     * Frontend subdomain (e.g., "frontend-standard-1.tripico.fun")
+     */
+    public String frontendDomain;
 
     /**
      * Email of the user who created this tenant
@@ -52,17 +58,17 @@ public class Tenant extends PanacheMongoEntity {
     public TenantTier tier = TenantTier.STANDARD;
 
     /**
-     * Kubernetes namespace name
+     * Kubernetes namespace name (e.g., "standard-1")
      */
     public String namespace;
 
     /**
-     * Identity Platform tenant ID (created by GitHub workflow)
+     * Identity Platform tenant ID (created via SDK)
      */
     public String identityPlatformTenantId;
 
     /**
-     * Firestore database ID for this tenant (same as tenantId)
+     * Firestore database ID for this tenant
      */
     public String firestoreDatabaseId;
 
@@ -72,14 +78,14 @@ public class Tenant extends PanacheMongoEntity {
     public String ownerUid;
 
     /**
-     * GitHub Actions workflow run ID for provisioning
+     * GitHub repository dispatch event ID (for tracking)
      */
-    public Long provisioningWorkflowRunId;
+    public String provisioningDispatchId;
 
     /**
-     * GitHub Actions workflow run ID for deprovisioning
+     * GitHub repository dispatch event ID for deprovisioning
      */
-    public Long deprovisioningWorkflowRunId;
+    public String deprovisioningDispatchId;
 
     /**
      * Additional error message if provisioning/deprovisioning failed
@@ -111,12 +117,24 @@ public class Tenant extends PanacheMongoEntity {
         return find("tenantId", tenantId).firstResult();
     }
 
-    public static Tenant findBySubdomain(String subdomain) {
-        return find("subdomain", subdomain).firstResult();
+    public static Tenant findByTenantNumber(Integer tenantNumber) {
+        return find("tenantNumber", tenantNumber).firstResult();
+    }
+
+    public static Tenant findByFrontendDomain(String frontendDomain) {
+        return find("frontendDomain", frontendDomain).firstResult();
     }
 
     public static long countByState(ProvisioningState state) {
         return count("state", state);
+    }
+
+    public static Integer findMaxTenantNumber() {
+        return find("ORDER BY tenantNumber DESC")
+            .page(0, 1)
+            .firstResult()
+            .map(t -> ((Tenant) t).tenantNumber)
+            .orElse(0);
     }
 
     public enum ProvisioningState {
