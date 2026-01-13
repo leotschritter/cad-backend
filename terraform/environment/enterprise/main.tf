@@ -5,11 +5,11 @@
 # Each enterprise tenant gets their own:
 # - GKE Cluster (dedicated Kubernetes cluster)
 # - VPC Network (isolated networking)
-# - IAM Service Account (dedicated identity)
 # - Storage Bucket (dedicated object storage)
 # - API Gateway (dedicated API endpoint)
 #
-# Shared resources (from free tier, read-only access):
+# Shared resources (from free tier):
+# - IAM Service Account (tripico-sa) - for accessing Firestore/Storage
 # - Artifact Registry (for pulling container images)
 # - DNS Zone (for domain records)
 # - Project APIs (already enabled)
@@ -20,18 +20,18 @@
 locals {
   # Tenant-specific naming - use tenant_name for all resources
   # This creates isolated resources like: tripico-acme-corp-cluster, tripico-acme-corp-network
-  tenant_app_name      = "${var.app_name}-${var.tenant_name}"
-  service_account_name = "${var.app_name}-${var.tenant_name}-sa"
-  bucket_name          = "${var.project_id}-${var.bucket_name}-${var.tenant_name}"
+  tenant_app_name = "${var.app_name}-${var.tenant_name}"
+  bucket_name     = "${var.project_id}-${var.bucket_name}-${var.tenant_name}"
+
+  # Use the shared service account from freemium tier (same as standard)
+  shared_service_account_name  = "${var.app_name}-sa"
+  shared_service_account_email = "${local.shared_service_account_name}@${var.project_id}.iam.gserviceaccount.com"
 
   # List of Kubernetes service accounts that need Workload Identity bindings
-  # Enterprise tier has ALL services (no shared services)
+  # Only services that access GCP resources (Firestore, Storage) need this
   k8s_service_accounts = [
     "itinerary-service-sa",
-    "comments-likes-sa",
-    "recommendation-service-sa",
-    "travel-warnings-sa",
-    "weather-forecast-sa"
+    "comments-likes-sa"
   ]
 
   # Build tenant-specific microservices URLs
@@ -119,14 +119,23 @@ locals {
 # Fully Isolated Enterprise Resources
 # =============================================================================
 
-# IAM Module - Dedicated service account for this enterprise tenant
-module "iam" {
-  source = "../../modules/iam"
+# Reference the existing shared service account (created by free tier)
+# Enterprise shares the GCP service account with freemium/standard for accessing
+# Firestore, Storage, and Identity Platform
+data "google_service_account" "shared_sa" {
+  account_id = local.shared_service_account_name
+  project    = var.project_id
+}
 
-  project_id           = var.project_id
-  app_name             = local.tenant_app_name
-  service_account_name = local.service_account_name
-  tenant_name          = "default" # Enterprise uses 'default' namespace in its own cluster
+# Workload Identity bindings for this tenant's cluster
+# This allows Kubernetes service accounts in the enterprise cluster to use the shared GCP service account
+# Note: Enterprise uses 'default' namespace in its dedicated cluster
+resource "google_service_account_iam_member" "workload_identity_bindings" {
+  for_each = toset(local.k8s_service_accounts)
+
+  service_account_id = data.google_service_account.shared_sa.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[default/${each.key}]"
 }
 
 # Storage Module - Dedicated bucket for this enterprise tenant
@@ -137,7 +146,7 @@ module "storage" {
   bucket_name           = local.bucket_name
   bucket_location       = var.bucket_location
   force_destroy         = var.bucket_force_destroy
-  service_account_email = module.iam.service_account_email
+  service_account_email = local.shared_service_account_email
   labels = merge(var.labels, {
     tenant = var.tenant_name
     tier   = "enterprise"
@@ -165,7 +174,7 @@ module "api_gateway" {
   project_id            = var.project_id
   region                = var.region
   app_name              = local.tenant_app_name
-  service_account_email = module.iam.service_account_email
+  service_account_email = local.shared_service_account_email
   microservices         = local.microservices
 }
 

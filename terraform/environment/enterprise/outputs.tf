@@ -72,15 +72,20 @@ output "bucket_url" {
   value       = module.storage.bucket_url
 }
 
-# Service Account Outputs (Dedicated service account for this tenant)
+# Service Account Outputs (using shared service account from freemium)
 output "service_account_email" {
-  description = "The email of the dedicated service account for this tenant"
-  value       = module.iam.service_account_email
+  description = "The email of the shared service account used by this tenant"
+  value       = local.shared_service_account_email
 }
 
 output "service_account_name" {
-  description = "The name of the dedicated service account for this tenant"
-  value       = module.iam.service_account_name
+  description = "The name of the shared service account used by this tenant"
+  value       = local.shared_service_account_name
+}
+
+output "workload_identity_bindings" {
+  description = "Workload Identity bindings created for this tenant's cluster"
+  value       = [for k, v in google_service_account_iam_member.workload_identity_bindings : v.member]
 }
 
 # API Gateway Outputs
@@ -146,6 +151,6 @@ output "deployment_commands" {
     # Deploy services using Helm (example):
     helm upgrade --install itinerary-service ./services/itinerary-service/kubernetes/itinerary-service-chart \
       --set image.tag=latest \
-      --set serviceAccount.annotations."iam\.gke\.io/gcp-service-account"="${module.iam.service_account_email}"
+      --set serviceAccount.annotations."iam\.gke\.io/gcp-service-account"="${local.shared_service_account_email}"
   EOT
 }
