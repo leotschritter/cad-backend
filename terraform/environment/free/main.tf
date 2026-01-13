@@ -1,10 +1,86 @@
 # Local variables for resource naming
 locals {
   suffix               = var.resource_suffix != "" ? var.resource_suffix : (var.use_random_suffix ? random_id.suffix.hex : "")
-  db_instance_name     = var.resource_suffix != "" || var.use_random_suffix ? "${var.db_instance_name}-${local.suffix}" : var.db_instance_name
   service_account_name = var.use_random_suffix ? "${var.app_name}-sa-${local.suffix}" : "${var.app_name}-sa"
-  secret_name          = var.use_random_suffix ? "${var.app_name}-db-password-${local.suffix}" : "${var.app_name}-db-password"
   bucket_name          = var.use_random_suffix ? "${var.project_id}-${var.bucket_name}-${local.suffix}" : "${var.project_id}-${var.bucket_name}"
+
+  # Build freemium microservices URLs dynamically
+  # For dev: https://itinerary-freemium.dev.tripico.fun
+  # For prod: https://itinerary-freemium.tripico.fun
+  microservices = {
+    comment = {
+      name         = "comment-service"
+      ingress_url  = "https://cl-freemium.${var.domain_name}"
+      path_prefix  = "/comment"
+      service_name = "comment-service"
+      namespace    = "default"
+      port         = 8080
+    }
+    itinerary = {
+      name         = "itinerary-service"
+      ingress_url  = "https://itinerary-freemium.${var.domain_name}"
+      path_prefix  = "/itinerary"
+      service_name = "itinerary-service"
+      namespace    = "default"
+      port         = 8080
+    }
+    like = {
+      name         = "like-service"
+      ingress_url  = "https://cl-freemium.${var.domain_name}"
+      path_prefix  = "/like"
+      service_name = "like-service"
+      namespace    = "default"
+      port         = 8080
+    }
+    location = {
+      name         = "location-service"
+      ingress_url  = "https://itinerary-freemium.${var.domain_name}"
+      path_prefix  = "/location"
+      service_name = "location-service"
+      namespace    = "default"
+      port         = 8080
+    }
+    user = {
+      name         = "user-service"
+      ingress_url  = "https://itinerary-freemium.${var.domain_name}"
+      path_prefix  = "/user"
+      service_name = "user-service"
+      namespace    = "default"
+      port         = 8080
+    }
+    travel-warnings = {
+      name         = "travel-warnings-service"
+      ingress_url  = "https://warnings.${var.domain_name}"
+      path_prefix  = "/warnings"
+      service_name = "travel-warnings-service"
+      namespace    = "shared"
+      port         = 8080
+    }
+    weather = {
+      name         = "weather-forecast-service"
+      ingress_url  = "https://weather.${var.domain_name}"
+      path_prefix  = "/api/weather"
+      service_name = "weather-forecast-service"
+      namespace    = "shared"
+      port         = 8080
+    }
+    feed = {
+      name         = "recommendation-feed-service"
+      ingress_url  = "https://recommendation-freemium.${var.domain_name}"
+      path_prefix  = "/feed"
+      service_name = "recommendation-service"
+      namespace    = "default"
+      port         = 8080
+    }
+    graph = {
+      name         = "recommendation-graph-service"
+      ingress_url  = "https://recommendation-freemium.${var.domain_name}"
+      path_prefix  = "/graph"
+      service_name = "recommendation-service"
+      namespace    = "default"
+      port         = 8080
+    }
+  }
 }
 
 # Generate random suffix for unique resource names
@@ -28,26 +104,8 @@ module "iam" {
   project_id           = var.project_id
   app_name             = var.app_name
   service_account_name = local.service_account_name
+  tenant_name          = "freemium"
   project_apis_enabled = module.project.identity_platform_config_id
-}
-
-# Database Module
-module "database" {
-  source = "../../modules/database"
-
-  project_id            = var.project_id
-  region                = var.region
-  db_name               = var.db_name
-  db_user               = var.db_user
-  db_instance_name      = local.db_instance_name
-  db_tier               = var.db_tier
-  db_availability_type  = var.db_availability_type
-  disk_size             = var.db_disk_size
-  db_password           = var.db_password
-  secret_name           = local.secret_name
-  service_account_email = module.iam.service_account_email
-  deletion_protection   = var.deletion_protection
-  project_apis_enabled  = module.project.identity_platform_config_id
 }
 
 # Storage Module
@@ -107,7 +165,7 @@ module "api_gateway" {
   region                = var.region
   app_name              = var.app_name
   service_account_email = module.iam.service_account_email
-  microservices         = var.microservices
+  microservices         = local.microservices
   project_apis_enabled  = module.project.identity_platform_config_id
 }
 

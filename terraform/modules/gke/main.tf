@@ -54,4 +54,3 @@ resource "google_container_cluster" "main" {
     google_compute_subnetwork.gke_subnet,
   ]
 }
-

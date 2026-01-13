@@ -31,6 +31,14 @@ on:
         required: false
         type: string
         default: '1'
+      cluster:
+        description: 'Target cluster'
+        required: true
+        type: choice
+        options:
+          - tripico-cluster
+          - tripico-freemium-cluster
+        default: tripico-cluster
   repository_dispatch:
     types: [deploy-multi-namespace]
 
@@ -61,7 +69,9 @@ jobs:
 
       - name: Get GKE Credentials
         run: |
-          gcloud container clusters get-credentials tripico-cluster \
+          CLUSTER_NAME="${{ github.event_name == 'workflow_dispatch' && inputs.cluster || github.event.client_payload.cluster || 'tripico-cluster' }}"
+          echo "Connecting to cluster: $CLUSTER_NAME"
+          gcloud container clusters get-credentials $CLUSTER_NAME \
             --region europe-west1 \
             --project ${{ vars.PROJECT_ID }}
 
@@ -94,6 +104,7 @@ jobs:
       id-token: write
 
     strategy:
+      max-parallel: 1  # Deploy one service at a time to avoid Helm conflicts
       matrix:
         service:
           - name: itinerary-service
@@ -102,18 +113,24 @@ jobs:
             values_prod: services/itinerary-service/kubernetes/itinerary-service-chart/values-freemium-prod.yaml
             domain_dev: "itinerary-freemium.dev.tripico.fun"
             domain_prod: "itinerary-freemium.tripico.fun"
+            frontend_domain_dev: "https://frontend-freemium.dev.tripico.fun"
+            frontend_domain_prod: "https://frontend-freemium.tripico.fun"
           - name: recommendation-service
             chart: services/recommendation-service/recommendation-service-chart
             values_dev: services/recommendation-service/recommendation-service-chart/values-freemium-dev.yaml
             values_prod: services/recommendation-service/recommendation-service-chart/values-freemium-prod.yaml
             domain_dev: "recommendation-freemium.dev.tripico.fun"
             domain_prod: "recommendation-freemium.tripico.fun"
+            frontend_domain_dev: "https://frontend-freemium.dev.tripico.fun"
+            frontend_domain_prod: "https://frontend-freemium.tripico.fun"
           - name: comments-likes-service
             chart: services/comments-likes-service/comments-likes-chart
             values_dev: services/comments-likes-service/comments-likes-chart/values-freemium-dev.yaml
             values_prod: services/comments-likes-service/comments-likes-chart/values-freemium-prod.yaml
-            domain_dev: "comments-likes-freemium.dev.tripico.fun"
-            domain_prod: "comments-likes-freemium.tripico.fun"
+            domain_dev: "cl-freemium.dev.tripico.fun"
+            domain_prod: "cl-freemium.tripico.fun"
+            frontend_domain_dev: "https://frontend-freemium.dev.tripico.fun"
+            frontend_domain_prod: "https://frontend-freemium.tripico.fun"
 
     steps:
       - uses: actions/checkout@v4
@@ -134,7 +151,9 @@ jobs:
 
       - name: Get GKE Credentials
         run: |
-          gcloud container clusters get-credentials tripico-cluster \
+          CLUSTER_NAME="${{ github.event_name == 'workflow_dispatch' && inputs.cluster || github.event.client_payload.cluster || 'tripico-cluster' }}"
+          echo "Connecting to cluster: $CLUSTER_NAME"
+          gcloud container clusters get-credentials $CLUSTER_NAME \
             --region europe-west1 \
             --project ${{ vars.PROJECT_ID }}
 
@@ -145,25 +164,54 @@ jobs:
 
       - name: Deploy ${{ matrix.service.name }} to freemium namespace
         env:
-          DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'dev' }}
+          DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event.client_payload.environment || 'dev' }}
         run: |
           VALUES_FILE=${{ matrix.service.values_dev }}
           DOMAIN=${{ matrix.service.domain_dev }}
-          
+          FRONTEND_DOMAIN="${{ matrix.service.frontend_domain_dev }}"
+
           if [ "$DEPLOY_ENV" = "prod" ]; then
             VALUES_FILE=${{ matrix.service.values_prod }}
             DOMAIN=${{ matrix.service.domain_prod }}
+            FRONTEND_DOMAIN="${{ matrix.service.frontend_domain_prod }}"
+          fi
+
+          # Build helm arguments based on service type
+          HELM_ARGS="--namespace freemium --create-namespace --values $VALUES_FILE"
+          HELM_ARGS="$HELM_ARGS --set database.password=${{ secrets.DB_PASSWORD }}"
+          # All services use their own PostgreSQL pods - database.url is set in values files
+          HELM_ARGS="$HELM_ARGS --set neo4j.password=${{ secrets.NEO4J_PASSWORD }}"
+
+          # recommendation-service uses ingress.prod.* for both dev and prod
+          if [ "${{ matrix.service.name }}" = "recommendation-service" ]; then
+            HELM_ARGS="$HELM_ARGS --set ingress.prod.host=$DOMAIN"
+            HELM_ARGS="$HELM_ARGS --set ingress.prod.tlsSecretName=${{ matrix.service.name }}-freemium-tls"
+          elif [ "${{ matrix.service.name }}" = "itinerary-service" ] || [ "${{ matrix.service.name }}" = "comments-likes-service" ]; then
+            # itinerary and comments-likes use ingress.hosts array structure
+            HELM_ARGS="$HELM_ARGS --set ingress.hosts[0].host=$DOMAIN"
+            HELM_ARGS="$HELM_ARGS --set ingress.hosts[0].paths[0].path=/"
+            HELM_ARGS="$HELM_ARGS --set ingress.hosts[0].paths[0].pathType=Prefix"
+            HELM_ARGS="$HELM_ARGS --set ingress.tls[0].hosts[0]=$DOMAIN"
+            HELM_ARGS="$HELM_ARGS --set ingress.tls[0].secretName=${{ matrix.service.name }}-freemium-tls"
+          else
+            # Fallback: use simple ingress.host
+            HELM_ARGS="$HELM_ARGS --set ingress.host=$DOMAIN"
+            HELM_ARGS="$HELM_ARGS --set ingress.tlsSecretName=${{ matrix.service.name }}-freemium-tls"
+          fi
+
+          # Set CORS origins for services
+          if [ "${{ matrix.service.name }}" = "itinerary-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
+            HELM_ARGS="$HELM_ARGS --set itineraryService.cors.origins=$FRONTEND_DOMAIN"
+          fi
+          if [ "${{ matrix.service.name }}" = "comments-likes-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
+            HELM_ARGS="$HELM_ARGS --set commentsLikesService.cors.origins=$FRONTEND_DOMAIN"
+          fi
+          if [ "${{ matrix.service.name }}" = "recommendation-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
+            HELM_ARGS="$HELM_ARGS --set recommendationApi.cors.origins=$FRONTEND_DOMAIN"
           fi
 
           helm upgrade --install ${{ matrix.service.name }}-freemium ${{ matrix.service.chart }} \
-            --namespace freemium \
-            --create-namespace \
-            --values $VALUES_FILE \
-            --set database.password=${{ secrets.DB_PASSWORD_FREEMIUM }} \
-            --set database.url=${{ secrets.DB_URL_FREEMIUM }} \
-            --set neo4j.password=${{ secrets.NEO4J_PASSWORD_FREEMIUM }} \
-            --set ingress.host="$DOMAIN" \
-            --set ingress.tlsSecretName="${{ matrix.service.name }}-freemium-tls" \
+            $HELM_ARGS \
             --wait \
             --timeout 10m
 
@@ -177,6 +225,7 @@ jobs:
       id-token: write
 
     strategy:
+      max-parallel: 1  # Deploy one service at a time to avoid Helm conflicts
       matrix:
         service:
           - name: itinerary-service
@@ -185,18 +234,24 @@ jobs:
             values_prod: services/itinerary-service/kubernetes/itinerary-service-chart/values-standard-prod.yaml
             domain_dev: "itinerary-standard.dev.tripico.fun"
             domain_prod: "itinerary-standard.tripico.fun"
+            frontend_domain_dev: "https://frontend-standard.dev.tripico.fun"
+            frontend_domain_prod: "https://frontend-standard.tripico.fun"
           - name: recommendation-service
             chart: services/recommendation-service/recommendation-service-chart
             values_dev: services/recommendation-service/recommendation-service-chart/values-standard-dev.yaml
             values_prod: services/recommendation-service/recommendation-service-chart/values-standard-prod.yaml
             domain_dev: "recommendation-standard.dev.tripico.fun"
             domain_prod: "recommendation-standard.tripico.fun"
+            frontend_domain_dev: "https://frontend-standard.dev.tripico.fun"
+            frontend_domain_prod: "https://frontend-standard.tripico.fun"
           - name: comments-likes-service
             chart: services/comments-likes-service/comments-likes-chart
             values_dev: services/comments-likes-service/comments-likes-chart/values-standard-dev.yaml
             values_prod: services/comments-likes-service/comments-likes-chart/values-standard-prod.yaml
-            domain_dev: "comments-likes-standard.dev.tripico.fun"
-            domain_prod: "comments-likes-standard.tripico.fun"
+            domain_dev: "cl-standard.dev.tripico.fun"
+            domain_prod: "cl-standard.tripico.fun"
+            frontend_domain_dev: "https://frontend-standard.dev.tripico.fun"
+            frontend_domain_prod: "https://frontend-standard.tripico.fun"
 
     steps:
       - uses: actions/checkout@v4
@@ -217,7 +272,9 @@ jobs:
 
       - name: Get GKE Credentials
         run: |
-          gcloud container clusters get-credentials tripico-cluster \
+          CLUSTER_NAME="${{ github.event_name == 'workflow_dispatch' && inputs.cluster || github.event.client_payload.cluster || 'tripico-cluster' }}"
+          echo "Connecting to cluster: $CLUSTER_NAME"
+          gcloud container clusters get-credentials $CLUSTER_NAME \
             --region europe-west1 \
             --project ${{ vars.PROJECT_ID }}
 
@@ -233,10 +290,12 @@ jobs:
         run: |
           VALUES_FILE=${{ matrix.service.values_dev }}
           DOMAIN=${{ matrix.service.domain_dev }}
+          FRONTEND_DOMAIN="${{ matrix.service.frontend_domain_dev }}"
 
           if [ "$DEPLOY_ENV" = "prod" ]; then
             VALUES_FILE=${{ matrix.service.values_prod }}
             DOMAIN=${{ matrix.service.domain_prod }}
+            FRONTEND_DOMAIN="${{ matrix.service.frontend_domain_prod }}"
           fi
 
           # Build namespace with tenant number: standard-1, standard-2, etc.
@@ -245,19 +304,53 @@ jobs:
           # Update domain to include tenant number
           DOMAIN="${DOMAIN/standard/standard-${TENANT_NUMBER}}"
 
+          # Update frontend domain to include tenant number (e.g., frontend-standard-1.dev.tripico.fun)
+          FRONTEND_DOMAIN="${FRONTEND_DOMAIN/standard/standard-${TENANT_NUMBER}}"
+
           echo "Deploying to namespace: $NAMESPACE"
           echo "Domain: $DOMAIN"
+          echo "Frontend domain: $FRONTEND_DOMAIN"
           echo "Tenant number: $TENANT_NUMBER"
 
+          # Build helm arguments
+          HELM_ARGS="--namespace $NAMESPACE --create-namespace --values $VALUES_FILE"
+          HELM_ARGS="$HELM_ARGS --set database.password=${{ secrets.DB_PASSWORD }}"
+          # All services use their own PostgreSQL pods - database.url is set in values files
+          HELM_ARGS="$HELM_ARGS --set neo4j.password=${{ secrets.NEO4J_PASSWORD }}"
+
+          # Set backendUrl based on the domain (for services that use it)
+          HELM_ARGS="$HELM_ARGS --set backendUrl=https://$DOMAIN"
+
+          # recommendation-service uses ingress.prod.* for both dev and prod
+          if [ "${{ matrix.service.name }}" = "recommendation-service" ]; then
+            HELM_ARGS="$HELM_ARGS --set ingress.prod.host=$DOMAIN"
+            HELM_ARGS="$HELM_ARGS --set ingress.prod.tlsSecretName=${{ matrix.service.name }}-standard-${TENANT_NUMBER}-tls"
+          elif [ "${{ matrix.service.name }}" = "itinerary-service" ] || [ "${{ matrix.service.name }}" = "comments-likes-service" ]; then
+            # itinerary and comments-likes use ingress.hosts array structure
+            HELM_ARGS="$HELM_ARGS --set ingress.hosts[0].host=$DOMAIN"
+            HELM_ARGS="$HELM_ARGS --set ingress.hosts[0].paths[0].path=/"
+            HELM_ARGS="$HELM_ARGS --set ingress.hosts[0].paths[0].pathType=Prefix"
+            HELM_ARGS="$HELM_ARGS --set ingress.tls[0].hosts[0]=$DOMAIN"
+            HELM_ARGS="$HELM_ARGS --set ingress.tls[0].secretName=${{ matrix.service.name }}-standard-${TENANT_NUMBER}-tls"
+          else
+            # Fallback: use simple ingress.host
+            HELM_ARGS="$HELM_ARGS --set ingress.host=$DOMAIN"
+            HELM_ARGS="$HELM_ARGS --set ingress.tlsSecretName=${{ matrix.service.name }}-standard-${TENANT_NUMBER}-tls"
+          fi
+
+          # Set CORS origins for services
+          if [ "${{ matrix.service.name }}" = "itinerary-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
+            HELM_ARGS="$HELM_ARGS --set itineraryService.cors.origins=$FRONTEND_DOMAIN"
+          fi
+          if [ "${{ matrix.service.name }}" = "comments-likes-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
+            HELM_ARGS="$HELM_ARGS --set commentsLikesService.cors.origins=$FRONTEND_DOMAIN"
+          fi
+          if [ "${{ matrix.service.name }}" = "recommendation-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
+            HELM_ARGS="$HELM_ARGS --set recommendationApi.cors.origins=$FRONTEND_DOMAIN"
+          fi
+
           helm upgrade --install ${{ matrix.service.name }}-standard-${TENANT_NUMBER} ${{ matrix.service.chart }} \
-            --namespace $NAMESPACE \
-            --create-namespace \
-            --values $VALUES_FILE \
-            --set database.password=${{ secrets.DB_PASSWORD_STANDARD }} \
-            --set database.url=${{ secrets.DB_URL_STANDARD }} \
-            --set neo4j.password=${{ secrets.NEO4J_PASSWORD_STANDARD }} \
-            --set ingress.host="$DOMAIN" \
-            --set ingress.tlsSecretName="${{ matrix.service.name }}-standard-${TENANT_NUMBER}-tls" \
+            $HELM_ARGS \
             --wait \
             --timeout 10m
 
@@ -292,7 +385,9 @@ jobs:
 
       - name: Get GKE Credentials
         run: |
-          gcloud container clusters get-credentials tripico-cluster \
+          CLUSTER_NAME="${{ github.event_name == 'workflow_dispatch' && inputs.cluster || github.event.client_payload.cluster || 'tripico-cluster' }}"
+          echo "Connecting to cluster: $CLUSTER_NAME"
+          gcloud container clusters get-credentials $CLUSTER_NAME \
             --region europe-west1 \
             --project ${{ vars.PROJECT_ID }}
 

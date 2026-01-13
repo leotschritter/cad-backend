@@ -2,7 +2,7 @@ name: Build Docker Image and Deploy to GCP/GHCR for Travel Warnings Microservice
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "main", "develop", "feature/tenant-terraform" ]
     tags: [ "v*.*.*" ]
     paths:
       - "services/travel_warnings/travel-warnings-chart/Chart.yaml"
@@ -108,6 +108,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Deprecated – Job deactivated
+        shell: bash
+        run: |
+          echo "This job is outdated and is not being executed anymore."
+          echo "Please manually deploy through the deploy-shared-services.yml workflow."
+          exit 1
 
       # Authenticate again for kubectl
       - name: Authenticate to Google Cloud

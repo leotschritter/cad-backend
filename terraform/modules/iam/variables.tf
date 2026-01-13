@@ -13,9 +13,14 @@ variable "service_account_name" {
   type        = string
 }
 
+variable "tenant_name" {
+  description = "The tenant name for namespace bindings (e.g., 'freemium', 'standard-1'). Use 'default' for shared resources."
+  type        = string
+  default     = "default"
+}
+
 variable "project_apis_enabled" {
   description = "Dependency on project APIs being enabled"
   type        = any
   default     = []
 }
-

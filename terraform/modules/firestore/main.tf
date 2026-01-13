@@ -7,4 +7,3 @@ resource "google_firestore_database" "database" {
 
   depends_on = [var.project_apis_enabled]
 }
-

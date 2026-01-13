@@ -21,9 +21,29 @@ spec:
 
     # ACME challenge solvers
     solvers:
+{{- if .Values.clusterIssuer.dns01.enabled }}
+    # DNS01 Challenge (recommended for GCP)
+    - dns01:
+        cloudDNS:
+          project: {{ .Values.clusterIssuer.dns01.project }}
+          {{- if .Values.clusterIssuer.dns01.serviceAccountSecretRef }}
+          serviceAccountSecretRef:
+            name: {{ .Values.clusterIssuer.dns01.serviceAccountSecretRef.name }}
+            key: {{ .Values.clusterIssuer.dns01.serviceAccountSecretRef.key }}
+          {{- end }}
+      {{- if .Values.clusterIssuer.dns01.dnsZones }}
+      selector:
+        dnsZones:
+        {{- range .Values.clusterIssuer.dns01.dnsZones }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- end }}
+{{- else }}
+    # HTTP01 Challenge (fallback)
 {{- range .Values.clusterIssuer.solvers }}
-      - http01:
-          ingress:
-            class: {{ .http01.ingress.class }}
+    - http01:
+        ingress:
+          class: {{ .http01.ingress.class }}
+{{- end }}
 {{- end }}
 {{- end }}

@@ -35,43 +35,6 @@ variable "environment" {
   default     = "prod"
 }
 
-# Cloud SQL Configuration
-variable "db_name" {
-  description = "The name of the database"
-  type        = string
-  default     = "travel-db"
-}
-
-variable "db_user" {
-  description = "The database user name"
-  type        = string
-  default     = "cad_db_user"
-}
-
-variable "db_instance_name" {
-  description = "The name of the Cloud SQL instance"
-  type        = string
-  default     = "cad-travel-db"
-}
-
-variable "db_tier" {
-  description = "The machine type for Cloud SQL instance"
-  type        = string
-  default     = "db-f1-micro" # Change to db-g1-small or higher for production
-}
-
-variable "db_availability_type" {
-  description = "Availability type for Cloud SQL (ZONAL or REGIONAL)"
-  type        = string
-  default     = "ZONAL" # Use REGIONAL for high availability
-}
-
-variable "db_disk_size" {
-  description = "Disk size in GB for Cloud SQL instance"
-  type        = number
-  default     = 10
-}
-
 variable "deletion_protection" {
   description = "Enable deletion protection for critical resources"
   type        = bool
@@ -88,7 +51,6 @@ variable "required_apis" {
   description = "List of Google Cloud APIs to enable"
   type        = list(string)
   default = [
-    "sqladmin.googleapis.com",
     "artifactregistry.googleapis.com",
     "firestore.googleapis.com",
     "storage-api.googleapis.com",
@@ -115,13 +77,6 @@ variable "authorized_domains" {
     "iaas-476910.firebaseapp.com",
     "iaas-476910.web.app",
   ]
-}
-
-variable "db_password" {
-  description = "Database password (optional - if not provided, will be auto-generated). Set via environment variable TF_VAR_db_password or CI/CD secrets. NEVER commit to version control."
-  type        = string
-  sensitive   = true
-  default     = null
 }
 
 # Cloud Storage Configuration
@@ -165,14 +120,6 @@ variable "firestore_location" {
   type        = string
   default     = "europe-west1"
 }
-
-variable "firebase_project_id" {
-  description = "Firebase Auth Project ID"
-  type        = string
-  default     = "graphite-plane-474510-s9"
-}
-
-
 
 # Tags and Labels
 variable "labels" {
@@ -240,7 +187,7 @@ variable "microservices" {
   default = {
     comment = {
       name         = "comment-service"
-      ingress_url  = "https://cl.tripico.fun"
+      ingress_url  = "https://cl-freemium.tripico.fun"
       path_prefix  = "/comment"
       service_name = "comment-service"
       namespace    = "default"
@@ -248,7 +195,7 @@ variable "microservices" {
     }
     itinerary = {
       name         = "itinerary-service"
-      ingress_url  = "https://itinerary.tripico.fun"
+      ingress_url  = "https://itinerary-freemium.tripico.fun"
       path_prefix  = "/itinerary"
       service_name = "itinerary-service"
       namespace    = "default"
@@ -256,7 +203,7 @@ variable "microservices" {
     }
     like = {
       name         = "like-service"
-      ingress_url  = "https://cl.tripico.fun"
+      ingress_url  = "https://cl-freemium.tripico.fun"
       path_prefix  = "/like"
       service_name = "like-service"
       namespace    = "default"
@@ -264,7 +211,7 @@ variable "microservices" {
     }
     location = {
       name         = "location-service"
-      ingress_url  = "https://itinerary.tripico.fun"
+      ingress_url  = "https://itinerary-freemium.tripico.fun"
       path_prefix  = "/location"
       service_name = "location-service"
       namespace    = "default"
@@ -272,7 +219,7 @@ variable "microservices" {
     }
     user = {
       name         = "user-service"
-      ingress_url  = "https://itinerary.tripico.fun"
+      ingress_url  = "https://itinerary-freemium.tripico.fun"
       path_prefix  = "/user"
       service_name = "user-service"
       namespace    = "default"
@@ -280,7 +227,7 @@ variable "microservices" {
     }
     travel-warnings = {
       name         = "travel-warnings-service"
-      ingress_url  = "https://warnings.tripico.fun"
+      ingress_url  = "https://warnings-freemium.tripico.fun"
       path_prefix  = "/warnings"
       service_name = "travel-warnings-service"
       namespace    = "default"
@@ -288,7 +235,7 @@ variable "microservices" {
     }
     weather = {
       name         = "weather-service"
-      ingress_url  = "https://weather.tripico.fun"
+      ingress_url  = "https://weather-freemium.tripico.fun"
       path_prefix  = "/api/weather"
       service_name = "weather-service"
       namespace    = "default"
@@ -296,7 +243,7 @@ variable "microservices" {
     }
     feed = {
       name         = "recommendation-feed-service"
-      ingress_url  = "https://recommendation.tripico.fun"
+      ingress_url  = "https://recommendation-freemium.tripico.fun"
       path_prefix  = "/feed"
       service_name = "recommendation-service"
       namespace    = "default"
@@ -304,7 +251,7 @@ variable "microservices" {
     }
     graph = {
       name         = "recommendation-graph-service"
-      ingress_url  = "https://recommendation.tripico.fun"
+      ingress_url  = "https://recommendation-freemium.tripico.fun"
       path_prefix  = "/graph"
       service_name = "recommendation-service"
       namespace    = "default"

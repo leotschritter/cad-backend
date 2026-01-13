@@ -42,4 +42,3 @@ variable "gke_cluster_ready" {
   type        = any
   default     = []
 }
-

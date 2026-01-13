@@ -1,0 +1,133 @@
+# Helm values for itinerary-service in pro namespace
+namespaceOverride: standard
+
+itineraryService:
+  image: "ghcr.io/leotschritter/cad-backend:latest"
+  cors:
+    origins: "*"
+    methods: "GET,POST,PUT,DELETE,OPTIONS"
+    headers: "accept,authorization,content-type,x-requested-with"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  annotations:
+    iam.gke.io/gcp-service-account: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+
+gcp:
+  projectId: "graphite-plane-474510-s9"
+  serviceAccountEmail: "travel-backend-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+  bucketName: "graphite-plane-474510-s9-tripico-images"
+
+podAnnotations:
+  tier: standard
+
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+  name: http
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  # Host will be set via --set ingress.host in pipeline
+  host: ""
+  # TLS secret name will be set via --set ingress.tlsSecretName in pipeline
+  tlsSecretName: ""
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# Quarkus application configuration
+quarkus:
+  http:
+    port: 8080
+    host: "0.0.0.0"
+  profile: "prod"
+
+# Database configuration
+database:
+  user: "itinerary_user"
+  password: "" # provided via --set
+  url: "jdbc:postgresql://itinerary-postgres-standard.standard.svc.cluster.local:5432/itinerary_db"
+
+# PostgreSQL Database Pod Configuration
+postgres:
+  name: itinerary-postgres-standard
+  image: postgres:15-alpine
+  port: 5432
+  replicas: 1
+  environmentVariables:
+    database: itinerary_db
+    user: itinerary_user
+    pgdata: /var/lib/postgresql/data/pgdata
+  volumeMounts:
+    mountPath: /var/lib/postgresql/data
+    name: itinerary-postgres-storage
+  readinessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+postgresPvc:
+  name: itinerary-postgres-standard-pvc
+  storage: 10Gi  # More storage for production
+
+
+backendUrl: "https://itinerary-standard.tripico.fun"
+
+# Identity Platform Authentication Configuration
+identityPlatform:
+  authEnabled: "true"
+  primaryHeader: "X-Forwarded-Authorization"
+  fallbackHeader: "Authorization"
+
+# Service discovery for shared services
+sharedServices:
+  weatherService:
+    url: "http://weather-forecast-service.shared.svc.cluster.local:8080"
+  travelWarningsService:
+    url: "http://travel-warnings-service.shared.svc.cluster.local:8080"
+
+# Health check probes
+probes:
+  startup:
+    httpGet:
+      path: /q/health/started
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+  liveness:
+    httpGet:
+      path: /q/health/live
+      port: 8080
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 5
+  readiness:
+    httpGet:
+      path: /q/health/ready
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
