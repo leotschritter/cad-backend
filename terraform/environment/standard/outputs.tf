@@ -31,15 +31,20 @@ output "bucket_url" {
   value       = module.storage.bucket_url
 }
 
-# Service Account Outputs
+# Service Account Outputs (using shared service account from freemium)
 output "service_account_email" {
-  description = "The email of the tenant's service account"
-  value       = module.iam.service_account_email
+  description = "The email of the shared service account used by this tenant"
+  value       = local.shared_service_account_email
 }
 
 output "service_account_name" {
-  description = "The name of the tenant's service account"
-  value       = module.iam.service_account_name
+  description = "The name of the shared service account used by this tenant"
+  value       = local.shared_service_account_name
+}
+
+output "workload_identity_bindings" {
+  description = "Workload Identity bindings created for this tenant's namespace"
+  value       = [for k, v in google_service_account_iam_member.workload_identity_bindings : v.member]
 }
 
 # API Gateway Outputs

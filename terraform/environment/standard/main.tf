@@ -6,7 +6,8 @@
 # already exists from the base/free tier deployment.
 #
 # Standard tier tenants:
-# - Get their own API Gateway, Storage bucket, and Service Account
+# - Get their own API Gateway and Storage bucket
+# - SHARE the GCP service account with freemium (tripico-sa)
 # - Share GKE cluster, DNS zone, Artifact Registry with all tenants
 # - Use shared services for Weather and Travel Warnings
 # - Get dedicated namespace in GKE for their microservices
@@ -15,10 +16,21 @@
 # Local variables for resource naming
 locals {
   # Tenant-specific naming
-  tenant_suffix        = var.tenant_name
-  service_account_name = "${var.app_name}-${var.tenant_name}-sa"
-  bucket_name          = "${var.project_id}-${var.bucket_name}-${var.tenant_name}"
-  api_gateway_name     = "${var.app_name}-${var.tenant_name}"
+  tenant_suffix    = var.tenant_name
+  bucket_name      = "${var.project_id}-${var.bucket_name}-${var.tenant_name}"
+  api_gateway_name = "${var.app_name}-${var.tenant_name}"
+
+  # Use the shared service account from freemium tier
+  # This is the service account created by the free tier Terraform
+  shared_service_account_name  = "${var.app_name}-sa"
+  shared_service_account_email = "${local.shared_service_account_name}@${var.project_id}.iam.gserviceaccount.com"
+
+  # List of Kubernetes service accounts that need Workload Identity bindings
+  # These match the serviceAccount.name in the Helm values files
+  k8s_service_accounts = [
+    "itinerary-service-sa",
+    "comments-likes-sa"
+  ]
 
   # Build tenant-specific microservices URLs
   # Tenant-specific services: itinerary, comments-likes, recommendation
@@ -110,14 +122,20 @@ locals {
 # Shared infrastructure (GKE, DNS, etc.) is NOT created here.
 # =============================================================================
 
-# IAM Module - Tenant-specific service account
-module "iam" {
-  source = "../../modules/iam"
+# Reference the existing shared service account (created by free tier)
+data "google_service_account" "shared_sa" {
+  account_id = local.shared_service_account_name
+  project    = var.project_id
+}
 
-  project_id           = var.project_id
-  app_name             = local.api_gateway_name
-  service_account_name = local.service_account_name
-  tenant_name          = var.tenant_name
+# Workload Identity bindings for this tenant's namespace
+# This allows Kubernetes service accounts in the tenant's namespace to use the shared GCP service account
+resource "google_service_account_iam_member" "workload_identity_bindings" {
+  for_each = toset(local.k8s_service_accounts)
+
+  service_account_id = data.google_service_account.shared_sa.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[${var.tenant_name}/${each.key}]"
 }
 
 # Storage Module - Tenant-specific bucket
@@ -128,7 +146,7 @@ module "storage" {
   bucket_name           = local.bucket_name
   bucket_location       = var.bucket_location
   force_destroy         = var.bucket_force_destroy
-  service_account_email = module.iam.service_account_email
+  service_account_email = local.shared_service_account_email
   labels = merge(var.labels, {
     tenant = var.tenant_name
   })
@@ -141,6 +159,6 @@ module "api_gateway" {
   project_id            = var.project_id
   region                = var.region
   app_name              = local.api_gateway_name
-  service_account_email = module.iam.service_account_email
+  service_account_email = local.shared_service_account_email
   microservices         = local.microservices
 }
