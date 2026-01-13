@@ -1,0 +1,190 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tenant-service.fullname" . }}
+  labels:
+    {{- include "tenant-service.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "tenant-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "tenant-service.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "tenant-service.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: {{ .Values.service.name }}
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          env:
+            - name: QUARKUS_HTTP_PORT
+              value: {{ .Values.quarkus.http.port | quote }}
+            - name: QUARKUS_HTTP_HOST
+              value: {{ .Values.quarkus.http.host | quote }}
+            - name: QUARKUS_PROFILE
+              value: {{ .Values.quarkus.profile | quote }}
+
+            - name: PROJECT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: project_id
+            - name: GCP_PROJECT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: project_id
+            - name: SERVICE_ACCOUNT_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: service_account_email
+            - name: IDENTITY_PLATFORM_AUTH_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: identity_platform_auth_enabled
+            - name: IDENTITY_PLATFORM_AUTH_PRIMARY_HEADER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: identity_platform_auth_primary_header
+            - name: IDENTITY_PLATFORM_AUTH_FALLBACK_HEADER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: identity_platform_auth_fallback_header
+            - name: BACKEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: backend_url
+            {{- if .Values.mongodb.enabled }}
+            - name: MONGODB_CONNECTION_STRING
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: mongodb_connection_string
+            - name: MONGODB_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: mongodb_database
+            {{- end }}
+            # SMTP Configuration
+            - name: SMTP_FROM
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: smtp_from
+            - name: SMTP_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: smtp_host
+            - name: SMTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: smtp_port
+            - name: SMTP_START_TLS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: smtp_start_tls
+            - name: SMTP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-smtp-secret
+                  key: smtp_user
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-smtp-secret
+                  key: smtp_password
+            # GitHub Configuration
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-github-secret
+                  key: github_token
+            - name: GITHUB_REPO_OWNER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: github_repo_owner
+            - name: GITHUB_REPO_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: github_repo_name
+            # Tenant Configuration
+            - name: TENANT_BASE_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: tenant_base_domain
+            - name: TENANT_POLLING_INTERVAL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: tenant_polling_interval_seconds
+            - name: TENANT_ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: tenant_environment
+            - name: TENANT_CLUSTER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: tenant_cluster
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- with .Values.probes.startup }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.probes.liveness }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.probes.readiness }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
