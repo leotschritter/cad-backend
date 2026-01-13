@@ -72,6 +72,27 @@ output "bucket_url" {
   value       = module.storage.bucket_url
 }
 
+# Ingress and DNS Outputs
+output "ingress_ip_address" {
+  description = "The static IP address for this tenant's ingress controller"
+  value       = google_compute_address.ingress_ip.address
+}
+
+output "ingress_ip_name" {
+  description = "The name of the static IP resource"
+  value       = google_compute_address.ingress_ip.name
+}
+
+output "tenant_subdomain" {
+  description = "The subdomain for this enterprise tenant (e.g., enterprise-1.dev.tripico.fun)"
+  value       = local.tenant_subdomain
+}
+
+output "dns_wildcard_record" {
+  description = "The DNS wildcard record name for this tenant"
+  value       = google_dns_record_set.enterprise_wildcard.name
+}
+
 # Service Account Outputs (using shared service account from freemium)
 output "service_account_email" {
   description = "The email of the shared service account used by this tenant"
@@ -109,9 +130,9 @@ output "api_gateway_default_hostname" {
   value       = module.api_gateway.api_gateway_default_hostname
 }
 
-# Service URLs (all services are dedicated for enterprise tier)
+# Service URLs via API Gateway
 output "service_urls" {
-  description = "Important service URLs for this enterprise tenant"
+  description = "API Gateway URLs for this enterprise tenant"
   value = {
     # API Gateway URL (for public API access)
     api_gateway = module.api_gateway.api_gateway_url
@@ -128,6 +149,29 @@ output "service_urls" {
     # Dedicated services (enterprise gets their own, not shared)
     warnings_api = "${module.api_gateway.api_gateway_url}/warnings"
     weather_api  = "${module.api_gateway.api_gateway_url}/api/weather"
+  }
+}
+
+# Service URLs via Ingress (DNS-based)
+output "ingress_urls" {
+  description = "Ingress URLs for this enterprise tenant (via DNS wildcard)"
+  value = {
+    # Itinerary service endpoints
+    itinerary = "https://itinerary.${local.tenant_subdomain}"
+    location  = "https://itinerary.${local.tenant_subdomain}/location"
+    user      = "https://itinerary.${local.tenant_subdomain}/user"
+
+    # Comments/Likes service endpoints
+    comment = "https://cl.${local.tenant_subdomain}/comment"
+    like    = "https://cl.${local.tenant_subdomain}/like"
+
+    # Recommendation service endpoints
+    feed  = "https://recommendation.${local.tenant_subdomain}/feed"
+    graph = "https://recommendation.${local.tenant_subdomain}/graph"
+
+    # Dedicated services (enterprise only)
+    weather  = "https://weather.${local.tenant_subdomain}"
+    warnings = "https://warnings.${local.tenant_subdomain}"
   }
 }
 
@@ -148,9 +192,23 @@ output "deployment_commands" {
     kubectl cluster-info
     kubectl get nodes
 
+    # Install NGINX Ingress Controller with the static IP:
+    helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+      --namespace ingress-nginx --create-namespace \
+      --set controller.service.loadBalancerIP="${google_compute_address.ingress_ip.address}"
+
     # Deploy services using Helm (example):
     helm upgrade --install itinerary-service ./services/itinerary-service/kubernetes/itinerary-service-chart \
       --set image.tag=latest \
       --set serviceAccount.annotations."iam\.gke\.io/gcp-service-account"="${local.shared_service_account_email}"
   EOT
+}
+
+# Ingress Configuration Reference
+output "ingress_helm_values" {
+  description = "Helm values for configuring NGINX ingress with the static IP"
+  value = {
+    loadBalancerIP = google_compute_address.ingress_ip.address
+    subdomain      = local.tenant_subdomain
+  }
 }
