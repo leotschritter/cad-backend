@@ -248,8 +248,8 @@ jobs:
             chart: services/comments-likes-service/comments-likes-chart
             values_dev: services/comments-likes-service/comments-likes-chart/values-standard-dev.yaml
             values_prod: services/comments-likes-service/comments-likes-chart/values-standard-prod.yaml
-            domain_dev: "comments-likes-standard.dev.tripico.fun"
-            domain_prod: "comments-likes-standard.tripico.fun"
+            domain_dev: "cl-standard.dev.tripico.fun"
+            domain_prod: "cl-standard.tripico.fun"
             frontend_domain_dev: "https://frontend-standard.dev.tripico.fun"
             frontend_domain_prod: "https://frontend-standard.tripico.fun"
 
