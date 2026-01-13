@@ -11,6 +11,36 @@ commonLabels:
   tier: enterprise
   environment: dev
 
+# PostgreSQL configuration - required for GKE Autopilot
+postgres:
+  name: warnings-postgres
+  image: postgres:15-alpine
+  port: 5432
+  replicas: 1
+  environmentVariables:
+    database: travel_warnings_db
+    user: postgres
+    password: postgres
+    pgdata: /var/lib/postgresql/data/pgdata
+  volumeMounts:
+    mountPath: /var/lib/postgresql/data
+    name: warnings-postgres-storage
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"  # Required for GKE Autopilot
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    command: ["sh", "-c", "pg_isready -U postgres -d travel_warnings_db"]
+
+postgresPvc:
+  name: warnings-postgres-data-pvc
+  storage: 10Gi  # Increased for enterprise
+
 travelWarningsApi:
   name: travel-warnings-service
   port: 8080
