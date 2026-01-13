@@ -1,24 +1,19 @@
 # Production environment configuration for Enterprise tier tenants (FULLY ISOLATED)
 #
 # USAGE:
-# The tenant_name and domain_name are dynamically set in CI/CD pipeline.
-# This file contains default values for production environment.
+# The tenant_name is set dynamically in CI/CD pipeline.
+# The base domain (tripico.fun) is derived automatically from the shared DNS zone.
 #
 # Example deployment for enterprise-1:
-#   terraform apply -var-file="prod-environment.tfvars" \
-#     -var="tenant_name=enterprise-1" \
-#     -var="domain_name=tripico.fun"
+#   terraform apply -var-file="prod-environment.tfvars" -var="tenant_name=enterprise-1"
 #
-# Example deployment with custom domain (e.g., acme-corp):
-#   terraform apply -var-file="prod-environment.tfvars" \
-#     -var="tenant_name=acme-corp" \
-#     -var="domain_name=acme-corp.tripico.fun"
+# This will create DNS records like: *.enterprise-1.tripico.fun
 #
 # IMPORTANT: Each enterprise tenant gets:
 # - Dedicated GKE cluster (tripico-{tenant_name}-cluster)
 # - Dedicated VPC network (tripico-{tenant_name}-network)
-# - Dedicated IAM service account (tripico-{tenant_name}-sa)
-# - Unique CIDR ranges (must not overlap with other tenants)
+# - Dedicated storage bucket
+# - DNS wildcard record (*.{tenant_name}.tripico.fun)
 
 # Project Configuration (prod environment)
 project_id = "graphite-plane-474510-s9"

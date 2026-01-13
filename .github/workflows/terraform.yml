@@ -46,11 +46,6 @@ on:
         required: false
         type: string
         default: ''
-      domain_name:
-        description: 'Custom domain for enterprise (e.g., acme.tripico.fun). If empty, uses default domain'
-        required: false
-        type: string
-        default: ''
 
 env:
   TF_VERSION: '1.14.0'
@@ -90,12 +85,10 @@ jobs:
             TF_ENV="${{ inputs.environment }}"
             TENANT_NUM="${{ inputs.tenant_number }}"
             CUSTOM_TENANT_NAME="${{ inputs.tenant_name }}"
-            CUSTOM_DOMAIN="${{ inputs.domain_name }}"
           else
             TF_ENV="free"
             TENANT_NUM="1"
             CUSTOM_TENANT_NAME=""
-            CUSTOM_DOMAIN=""
           fi
 
           echo "TF_ENV=$TF_ENV" >> $GITHUB_OUTPUT
@@ -114,10 +107,6 @@ jobs:
             echo "TENANT_NAME=$TENANT_NAME" >> $GITHUB_OUTPUT
             # Enterprise tier: dedicated GKE cluster per tenant
             echo "GKE_CLUSTER_NAME=tripico-${TENANT_NAME}-cluster" >> $GITHUB_OUTPUT
-            # Enterprise tier: use custom domain if provided, otherwise use default
-            if [ -n "$CUSTOM_DOMAIN" ]; then
-              echo "CUSTOM_DOMAIN=$CUSTOM_DOMAIN" >> $GITHUB_OUTPUT
-            fi
           elif [ "$TF_ENV" = "standard" ]; then
             echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
@@ -203,12 +192,10 @@ jobs:
             TF_ENV="${{ inputs.environment }}"
             TENANT_NUM="${{ inputs.tenant_number }}"
             CUSTOM_TENANT_NAME="${{ inputs.tenant_name }}"
-            CUSTOM_DOMAIN="${{ inputs.domain_name }}"
           else
             TF_ENV="free"
             TENANT_NUM="1"
             CUSTOM_TENANT_NAME=""
-            CUSTOM_DOMAIN=""
           fi
 
           echo "TF_ENV=$TF_ENV" >> $GITHUB_OUTPUT
@@ -227,10 +214,6 @@ jobs:
             echo "TENANT_NAME=$TENANT_NAME" >> $GITHUB_OUTPUT
             # Enterprise tier: dedicated GKE cluster per tenant
             echo "GKE_CLUSTER_NAME=tripico-${TENANT_NAME}-cluster" >> $GITHUB_OUTPUT
-            # Enterprise tier: use custom domain if provided, otherwise use default
-            if [ -n "$CUSTOM_DOMAIN" ]; then
-              echo "CUSTOM_DOMAIN=$CUSTOM_DOMAIN" >> $GITHUB_OUTPUT
-            fi
           elif [ "$TF_ENV" = "standard" ]; then
             echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
@@ -296,8 +279,7 @@ jobs:
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         env:
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
-          # Use custom domain if provided for enterprise, otherwise use default
-          TF_VAR_domain_name: ${{ steps.set-env.outputs.CUSTOM_DOMAIN || env.TF_VAR_domain_name }}
+          TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
           TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
           TF_VAR_tenant_name: ${{ steps.set-env.outputs.TENANT_NAME }}
         run: |
@@ -349,12 +331,10 @@ jobs:
             TF_ENV="${{ inputs.environment }}"
             TENANT_NUM="${{ inputs.tenant_number }}"
             CUSTOM_TENANT_NAME="${{ inputs.tenant_name }}"
-            CUSTOM_DOMAIN="${{ inputs.domain_name }}"
           else
             TF_ENV="free"
             TENANT_NUM="1"
             CUSTOM_TENANT_NAME=""
-            CUSTOM_DOMAIN=""
           fi
 
           echo "TF_ENV=$TF_ENV" >> $GITHUB_OUTPUT
@@ -373,10 +353,6 @@ jobs:
             echo "TENANT_NAME=$TENANT_NAME" >> $GITHUB_OUTPUT
             # Enterprise tier: dedicated GKE cluster per tenant
             echo "GKE_CLUSTER_NAME=tripico-${TENANT_NAME}-cluster" >> $GITHUB_OUTPUT
-            # Enterprise tier: use custom domain if provided, otherwise use default
-            if [ -n "$CUSTOM_DOMAIN" ]; then
-              echo "CUSTOM_DOMAIN=$CUSTOM_DOMAIN" >> $GITHUB_OUTPUT
-            fi
           elif [ "$TF_ENV" = "standard" ]; then
             echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
@@ -451,8 +427,7 @@ jobs:
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         env:
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
-          # Use custom domain if provided for enterprise, otherwise use default
-          TF_VAR_domain_name: ${{ steps.set-env.outputs.CUSTOM_DOMAIN || env.TF_VAR_domain_name }}
+          TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
           TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
           TF_VAR_tenant_name: ${{ steps.set-env.outputs.TENANT_NAME }}
         run: |
@@ -521,12 +496,10 @@ jobs:
             TF_ENV="${{ inputs.environment }}"
             TENANT_NUM="${{ inputs.tenant_number }}"
             CUSTOM_TENANT_NAME="${{ inputs.tenant_name }}"
-            CUSTOM_DOMAIN="${{ inputs.domain_name }}"
           else
             TF_ENV="free"
             TENANT_NUM="1"
             CUSTOM_TENANT_NAME=""
-            CUSTOM_DOMAIN=""
           fi
 
           echo "TF_ENV=$TF_ENV" >> $GITHUB_OUTPUT
@@ -545,10 +518,6 @@ jobs:
             echo "TENANT_NAME=$TENANT_NAME" >> $GITHUB_OUTPUT
             # Enterprise tier: dedicated GKE cluster per tenant
             echo "GKE_CLUSTER_NAME=tripico-${TENANT_NAME}-cluster" >> $GITHUB_OUTPUT
-            # Enterprise tier: use custom domain if provided, otherwise use default
-            if [ -n "$CUSTOM_DOMAIN" ]; then
-              echo "CUSTOM_DOMAIN=$CUSTOM_DOMAIN" >> $GITHUB_OUTPUT
-            fi
           elif [ "$TF_ENV" = "standard" ]; then
             echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
@@ -572,8 +541,7 @@ jobs:
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         env:
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
-          # Use custom domain if provided for enterprise, otherwise use default
-          TF_VAR_domain_name: ${{ steps.set-env.outputs.CUSTOM_DOMAIN || env.TF_VAR_domain_name }}
+          TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
           TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
           TF_VAR_tenant_name: ${{ steps.set-env.outputs.TENANT_NAME }}
         run: terraform destroy -auto-approve

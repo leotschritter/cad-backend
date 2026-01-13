@@ -25,9 +25,9 @@ output "region" {
   value       = var.region
 }
 
-output "domain_name" {
-  description = "The domain name for this enterprise tenant"
-  value       = var.domain_name
+output "base_domain" {
+  description = "The base domain name (tripico.fun or dev.tripico.fun)"
+  value       = local.base_domain
 }
 
 # GKE Cluster Outputs (Dedicated cluster for this tenant)

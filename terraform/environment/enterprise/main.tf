@@ -8,7 +8,7 @@
 # - Storage Bucket (dedicated object storage)
 # - API Gateway (dedicated API endpoint)
 # - Static IP for Ingress
-# - DNS wildcard record (*.{tenant_name}.{domain_name})
+# - DNS wildcard record (*.{tenant_name}.{base_domain} - domain derived from DNS zone)
 #
 # Shared resources (from free tier):
 # - IAM Service Account (tripico-sa) - for accessing Firestore/Storage
@@ -32,9 +32,13 @@ locals {
   # DNS zone name (created by free tier)
   dns_zone_name = "tripico-fun-zone"
 
-  # Enterprise tenant subdomain: {tenant_name}.{domain_name}
+  # Base domain derived from environment
+  # Prod: tripico.fun, Dev: dev.tripico.fun
+  base_domain = var.is_prod_environment ? "tripico.fun" : "dev.tripico.fun"
+
+  # Enterprise tenant subdomain: {tenant_name}.{base_domain}
   # e.g., enterprise-1.dev.tripico.fun or acme-corp.tripico.fun
-  tenant_subdomain = "${var.tenant_name}.${var.domain_name}"
+  tenant_subdomain = "${var.tenant_name}.${local.base_domain}"
 
   # List of Kubernetes service accounts that need Workload Identity bindings
   # Only services that access GCP resources (Firestore, Storage) need this
@@ -44,8 +48,8 @@ locals {
   ]
 
   # Build tenant-specific microservices URLs
-  # Enterprise tier uses: https://{service}.{tenant_name}.{domain_name}
-  # e.g., https://itinerary.enterprise-1.dev.tripico.fun
+  # Enterprise tier uses: https://{service}.{tenant_name}.{base_domain}
+  # e.g., https://itinerary.enterprise-1.dev.tripico.fun (base_domain derived from DNS zone)
   microservices = {
     comment = {
       name         = "comment-service"
@@ -194,8 +198,8 @@ resource "google_compute_address" "ingress_ip" {
 }
 
 # DNS wildcard record for this enterprise tenant
-# Creates: *.{tenant_name}.{domain_name} -> enterprise cluster ingress IP
-# e.g., *.enterprise-1.dev.tripico.fun -> 10.x.x.x
+# Creates: *.{tenant_name}.{base_domain} -> enterprise cluster ingress IP
+# e.g., *.enterprise-1.dev.tripico.fun -> 10.x.x.x (base_domain derived from DNS zone)
 resource "google_dns_record_set" "enterprise_wildcard" {
   project      = var.project_id
   managed_zone = data.google_dns_managed_zone.main.name

@@ -4,10 +4,9 @@
 # These variables configure a fully isolated enterprise tenant with:
 # - Dedicated GKE cluster
 # - Dedicated networking (VPC/subnet)
-# - Dedicated IAM service account
 # - Dedicated storage bucket
 # - Dedicated API Gateway
-# - Configurable domain name
+# - DNS wildcard record (*.{tenant_name}.tripico.fun or *.{tenant_name}.dev.tripico.fun)
 # =============================================================================
 
 # Project Configuration
@@ -20,6 +19,12 @@ variable "region" {
   description = "The GCP region for resources"
   type        = string
   default     = "europe-west1"
+}
+
+variable "is_prod_environment" {
+  description = "Whether this is a production environment (determines domain: tripico.fun vs dev.tripico.fun)"
+  type        = bool
+  default     = false
 }
 
 # Application Configuration
@@ -38,12 +43,6 @@ variable "tenant_name" {
     condition     = can(regex("^[a-z][a-z0-9-]*[a-z0-9]$", var.tenant_name)) && length(var.tenant_name) <= 30
     error_message = "Tenant name must be lowercase alphanumeric with hyphens, start with a letter, and be at most 30 characters."
   }
-}
-
-# Domain Configuration (configurable for enterprise)
-variable "domain_name" {
-  description = "The domain name for this enterprise tenant (e.g., 'dev.tripico.fun', 'tripico.fun', or custom domain)"
-  type        = string
 }
 
 # Cloud Storage Configuration
