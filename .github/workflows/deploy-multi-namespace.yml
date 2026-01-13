@@ -360,8 +360,60 @@ jobs:
             --wait \
             --timeout 10m
 
-  deploy-enterprise-services:
+  deploy-enterprise-cert-manager:
     needs: setup-namespaces
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.tier == 'all' || inputs.tier == 'enterprise') || github.event.client_payload.tier == 'enterprise' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.ref || github.ref }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE Credentials for Enterprise Cluster
+        env:
+          TENANT_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_name || github.event.client_payload.tenant_name || 'enterprise-1' }}
+        run: |
+          CLUSTER_NAME="tripico-${TENANT_NAME}-cluster"
+          
+          echo "Connecting to enterprise cluster: $CLUSTER_NAME"
+          gcloud container clusters get-credentials $CLUSTER_NAME \
+            --region europe-west1 \
+            --project ${{ vars.PROJECT_ID }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.13.0'
+
+      - name: Deploy cert-manager to Enterprise Cluster
+        uses: ./.github/actions/deploy-cert-manager
+        with:
+          cluster_name: "not-used"
+          cluster_region: "europe-west1"
+          project_id: ${{ vars.PROJECT_ID }}
+          gcp_credentials: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          cert_manager_sa_key: ${{ secrets.CERT_MANAGER_DNS01_SA_KEY }}
+          environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event.client_payload.environment || 'dev' }}
+
+  deploy-enterprise-services:
+    needs: [setup-namespaces, deploy-enterprise-cert-manager]
     if: ${{ github.event_name == 'workflow_dispatch' && (inputs.tier == 'all' || inputs.tier == 'enterprise') || github.event.client_payload.tier == 'enterprise' }}
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
