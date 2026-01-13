@@ -199,7 +199,7 @@ resource "google_compute_address" "ingress_ip" {
 
 # DNS wildcard record for this enterprise tenant
 # Creates: *.{tenant_name}.{base_domain} -> enterprise cluster ingress IP
-# e.g., *.enterprise-1.dev.tripico.fun -> 10.x.x.x (base_domain derived from DNS zone)
+# e.g., *.enterprise-1.dev.tripico.fun -> 10.x.x.x
 resource "google_dns_record_set" "enterprise_wildcard" {
   project      = var.project_id
   managed_zone = data.google_dns_managed_zone.main.name
@@ -210,6 +210,28 @@ resource "google_dns_record_set" "enterprise_wildcard" {
   rrdatas = [google_compute_address.ingress_ip.address]
 
   depends_on = [google_compute_address.ingress_ip]
+}
+
+# NGINX Ingress Controller for this enterprise tenant
+resource "helm_release" "ingress_nginx" {
+  name             = "ingress-nginx"
+  repository       = "https://kubernetes.github.io/ingress-nginx"
+  chart            = "ingress-nginx"
+  namespace        = "ingress-nginx"
+  create_namespace = true
+  replace          = true
+  force_update     = true
+
+  values = [yamlencode({
+    controller = {
+      service = {
+        type           = "LoadBalancer"
+        loadBalancerIP = google_compute_address.ingress_ip.address
+      }
+    }
+  })]
+
+  depends_on = [module.gke, google_compute_address.ingress_ip]
 }
 
 # =============================================================================
