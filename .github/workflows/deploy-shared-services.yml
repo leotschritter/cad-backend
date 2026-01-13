@@ -10,6 +10,8 @@ on:
       - 'services/weather-forecast-service/**'
       - 'services/travel_warnings/**'
       - '.github/workflows/deploy-shared-services.yml'
+  repository_dispatch:
+    types: [deploy-shared-services]
 
 jobs:
   setup-namespace:

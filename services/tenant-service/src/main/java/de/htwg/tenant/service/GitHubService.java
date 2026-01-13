@@ -23,6 +23,7 @@ public class GitHubService {
 
     private static final Logger LOG = Logger.getLogger(GitHubService.class);
     private static final String DEPLOY_EVENT_TYPE = "deploy-multi-namespace";
+    private static final String DEPLOY_SHARED_EVENT_TYPE = "deploy-shared-services";
 
     @RestClient
     GitHubActionsClient githubClient;
@@ -81,6 +82,48 @@ public class GitHubService {
         } catch (Exception e) {
             LOG.errorf(e, "❌ Failed to trigger deployment for tenant number: %d", tenantNumber);
             throw new RuntimeException("Failed to trigger tenant deployment", e);
+        }
+    }
+
+    /**
+     * Trigger deployment of shared services (weather & travel warnings).
+     * These services are deployed to the 'shared' namespace and used by all tenants.
+     *
+     * @param environment "prod" or "dev"
+     * @param cluster Cluster name (e.g., "tripico-cluster")
+     * @return Dispatch ID for tracking
+     */
+    public String triggerSharedServicesDeployment(String environment, String cluster) {
+        try {
+            String dispatchId = UUID.randomUUID().toString();
+            
+            Map<String, Object> clientPayload = new HashMap<>();
+            clientPayload.put("environment", environment);
+            clientPayload.put("cluster", cluster);
+            clientPayload.put("ref", branch);
+            clientPayload.put("dispatch_id", dispatchId);
+
+            RepositoryDispatchRequest request = new RepositoryDispatchRequest(
+                DEPLOY_SHARED_EVENT_TYPE,
+                clientPayload
+            );
+
+            LOG.infof("🚀 Triggering shared services deployment (dispatch ID: %s)", dispatchId);
+
+            githubClient.dispatchRepository(
+                repoOwner,
+                repoName,
+                "Bearer " + githubToken,
+                "application/vnd.github+json",
+                request
+            );
+
+            LOG.infof("✅ Shared services deployment triggered successfully");
+            return dispatchId;
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to trigger shared services deployment");
+            throw new RuntimeException("Failed to trigger shared services deployment", e);
         }
     }
 

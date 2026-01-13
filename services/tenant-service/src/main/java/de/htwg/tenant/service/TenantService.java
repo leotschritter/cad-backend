@@ -34,9 +34,6 @@ public class TenantService {
     @Inject
     EmailService emailService;
 
-    @Inject
-    FirestoreService firestoreService;
-
     @ConfigProperty(name = "tenant.base-domain")
     String baseDomain;
 
@@ -47,12 +44,12 @@ public class TenantService {
     String cluster;
 
     /**
-     * Create a new tenant and trigger provisioning.
+     * Create a new tenant and trigger provisioning workflows.
      * Steps:
      * 1. Allocate next available tenant number
-     * 2. Create Identity Platform tenant
-     * 3. Create Firestore database
-     * 4. Trigger GitHub repository_dispatch for deployment
+     * 2. Create tenant record in MongoDB
+     * 3. Trigger deploy-multi-namespace workflow (creates namespace, deploys services, creates Identity Platform tenant, creates Firestore DB)
+     * 4. Trigger deploy-shared-services workflow (ensures shared services are available)
      */
     @Transactional
     public Tenant createTenant(CreateTenantRequest request) {
@@ -97,54 +94,39 @@ public class TenantService {
         LOG.infof("✅ Tenant created in database: %s (Number: %d, Namespace: %s)", 
             tenant.name, tenant.tenantNumber, tenant.namespace);
 
-        // Create Identity Platform tenant
-        try {
-            LOG.infof("Creating Identity Platform tenant for: %s", tenantId);
-            // The tenant ID will be returned by gcloud, store it in next steps
-            // For now, use tenantId as the identifier
-            tenant.identityPlatformTenantId = tenantId;
-            LOG.infof("✅ Identity Platform tenant prepared: %s", tenantId);
-        } catch (Exception e) {
-            LOG.errorf(e, "❌ Failed to prepare Identity Platform tenant");
-            tenant.state = Tenant.ProvisioningState.FAILED;
-            tenant.errorMessage = "Failed to prepare Identity Platform: " + e.getMessage();
-            tenant.updatedAt = LocalDateTime.now();
-            tenantRepository.update(tenant);
-            throw new RuntimeException("Failed to prepare Identity Platform tenant", e);
-        }
+        // Set placeholder IDs (will be created by GitHub workflows)
+        tenant.identityPlatformTenantId = tenantId;
+        tenant.firestoreDatabaseId = tenantId;
 
-        // Create Firestore database
+        // Trigger GitHub workflows in sequence:
+        // 1. deploy-multi-namespace (creates namespace and deploys services)
+        // 2. deploy-shared-services (deploys shared services if needed)
         try {
-            LOG.infof("Creating Firestore database: %s", tenantId);
-            firestoreService.createDatabase(tenantId);
-            tenant.firestoreDatabaseId = tenantId;
-            LOG.infof("✅ Firestore database created: %s", tenantId);
-        } catch (Exception e) {
-            LOG.errorf(e, "❌ Failed to create Firestore database");
-            tenant.state = Tenant.ProvisioningState.FAILED;
-            tenant.errorMessage = "Failed to create Firestore database: " + e.getMessage();
-            tenant.updatedAt = LocalDateTime.now();
-            tenantRepository.update(tenant);
-            throw new RuntimeException("Failed to create Firestore database", e);
-        }
-
-        // Trigger GitHub repository dispatch for deployment
-        try {
-            String dispatchId = githubService.triggerTenantDeployment(
+            // Step 1: Trigger multi-namespace deployment
+            String multiNamespaceDispatchId = githubService.triggerTenantDeployment(
                 tenantNumber,
                 environment,
                 cluster
             );
 
             tenant.state = Tenant.ProvisioningState.PROVISIONING;
-            tenant.provisioningDispatchId = dispatchId;
+            tenant.provisioningDispatchId = multiNamespaceDispatchId;
             tenant.updatedAt = LocalDateTime.now();
             tenantRepository.update(tenant);
 
-            LOG.infof("✅ Deployment triggered for tenant: %s (dispatch ID: %s)", tenantId, dispatchId);
+            LOG.infof("✅ Multi-namespace deployment triggered for tenant: %s (dispatch ID: %s)", 
+                tenantId, multiNamespaceDispatchId);
+
+            // Step 2: Trigger shared services deployment
+            String sharedServicesDispatchId = githubService.triggerSharedServicesDeployment(
+                environment,
+                cluster
+            );
+
+            LOG.infof("✅ Shared services deployment triggered (dispatch ID: %s)", sharedServicesDispatchId);
 
         } catch (Exception e) {
-            LOG.errorf(e, "❌ Failed to trigger deployment for tenant: %s", tenantId);
+            LOG.errorf(e, "❌ Failed to trigger deployment workflows for tenant: %s", tenantId);
             tenant.state = Tenant.ProvisioningState.FAILED;
             tenant.errorMessage = "Failed to trigger deployment: " + e.getMessage();
             tenant.updatedAt = LocalDateTime.now();
@@ -165,11 +147,11 @@ public class TenantService {
     }
 
     /**
-     * Delete a tenant and trigger cleanup.
+     * Delete a tenant and trigger cleanup workflow.
      * Steps:
-     * 1. Trigger GitHub cleanup for namespace
-     * 2. Delete Firestore database
-     * 3. Delete Identity Platform tenant (future)
+     * 1. Update tenant state to DEPROVISIONING
+     * 2. Trigger cleanup-tenant workflow (deletes namespace, Firestore DB, Identity Platform tenant)
+     * 3. Update tenant state to DELETED
      */
     @Transactional
     public void deleteTenant(String tenantId) {
@@ -191,31 +173,23 @@ public class TenantService {
         tenant.deletedAt = LocalDateTime.now();
         tenant.updatedAt = LocalDateTime.now();
 
-        // Trigger namespace cleanup
+        // Trigger namespace cleanup (includes Firestore and Identity Platform deletion)
         try {
             String dispatchId = githubService.triggerTenantCleanup(tenant.namespace);
             tenant.deprovisioningDispatchId = dispatchId;
             tenantRepository.update(tenant);
 
             LOG.infof("✅ Cleanup triggered for tenant: %s (dispatch ID: %s)", tenantId, dispatchId);
+            LOG.infof("ℹ️ Cleanup workflow will handle: namespace, Firestore DB, Identity Platform tenant");
 
         } catch (Exception e) {
-            LOG.errorf(e, "⚠️ Failed to trigger cleanup workflow, continuing with manual cleanup");
-            // Continue with manual cleanup even if workflow fails
+            LOG.errorf(e, "❌ Failed to trigger cleanup workflow");
+            tenant.state = Tenant.ProvisioningState.FAILED;
+            tenant.errorMessage = "Failed to trigger cleanup: " + e.getMessage();
+            tenant.updatedAt = LocalDateTime.now();
+            tenantRepository.update(tenant);
+            throw new RuntimeException("Failed to trigger tenant cleanup", e);
         }
-
-        // Delete Firestore database
-        try {
-            LOG.infof("Deleting Firestore database: %s", tenant.firestoreDatabaseId);
-            firestoreService.deleteDatabase(tenant.firestoreDatabaseId);
-            LOG.infof("✅ Firestore database deleted: %s", tenant.firestoreDatabaseId);
-        } catch (Exception e) {
-            LOG.errorf(e, "⚠️ Failed to delete Firestore database (may not exist)");
-        }
-
-        // Delete Identity Platform tenant (future implementation)
-        // For now, just log
-        LOG.infof("ℹ️ Identity Platform tenant deletion not yet implemented: %s", tenant.identityPlatformTenantId);
 
         // Update state to DELETED
         tenant.state = Tenant.ProvisioningState.DELETED;
