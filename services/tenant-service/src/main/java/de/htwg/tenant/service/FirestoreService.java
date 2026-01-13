@@ -1,4 +1,4 @@
-qpackage de.htwg.tenant.service;
+package de.htwg.tenant.service;
 
 import com.google.api.gax.rpc.NotFoundException;
 import com.google.cloud.firestore.v1.FirestoreAdminClient;
