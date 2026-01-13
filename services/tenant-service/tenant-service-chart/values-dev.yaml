@@ -6,6 +6,7 @@ replicaCount: 2
 image:
   repository: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/tenant-service
   pullPolicy: Always
+  tag: "latest"
 
 # Lower resources for dev
 serviceAccount:
@@ -112,4 +113,6 @@ github:
 tenant:
   baseDomain: "tripico.fun"
   pollingIntervalSeconds: "30"
+  environment: "dev"
+  cluster: "tripico-cluster"
 

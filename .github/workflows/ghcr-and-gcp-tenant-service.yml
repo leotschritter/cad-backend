@@ -1,0 +1,259 @@
+name: Docker push to GHCR, GCP Artifact Registry and deploy Tenant Service
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+    tags: [ 'v*.*.*' ]
+    paths:
+      - 'services/tenant-service/tenant-service-chart/Chart.yaml'
+  workflow_dispatch:
+
+jobs:
+  check-versions:
+    runs-on: ubuntu-latest
+    outputs:
+      tenant_service_changed: ${{ steps.detect.outputs.tenant_service_changed }}
+      tenant_service_app_version: ${{ steps.detect.outputs.tenant_service_app_version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history to compare versions
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Detect chart version changes
+        id: detect
+        run: |
+          check_chart() {
+            chart_dir=$1
+            key_prefix=$2
+          
+            current=$(yq '.appVersion' "$chart_dir/Chart.yaml")
+            previous=$(git show HEAD^:"$chart_dir/Chart.yaml" 2>/dev/null | yq '.appVersion' || echo "none")
+          
+            echo "${key_prefix}_app_version=$current" >> $GITHUB_OUTPUT
+          
+            if [ "$current" != "$previous" ]; then
+              echo "Changes detected in appVersion for $chart_dir: $previous -> $current"
+              echo "${key_prefix}_changed=true" >> $GITHUB_OUTPUT
+            else
+              echo "No changes in appVersion for $chart_dir"
+              echo "${key_prefix}_changed=false" >> $GITHUB_OUTPUT
+            fi
+          }
+          
+          check_chart services/tenant-service/tenant-service-chart tenant_service
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
+    needs: check-versions
+    if: ${{ github.event.head_commit.message != 'skip-build' && needs.check-versions.outputs.tenant_service_changed == 'true' }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write  # needed for GCP Workload Identity
+
+    outputs:
+      image: ${{ steps.export_image.outputs.image }}
+      app_version: ${{ steps.export_app_version.outputs.app_version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Login to GitHub Container Registry
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Login to Google Artifact Registry
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCP
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev
+
+      # Build and push to both registries
+      - name: Build and push to GHCR and GCP
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/tenant-service
+          file: ./services/tenant-service/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}/tenant-service:latest
+            ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}/tenant-service:${{ needs.check-versions.outputs.tenant_service_app_version }}
+            europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/tenant-service:latest
+            europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/tenant-service:${{ needs.check-versions.outputs.tenant_service_app_version }}
+
+      - name: Export image reference
+        id: export_image
+        run: echo "image=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/tenant-service:${{ needs.check-versions.outputs.tenant_service_app_version }}" >> "$GITHUB_OUTPUT"
+
+      - name: Export app version
+        id: export_app_version
+        run: echo "app_version=${{ needs.check-versions.outputs.tenant_service_app_version }}" >> "$GITHUB_OUTPUT"
+
+  deploy-tenant-service:
+    runs-on: ubuntu-latest
+    needs:
+      - build-and-push
+      - check-versions
+    if: ${{ needs.check-versions.outputs.tenant_service_changed == 'true' || github.event_name == 'workflow_dispatch' }}
+    environment: ${{ github.ref_name == 'main' && 'production' || 'develop' }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Authenticate again for kubectl
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Configure kubectl for GKE
+        run: |
+          gcloud container clusters get-credentials tripico-cluster --region europe-west1
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Install jq
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y jq
+
+      - name: Verify cert-manager is ready
+        run: |
+          echo "Checking cert-manager status..."
+          kubectl wait --for=condition=ready pod -l app=cert-manager -n cert-manager --timeout=2m || true
+          kubectl get pods -n cert-manager
+
+      - name: Check for stuck Helm operations
+        working-directory: ./services/tenant-service
+        run: |
+          echo "Checking for stuck Helm operations..."
+          RELEASE_STATUS=$(helm status tenant-service -o json 2>/dev/null | jq -r '.info.status' || echo "not-found")
+          
+          echo "Current release status: $RELEASE_STATUS"
+          
+          if [ "$RELEASE_STATUS" == "pending-install" ] || [ "$RELEASE_STATUS" == "pending-upgrade" ] || [ "$RELEASE_STATUS" == "pending-rollback" ]; then
+            echo "⚠️  Found stuck operation in status: $RELEASE_STATUS"
+            echo "Rolling back to recover..."
+            helm rollback tenant-service 0 --wait --timeout 2m || {
+              echo "Rollback failed or no history available"
+              echo "Attempting to uninstall stuck release..."
+              helm uninstall tenant-service --wait --timeout 2m || echo "Uninstall also failed, will try fresh install"
+            }
+          elif [ "$RELEASE_STATUS" == "failed" ]; then
+            echo "⚠️  Previous deployment failed, will retry with fresh deployment"
+          elif [ "$RELEASE_STATUS" == "deployed" ]; then
+            echo "✅ Current release is healthy"
+          else
+            echo "ℹ️  No existing release found"
+          fi
+
+      - name: Deploy with Helm
+        working-directory: ./services/tenant-service
+        run: |
+          # Check if release exists and is not in pending state
+          if helm list | grep -q "^tenant-service" && ! helm status tenant-service -o json 2>/dev/null | jq -r '.info.status' | grep -q "pending"; then
+            echo "Upgrading existing release..."
+            helm upgrade tenant-service ./tenant-service-chart \
+              -f ./tenant-service-chart/${{ vars.VALUES_FILENAME }} \
+              --set gcp.projectId="${{ vars.PROJECT_ID }}" \
+              --set github.token="${{ secrets.TENANT_SERVICE_GITHUB_TOKEN }}" \
+              --set github.repository.owner="${{ github.repository_owner }}" \
+              --set github.repository.name="cad-backend" \
+              --set smtp.user="${{ secrets.SMTP_USER }}" \
+              --set smtp.password="${{ secrets.SMTP_PASSWORD }}" \
+              --set image.repository="europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/tenant-service" \
+              --set image.tag="${{ needs.build-and-push.outputs.app_version }}" \
+              --cleanup-on-fail \
+              --rollback-on-failure \
+              --wait --timeout 5m
+          else
+            echo "Installing new release..."
+            helm install tenant-service ./tenant-service-chart \
+              -f ./tenant-service-chart/${{ vars.VALUES_FILENAME }} \
+              --set gcp.projectId="${{ vars.PROJECT_ID }}" \
+              --set github.token="${{ secrets.TENANT_SERVICE_GITHUB_TOKEN }}" \
+              --set github.repository.owner="${{ github.repository_owner }}" \
+              --set github.repository.name="cad-backend" \
+              --set smtp.user="${{ secrets.SMTP_USER }}" \
+              --set smtp.password="${{ secrets.SMTP_PASSWORD }}" \
+              --set image.repository="europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/tenant-service" \
+              --set image.tag="${{ needs.build-and-push.outputs.app_version }}" \
+              --create-namespace \
+              --rollback-on-failure \
+              --wait --timeout 5m
+          fi
+
+      - name: Verify Deployment
+        run: |
+          echo "=== Helm Release Status ==="
+          helm status tenant-service
+          echo ""
+          
+          echo "=== Deployment Status ==="
+          kubectl get deployment tenant-service -o wide || echo "Deployment not found"
+          echo ""
+          
+          echo "=== Pod Status ==="
+          kubectl get pods -l app=tenant-service -o wide
+          echo ""
+          
+          echo "=== Pod Details (if any issues) ==="
+          PODS=$(kubectl get pods -l app=tenant-service -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
+          if [ -n "$PODS" ]; then
+            for pod in $PODS; do
+              STATUS=$(kubectl get pod $pod -o jsonpath='{.status.phase}')
+              echo "Pod: $pod - Status: $STATUS"
+              if [ "$STATUS" != "Running" ]; then
+                echo "Describing pod $pod:"
+                kubectl describe pod $pod | tail -30
+                echo ""
+                echo "Recent logs from $pod:"
+                kubectl logs $pod --tail=50 || echo "Could not get logs"
+                echo ""
+              fi
+            done
+          else
+            echo "No pods found with label app=tenant-service"
+          fi
+          
+          echo "=== Service Status ==="
+          kubectl get svc -l app.kubernetes.io/instance=tenant-service
+          echo ""
+          
+          echo "=== Ingress Status ==="
+          kubectl get ingress
+          echo ""
+          
+          echo "=== Recent Events ==="
+          kubectl get events --sort-by='.lastTimestamp' | grep tenant-service | tail -20 || echo "No recent events"

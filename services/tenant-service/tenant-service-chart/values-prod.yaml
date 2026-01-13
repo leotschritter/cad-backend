@@ -6,6 +6,7 @@ replicaCount: 2
 image:
   repository: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/tenant-service
   pullPolicy: Always
+  tag: "latest"
 
 serviceAccount:
   annotations:
@@ -119,4 +120,6 @@ github:
 tenant:
   baseDomain: "tripico.fun"
   pollingIntervalSeconds: "30"
+  environment: "prod"
+  cluster: "tripico-cluster"
 

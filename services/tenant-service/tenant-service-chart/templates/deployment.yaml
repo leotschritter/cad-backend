@@ -32,7 +32,7 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: {{ .Values.service.name }}
@@ -47,6 +47,11 @@ spec:
               value: {{ .Values.quarkus.profile | quote }}
 
             - name: PROJECT_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: project_id
+            - name: GCP_PROJECT_ID
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "tenant-service.fullname" . }}-config
@@ -146,6 +151,16 @@ spec:
                 configMapKeyRef:
                   name: {{ include "tenant-service.fullname" . }}-config
                   key: tenant_polling_interval_seconds
+            - name: TENANT_ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: tenant_environment
+            - name: TENANT_CLUSTER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: tenant_cluster
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- with .Values.probes.startup }}

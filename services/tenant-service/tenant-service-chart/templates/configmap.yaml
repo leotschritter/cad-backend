@@ -26,4 +26,6 @@ data:
   # Tenant Configuration
   tenant_base_domain: {{ .Values.tenant.baseDomain | quote }}
   tenant_polling_interval_seconds: {{ .Values.tenant.pollingIntervalSeconds | quote }}
+  tenant_environment: {{ .Values.tenant.environment | quote }}
+  tenant_cluster: {{ .Values.tenant.cluster | quote }}
 

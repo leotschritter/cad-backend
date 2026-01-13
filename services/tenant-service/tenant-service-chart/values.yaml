@@ -4,7 +4,10 @@
 
 replicaCount: 1
 
-
+image:
+  repository: europe-west1-docker.pkg.dev/PROJECT_ID/docker-repo/tenant-service
+  pullPolicy: Always
+  tag: "latest"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -103,6 +106,8 @@ github:
 tenant:
   baseDomain: "tripico.fun"
   pollingIntervalSeconds: "30"
+  environment: "prod"
+  cluster: "tripico-cluster"
 
 # Health check probes
 probes:
