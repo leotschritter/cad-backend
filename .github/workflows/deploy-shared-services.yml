@@ -194,8 +194,16 @@ jobs:
 
           # Update domain for enterprise tier
           if [ "$TIER" = "enterprise" ] && [ -n "$ENTERPRISE_NAME" ]; then
-            # For enterprise: weather-{tenant}.dev.tripico.fun or warnings-{tenant}.dev.tripico.fun
-            SERVICE_PREFIX="${{ matrix.service.name }}"
+            # For enterprise: weather.{tenant}.dev.tripico.fun or warnings.{tenant}.dev.tripico.fun
+            # Map service names to domain prefixes
+            if [ "${{ matrix.service.name }}" = "weather-forecast" ]; then
+              SERVICE_PREFIX="weather"
+            elif [ "${{ matrix.service.name }}" = "travel-warnings" ]; then
+              SERVICE_PREFIX="warnings"
+            else
+              SERVICE_PREFIX="${{ matrix.service.name }}"
+            fi
+            
             if [ "$DEPLOY_ENV" = "prod" ]; then
               DOMAIN="${SERVICE_PREFIX}.${ENTERPRISE_NAME}.tripico.fun"
             else
