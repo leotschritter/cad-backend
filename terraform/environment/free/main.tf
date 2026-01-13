@@ -104,6 +104,7 @@ module "iam" {
   project_id           = var.project_id
   app_name             = var.app_name
   service_account_name = local.service_account_name
+  tenant_name          = "freemium"
   project_apis_enabled = module.project.identity_platform_config_id
 }
 

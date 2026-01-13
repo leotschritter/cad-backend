@@ -26,20 +26,27 @@ resource "google_service_account_iam_member" "kubernetes_token_creator" {
   member             = "serviceAccount:${google_service_account.kubernetes_sa.email}"
 }
 
-resource "google_service_account_iam_member" "workload_identity_user" {
-  service_account_id = google_service_account.kubernetes_sa.name
-  role               = "roles/iam.workloadIdentityUser"
-  member             = "serviceAccount:${var.project_id}.svc.id.goog[default/itinerary-service-sa]"
-}
-
 resource "google_project_iam_member" "kubernetes_storage_admin_project" {
   project = var.project_id
   role    = "roles/storage.admin"
   member  = "serviceAccount:${google_service_account.kubernetes_sa.email}"
 }
 
-resource "google_service_account_iam_member" "workload_comment_like_user" {
+# Workload Identity bindings for service accounts in tenant namespace
+# This allows Kubernetes service accounts in the tenant's namespace to use the GCP service account
+locals {
+  # List of service accounts that need Workload Identity bindings in this tenant's namespace
+  # Only services that access external GCP services (Firestore, Storage, Identity Platform)
+  service_accounts = [
+    "itinerary-service-sa",
+    "comments-likes-sa"
+  ]
+}
+
+resource "google_service_account_iam_member" "workload_identity_bindings" {
+  for_each = toset(local.service_accounts)
+
   service_account_id = google_service_account.kubernetes_sa.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "serviceAccount:${var.project_id}.svc.id.goog[default/comments-likes-sa]"
+  member             = "serviceAccount:${var.project_id}.svc.id.goog[${var.tenant_name}/${each.key}]"
 }

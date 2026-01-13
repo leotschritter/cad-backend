@@ -117,6 +117,7 @@ module "iam" {
   project_id           = var.project_id
   app_name             = local.api_gateway_name
   service_account_name = local.service_account_name
+  tenant_name          = var.tenant_name
 }
 
 # Storage Module - Tenant-specific bucket
