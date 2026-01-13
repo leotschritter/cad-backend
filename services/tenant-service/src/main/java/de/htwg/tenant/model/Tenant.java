@@ -130,11 +130,10 @@ public class Tenant extends PanacheMongoEntity {
     }
 
     public static Integer findMaxTenantNumber() {
-        return find("ORDER BY tenantNumber DESC")
+        Tenant tenant = find("ORDER BY tenantNumber DESC")
             .page(0, 1)
-            .firstResult()
-            .map(t -> ((Tenant) t).tenantNumber)
-            .orElse(0);
+            .firstResult();
+        return tenant != null ? tenant.tenantNumber : 0;
     }
 
     public enum ProvisioningState {

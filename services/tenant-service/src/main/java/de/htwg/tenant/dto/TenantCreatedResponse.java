@@ -1,5 +1,6 @@
 package de.htwg.tenant.dto;
 
+import de.htwg.tenant.model.Tenant;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

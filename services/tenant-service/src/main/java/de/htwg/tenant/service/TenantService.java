@@ -35,9 +35,6 @@ public class TenantService {
     EmailService emailService;
 
     @Inject
-    IdentityPlatformService identityPlatformService;
-
-    @Inject
     FirestoreService firestoreService;
 
     @ConfigProperty(name = "tenant.base-domain")
