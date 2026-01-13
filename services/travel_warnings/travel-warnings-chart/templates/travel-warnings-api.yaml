@@ -89,10 +89,6 @@ spec:
               value: {{ .Values.travelWarningsApi.cors.methods | quote }}
             - name: QUARKUS_HTTP_CORS_HEADERS
               value: {{ .Values.travelWarningsApi.cors.headers | quote }}
-            - name: QUARKUS_HTTP_CORS_EXPOSED_HEADERS
-              value: {{ .Values.travelWarningsApi.cors.exposedHeaders | quote }}
-            - name: QUARKUS_HTTP_CORS_ACCESS_CONTROL_ALLOW_CREDENTIALS
-              value: {{ .Values.travelWarningsApi.cors.allowCredentials | quote }}
 
           resources:
             requests:

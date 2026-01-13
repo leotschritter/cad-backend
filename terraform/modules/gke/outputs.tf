@@ -28,3 +28,7 @@ output "kubectl_connect_command" {
   value       = "gcloud container clusters get-credentials ${google_container_cluster.main.name} --region ${var.region} --project ${var.project_id}"
 }
 
+output "cluster_ready" {
+  description = "Dependency output to ensure cluster is ready before deploying resources"
+  value       = google_container_cluster.main.id
+}

@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - feature/tenant-terraform
     paths:
       - 'terraform/**'
       - '.github/workflows/terraform.yml'
@@ -26,6 +27,19 @@ on:
           - apply
           - destroy
           - validate
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        default: 'free'
+        options:
+          - free
+          - standard
+      tenant_number:
+        description: 'Tenant number for standard environment (e.g., 1, 2, 3)'
+        required: false
+        type: string
+        default: '1'
 
 env:
   TF_VERSION: '1.14.0'
@@ -33,7 +47,8 @@ env:
   GCP_CREDENTIALS: ${{ github.ref_name == 'main' && secrets.GCP_SERVICE_ACCOUNT_KEY || secrets.GCP_SERVICE_ACCOUNT_KEY_2 }}
   TF_STATE_BUCKET: ${{ github.ref_name == 'main' && 'graphite-plane-474510-s9-terraform-state' || 'iaas-476910-terraform-state' }}
   TF_VAR_project_id: ${{ github.ref_name == 'main' && 'graphite-plane-474510-s9' || 'iaas-476910' }}
-  BACKEND_CONF_HCL: ${{ github.ref_name == 'main' && 'backend-config.hcl' || 'backend-config-dev.hcl' }}
+  TF_VAR_is_prod_environment: ${{ github.ref_name == 'main' && 'true' || 'false' }}
+  TF_VAR_domain_name: ${{ github.ref_name == 'main' && 'tripico.fun' || 'dev.tripico.fun' }}
 
 jobs:
   terraform-validate:
@@ -56,34 +71,76 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Terraform backend
-        working-directory: terraform
+      - name: Set environment variables
+        id: set-env
         run: |
-          cat > ${{ env.BACKEND_CONF_HCL }} << EOF
-          bucket = "${{ env.TF_STATE_BUCKET }}"
-          prefix = "terraform/state"
-          EOF
+          # Determine environment and tenant
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TF_ENV="${{ inputs.environment }}"
+            TENANT_NUM="${{ inputs.tenant_number }}"
+          else
+            TF_ENV="free"
+            TENANT_NUM="1"
+          fi
+
+          echo "TF_ENV=$TF_ENV" >> $GITHUB_OUTPUT
+          echo "TENANT_NUM=$TENANT_NUM" >> $GITHUB_OUTPUT
+          echo "WORKING_DIR=terraform/environment/$TF_ENV" >> $GITHUB_OUTPUT
+
+          # Set state prefix based on environment
+          if [ "$TF_ENV" = "standard" ]; then
+            echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+          else
+            echo "STATE_PREFIX=terraform/state/free" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
+          fi
 
       - name: Terraform Init
-        working-directory: terraform
-        run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="prefix=${{ steps.set-env.outputs.STATE_PREFIX }}"
+
+      - name: Install gke-gcloud-auth-plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE credentials (if cluster exists)
+        continue-on-error: true
+        run: |
+          gcloud container clusters get-credentials tripico-cluster --region europe-west1 --project ${{ env.GCP_PROJECT_ID }} || echo "GKE cluster not yet created"
+
+      - name: Verify kubeconfig setup
+        continue-on-error: true
+        run: |
+          echo "Checking if kubeconfig exists..."
+          if [ -f ~/.kube/config ]; then
+            echo "✓ kubeconfig file exists at ~/.kube/config"
+            echo "Current context:"
+            kubectl config current-context || echo "No current context"
+            echo "Testing cluster connectivity..."
+            kubectl cluster-info || echo "Cannot connect to cluster"
+          else
+            echo "✗ kubeconfig file does not exist"
+          fi
 
       - name: Terraform Validate
-        working-directory: terraform
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: terraform validate
 
       - name: Terraform Format Check
-        working-directory: terraform
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: terraform fmt -check -recursive
 
   terraform-plan:
     name: Terraform Plan
     runs-on: ubuntu-latest
     needs: terraform-validate
-    # Run plan on PRs, on pushes (when terraform changed), or when manually
-    # dispatched with action == 'plan'. This produces a plan artifact for
-    # later manual apply.
-    if: github.event_name == 'pull_request' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'plan')
+    # Run plan on PRs, pushes, or when manually dispatched with action == 'plan' or 'apply'.
+    # The plan is required before apply can run.
+    if: github.event_name == 'pull_request' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.action == 'plan' || github.event.inputs.action == 'apply'))
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -101,33 +158,86 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Terraform backend
-        working-directory: terraform
+      - name: Set environment variables
+        id: set-env
         run: |
-          cat > ${{ env.BACKEND_CONF_HCL }} << EOF
-          bucket = "${{ env.TF_STATE_BUCKET }}"
-          prefix = "terraform/state"
-          EOF
+          # Determine environment and tenant
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TF_ENV="${{ inputs.environment }}"
+            TENANT_NUM="${{ inputs.tenant_number }}"
+          else
+            TF_ENV="free"
+            TENANT_NUM="1"
+          fi
+
+          echo "TF_ENV=$TF_ENV" >> $GITHUB_OUTPUT
+          echo "TENANT_NUM=$TENANT_NUM" >> $GITHUB_OUTPUT
+          echo "WORKING_DIR=terraform/environment/$TF_ENV" >> $GITHUB_OUTPUT
+
+          # Set state prefix based on environment
+          if [ "$TF_ENV" = "standard" ]; then
+            echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+          else
+            echo "STATE_PREFIX=terraform/state/free" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
+          fi
 
       - name: Terraform Init
-        working-directory: terraform
-        run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="prefix=${{ steps.set-env.outputs.STATE_PREFIX }}"
+
+      - name: Install gke-gcloud-auth-plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE credentials (if cluster exists)
+        continue-on-error: true
+        run: |
+          gcloud container clusters get-credentials tripico-cluster --region europe-west1 --project ${{ env.GCP_PROJECT_ID }} || echo "GKE cluster not yet created"
+
+      - name: Verify kubeconfig setup
+        continue-on-error: true
+        run: |
+          echo "Checking if kubeconfig exists..."
+          if [ -f ~/.kube/config ]; then
+            echo "✓ kubeconfig file exists at ~/.kube/config"
+            ls -lh ~/.kube/config
+            echo "Current context:"
+            kubectl config current-context || echo "No current context"
+            echo "Testing cluster connectivity..."
+            kubectl cluster-info || echo "Cannot connect to cluster"
+            echo "Checking Helm connectivity..."
+            helm version || echo "Helm not available"
+          else
+            echo "✗ kubeconfig file does not exist"
+          fi
+
+      - name: Remove problematic Helm release from state (if exists)
+        continue-on-error: true
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
+        run: |
+          echo "Checking if Helm release exists in state..."
+          if terraform state list | grep -q "module.dns.helm_release.ingress_nginx"; then
+            echo "Found Helm release in state, removing it to allow refresh..."
+            terraform state rm module.dns.helm_release.ingress_nginx || echo "Failed to remove, will continue anyway"
+          else
+            echo "No Helm release found in state"
+          fi
 
       - name: Terraform Plan
         id: tf-plan
-        working-directory: terraform
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         env:
-          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
-          TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
+          TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
+          TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
+          TF_VAR_tenant_name: ${{ steps.set-env.outputs.TENANT_NAME }}
         run: |
-          # produce a human-readable plan and save a binary plan for apply
-          if [[ "$GITHUB_REF_NAME" == "main" ]]; then
-            terraform plan -no-color -out=tfplan | tee plan.txt
-          else
-            terraform plan -var-file="dev-environment.tfvars" -no-color -out=tfplan | tee plan.txt
-          fi
-          # expose the plan text as a step output for PR comments
+          terraform plan -no-color -out=tfplan | tee plan.txt
           echo "plan<<EOF" >> $GITHUB_OUTPUT
           cat plan.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -135,7 +245,7 @@ jobs:
       - name: Upload Plan Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: terraform-plan
+          name: terraform-plan-${{ steps.set-env.outputs.TENANT_NAME }}
           path: terraform/tfplan
           retention-days: 5
 
@@ -167,17 +277,75 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Terraform backend
-        working-directory: terraform
+      - name: Set environment variables
+        id: set-env
         run: |
-          cat > ${{ env.BACKEND_CONF_HCL }} << EOF
-          bucket = "${{ env.TF_STATE_BUCKET }}"
-          prefix = "terraform/state"
-          EOF
+          # Determine environment and tenant
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TF_ENV="${{ inputs.environment }}"
+            TENANT_NUM="${{ inputs.tenant_number }}"
+          else
+            TF_ENV="free"
+            TENANT_NUM="1"
+          fi
+
+          echo "TF_ENV=$TF_ENV" >> $GITHUB_OUTPUT
+          echo "TENANT_NUM=$TENANT_NUM" >> $GITHUB_OUTPUT
+          echo "WORKING_DIR=terraform/environment/$TF_ENV" >> $GITHUB_OUTPUT
+
+          # Set state prefix based on environment
+          if [ "$TF_ENV" = "standard" ]; then
+            echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+          else
+            echo "STATE_PREFIX=terraform/state/free" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
+          fi
 
       - name: Terraform Init
-        working-directory: terraform
-        run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="prefix=${{ steps.set-env.outputs.STATE_PREFIX }}"
+
+      - name: Install gke-gcloud-auth-plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE credentials (if cluster exists)
+        continue-on-error: true
+        run: |
+          gcloud container clusters get-credentials tripico-cluster --region europe-west1 --project ${{ env.GCP_PROJECT_ID }} || echo "GKE cluster not yet created"
+
+      - name: Verify kubeconfig setup
+        continue-on-error: true
+        run: |
+          echo "Checking if kubeconfig exists..."
+          if [ -f ~/.kube/config ]; then
+            echo "✓ kubeconfig file exists at ~/.kube/config"
+            ls -lh ~/.kube/config
+            echo "Current context:"
+            kubectl config current-context || echo "No current context"
+            echo "Testing cluster connectivity..."
+            kubectl cluster-info || echo "Cannot connect to cluster"
+            echo "Checking Helm connectivity..."
+            helm version || echo "Helm not available"
+          else
+            echo "✗ kubeconfig file does not exist"
+          fi
+
+      - name: Remove problematic Helm release from state (if exists)
+        continue-on-error: true
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
+        run: |
+          echo "Checking if Helm release exists in state..."
+          if terraform state list | grep -q "module.dns.helm_release.ingress_nginx"; then
+            echo "Found Helm release in state, removing it to allow refresh..."
+            terraform state rm module.dns.helm_release.ingress_nginx || echo "Failed to remove, will continue anyway"
+          else
+            echo "No Helm release found in state"
+          fi
 
       # Try to download a plan artifact produced by the Plan job. If it's
       # available we'll apply it. If not (e.g. a manual dispatch without a
@@ -185,41 +353,49 @@ jobs:
       - name: Download Plan Artifact (if present)
         uses: actions/download-artifact@v4
         with:
-          name: terraform-plan
+          name: terraform-plan-${{ steps.set-env.outputs.TENANT_NAME }}
           path: terraform
         continue-on-error: true
 
       - name: Apply plan (use artifact if present, otherwise create+apply)
-        working-directory: terraform
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         env:
-          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
-          TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
+          TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
+          TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
+          TF_VAR_tenant_name: ${{ steps.set-env.outputs.TENANT_NAME }}
         run: |
           if [ -f tfplan ]; then
             echo "Found uploaded plan artifact; applying it"
-            if [[ "$GITHUB_REF_NAME" == "main" ]]; then
-              terraform apply -auto-approve tfplan
-            else
-              terraform apply -var-file="dev-environment.tfvars" -auto-approve tfplan
-            fi
+            terraform apply -auto-approve tfplan
           else
             echo "No plan artifact found; running plan then apply"
-            if [[ "$GITHUB_REF_NAME" == "main" ]]; then
-              terraform plan -out=tfplan
-              terraform apply -auto-approve tfplan
-            else
-              terraform plan -var-file="dev-environment.tfvars" -out=tfplan
-              terraform apply -var-file="dev-environment.tfvars" -auto-approve tfplan
-            fi
+            terraform plan -out=tfplan
+            terraform apply -auto-approve tfplan
           fi
 
       - name: Terraform Outputs
         id: tf-outputs
-        working-directory: terraform
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: |
           echo "api_gateway_url=$(terraform output -raw api_gateway_url)" >> $GITHUB_OUTPUT
-          echo "gke_cluster_name=$(terraform output -raw gke_cluster_name)" >> $GITHUB_OUTPUT
+          # GKE cluster name only exists in free tier (shared infrastructure)
+          if [ "${{ steps.set-env.outputs.TF_ENV }}" = "free" ]; then
+            echo "gke_cluster_name=$(terraform output -raw gke_cluster_name)" >> $GITHUB_OUTPUT
+          else
+            echo "tenant_name=$(terraform output -raw tenant_name)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Export Terraform outputs as JSON
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
+        run: |
+          terraform output -json > tf-outputs.json
+
+      - name: Upload Terraform outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs-${{ steps.set-env.outputs.TENANT_NAME }}
+          path: ${{ steps.set-env.outputs.WORKING_DIR }}/tf-outputs.json
 
   terraform-destroy:
     name: Terraform Destroy
@@ -244,23 +420,44 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Terraform backend
-        working-directory: terraform
+      - name: Set environment variables
+        id: set-env
         run: |
-          cat > ${{ env.BACKEND_CONF_HCL }} << EOF
-          bucket = "${{ env.TF_STATE_BUCKET }}"
-          prefix = "terraform/state"
-          EOF
+          # Determine environment and tenant
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TF_ENV="${{ inputs.environment }}"
+            TENANT_NUM="${{ inputs.tenant_number }}"
+          else
+            TF_ENV="free"
+            TENANT_NUM="1"
+          fi
+
+          echo "TF_ENV=$TF_ENV" >> $GITHUB_OUTPUT
+          echo "TENANT_NUM=$TENANT_NUM" >> $GITHUB_OUTPUT
+          echo "WORKING_DIR=terraform/environment/$TF_ENV" >> $GITHUB_OUTPUT
+
+          # Set state prefix based on environment
+          if [ "$TF_ENV" = "standard" ]; then
+            echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+          else
+            echo "STATE_PREFIX=terraform/state/free" >> $GITHUB_OUTPUT
+            echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
+          fi
 
       - name: Terraform Init
-        working-directory: terraform
-        run: terraform init -backend-config=${{ env.BACKEND_CONF_HCL }}
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="prefix=${{ steps.set-env.outputs.STATE_PREFIX }}"
 
       - name: Terraform Destroy
-        working-directory: terraform
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         env:
-          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
-          TF_VAR_firebase_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
+          TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
+          TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
+          TF_VAR_tenant_name: ${{ steps.set-env.outputs.TENANT_NAME }}
         run: terraform destroy -auto-approve
 

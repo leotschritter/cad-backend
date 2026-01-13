@@ -1,0 +1,128 @@
+# Helm values for recommendation-service in pro namespace (DEV)
+namespaceOverride: standard
+
+commonLabels:
+  app.kubernetes.io/part-of: recommendation-system
+  app.kubernetes.io/managed-by: helm
+  tier: standard
+  environment: dev
+
+neo4j:
+  name: neo4j-standard
+  image: neo4j:5.15.0
+  port:
+    bolt: 7687
+    http: 7474
+  replicas: 1
+  password: ""  # Set via: --set neo4j.password=your-password
+  environmentVariables:
+    plugins: '["apoc"]'
+    dbmsSecurityProceduresUnrestricted: "apoc.*"
+    serverMemoryHeapInitialSize: "128m"  # Reduziert für weniger Memory
+    serverMemoryHeapMaxSize: "256m"      # Passt zu limit
+    serverMemoryPagecacheSize: "128m"    # Reduziert
+  volumeMounts:
+    mountPath: /data
+    name: neo4j-data
+  resources:
+    requests:
+      memory: "256Mi"  # Neo4j braucht mindestens 256Mi
+      cpu: "50m"       # Etwas mehr für Startup
+    limits:
+      memory: "512Mi"  # Genug für Heap + Pagecache + Overhead
+      cpu: "500m"
+  probes:
+    liveness:
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      timeoutSeconds: 5
+    readiness:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+
+neo4jPvc:
+  name: neo4j-data-pvc-standard
+  storage: 10Gi  # Smaller for dev
+
+recommendationApi:
+  name: recommendation-service
+  image: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/recommendation-service:latest
+  port: 8080
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  resources:
+    requests:
+      memory: "256Mi"  # Erhöht für stabile Ausführung
+      cpu: "50m"       # Erhöht
+    limits:
+      memory: "512Mi"  # Erhöht - Java braucht mehr Memory
+      cpu: "500m"
+
+  cors:
+    origins: "*"
+    methods: "GET,POST,PUT,DELETE,OPTIONS"
+    headers: "accept,authorization,content-type,x-requested-with"
+
+  probes:
+    startup:
+      path: /q/health/started
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      failureThreshold: 30
+      timeoutSeconds: 5
+    readiness:
+      path: /q/health/ready
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+    liveness:
+      path: /q/health/live
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      timeoutSeconds: 5
+
+recommendationConfig:
+  name: recommendation-service-config
+  googleCloudProject: "iaas-476910"
+  neo4j:
+    uri: "bolt://neo4j-service-standard.standard.svc.cluster.local:7687"
+    username: "neo4j"
+  itineraryServiceUrl: "http://itinerary-service.standard.svc.cluster.local:8080"
+  identityPlatform:
+    authEnabled: "true"  # Disabled for dev
+    primaryHeader: "X-Forwarded-Authorization"
+    fallbackHeader: "Authorization"
+  recommendation:
+    feedMaxItems: "50"
+  openapiServerUrl: "https://recommendation-standard.dev.tripico.fun"
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false  # Disabled for dev
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+
+ingress:
+  name: recommendation-ingress
+  enabled: true
+  useProd: false
+  dev:
+    host: ""
+    tlsSecretName: ""
+    sslRedirect: "true"
+    forceSslRedirect: "true"
+
+serviceAccount:
+  name: recommendation-service-sa
+  gcpServiceAccount: "travel-backend-sa@iaas-476910.iam.gserviceaccount.com"
+
+certificate:
+  name: recommendation-standard-dev-tls-cert
+  issuerName: letsencrypt-prod  # Staging for dev
+  secretName: recommendation-standard-dev-tls

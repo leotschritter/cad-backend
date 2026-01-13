@@ -27,7 +27,7 @@ public class TravelWarningRepository implements PanacheRepository<TravelWarning>
         LOG.debugf("Finding travel warning by countryCode: %s", countryCode);
         Optional<TravelWarning> result = find("countryCode", countryCode).firstResultOptional();
         if (result.isPresent()) {
-            LOG.debugf("Found travel warning for country %s with severity: %s",
+            LOG.debugf("Found travel warning for country %s with severity: %s", 
                       countryCode, result.get().getSeverity());
         } else {
             LOG.debugf("No travel warning found for country: %s", countryCode);

@@ -93,9 +93,8 @@
 
         <!-- Neo4j Graph Database -->
         <dependency>
-            <groupId>org.neo4j.driver</groupId>
-            <artifactId>neo4j-java-driver</artifactId>
-            <version>${neo4j-java-driver.version}</version>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-neo4j</artifactId>
         </dependency>
 
         <!-- Testing -->

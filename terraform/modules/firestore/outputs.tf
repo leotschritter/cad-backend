@@ -7,4 +7,3 @@ output "firestore_location" {
   description = "The location of the Firestore database"
   value       = google_firestore_database.database.location_id
 }
-

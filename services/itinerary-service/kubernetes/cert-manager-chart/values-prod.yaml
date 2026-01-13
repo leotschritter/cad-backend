@@ -1,0 +1,29 @@
+# Production Environment Values for cert-manager
+# Use this for production deployment
+
+# ClusterIssuer configuration for production
+clusterIssuer:
+  enabled: true
+  name: letsencrypt-prod
+
+  # Let's Encrypt production server
+  server: https://acme-v02.api.letsencrypt.org/directory
+
+  email: benedikt.scheffel@gmail.com
+  privateKeySecretRef: letsencrypt-prod
+
+  # DNS01 Challenge enabled for production environment
+  dns01:
+    enabled: true
+    project: "graphite-plane-474510-s9"
+    serviceAccountSecretRef:
+      name: cert-manager-dns01-sa
+      key: key.json
+    dnsZones:
+      - "tripico.fun"
+
+  # HTTP01 fallback (not used when dns01.enabled=true)
+  solvers:
+    - http01:
+        ingress:
+          class: nginx

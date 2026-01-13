@@ -9,4 +9,3 @@ resource "google_artifact_registry_repository" "docker_repo" {
 
   depends_on = [var.project_apis_enabled]
 }
-
