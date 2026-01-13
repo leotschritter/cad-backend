@@ -1,7 +1,7 @@
 # Development values for tenant-service
 # Override default values for development/testing
 
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/tenant-service

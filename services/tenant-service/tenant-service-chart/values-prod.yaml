@@ -1,7 +1,7 @@
 # Production values for tenant-service
 # Override default values for production deployment
 
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/tenant-service
