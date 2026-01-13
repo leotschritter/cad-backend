@@ -504,11 +504,12 @@ jobs:
             --timeout 10m
 
   verify-deployment:
-    needs: [deploy-freemium-services, deploy-standard-services, deploy-enterprise-services]
+    needs: [deploy-freemium-services, deploy-standard-services, deploy-enterprise-cert-manager, deploy-enterprise-services]
     if: |
       always() &&
       (needs.deploy-freemium-services.result == 'success' || needs.deploy-freemium-services.result == 'skipped') &&
       (needs.deploy-standard-services.result == 'success' || needs.deploy-standard-services.result == 'skipped') &&
+      (needs.deploy-enterprise-cert-manager.result == 'success' || needs.deploy-enterprise-cert-manager.result == 'skipped') &&
       (needs.deploy-enterprise-services.result == 'success' || needs.deploy-enterprise-services.result == 'skipped')
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}

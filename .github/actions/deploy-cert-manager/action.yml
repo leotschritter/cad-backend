@@ -1,0 +1,126 @@
+name: 'Deploy Cert-Manager'
+description: 'Deploy cert-manager to a Kubernetes cluster with DNS01 challenge support'
+
+inputs:
+  cluster_name:
+    description: 'The name of the GKE cluster'
+    required: true
+  cluster_region:
+    description: 'The GCP region of the cluster'
+    required: false
+    default: 'europe-west1'
+  project_id:
+    description: 'The GCP project ID'
+    required: true
+  gcp_credentials:
+    description: 'GCP service account credentials JSON'
+    required: true
+  cert_manager_sa_key:
+    description: 'Cert-manager DNS01 service account key (base64 encoded)'
+    required: true
+  environment:
+    description: 'Environment (dev or prod)'
+    required: false
+    default: 'dev'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check if cert-manager is already installed
+      id: check
+      shell: bash
+      run: |
+        if helm list -n cert-manager | grep -q cert-manager; then
+          echo "installed=true" >> $GITHUB_OUTPUT
+          echo "✅ cert-manager is already installed"
+        else
+          echo "installed=false" >> $GITHUB_OUTPUT
+          echo "⚠️  cert-manager is not installed"
+        fi
+
+    - name: Set values file based on environment
+      id: set-values
+      shell: bash
+      run: |
+        if [ "${{ inputs.environment }}" = "prod" ]; then
+          echo "VALUES_FILE=values-prod.yaml" >> $GITHUB_OUTPUT
+        else
+          echo "VALUES_FILE=values-dev.yaml" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create cert-manager DNS01 Service Account Secret
+      if: steps.check.outputs.installed == 'false'
+      shell: bash
+      env:
+        CERT_MANAGER_SA_KEY: ${{ inputs.cert_manager_sa_key }}
+      run: |
+        echo "Creating cert-manager DNS01 service account secret..."
+
+        # Decode base64 secret and create JSON file
+        echo "$CERT_MANAGER_SA_KEY" | base64 -d > /tmp/cert-manager-dns01-key.json
+
+        # Create namespace if not exists
+        kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+
+        # Create or update the secret
+        kubectl create secret generic cert-manager-dns01-sa \
+          --from-file=key.json=/tmp/cert-manager-dns01-key.json \
+          --namespace=cert-manager \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+        # Clean up temp file immediately
+        rm -f /tmp/cert-manager-dns01-key.json
+
+        echo "✅ Secret created/updated successfully"
+
+    - name: Verify secret was created
+      if: steps.check.outputs.installed == 'false'
+      shell: bash
+      run: |
+        echo "Verifying secret exists..."
+        kubectl get secret cert-manager-dns01-sa -n cert-manager
+        echo "✅ Secret verified"
+
+    - name: Deploy cert-manager with DNS01
+      if: steps.check.outputs.installed == 'false'
+      shell: bash
+      working-directory: ./services/itinerary-service/kubernetes
+      run: |
+        helm repo add jetstack https://charts.jetstack.io
+        helm repo update
+        helm dependency update ./cert-manager-chart
+        helm dependency build ./cert-manager-chart
+
+        echo "Deploying cert-manager with ${{ steps.set-values.outputs.VALUES_FILE }}"
+
+        helm upgrade --install cert-manager ./cert-manager-chart \
+          --namespace cert-manager \
+          --create-namespace \
+          -f ./cert-manager-chart/${{ steps.set-values.outputs.VALUES_FILE }} \
+          --set cert-manager.installCRDs=true \
+          --set cert-manager.global.rbac.create=true \
+          --set cert-manager.serviceAccount.create=true \
+          --wait \
+          --timeout 5m
+
+        echo "✅ cert-manager deployed successfully"
+
+    - name: Verify cert-manager deployment
+      if: steps.check.outputs.installed == 'false'
+      shell: bash
+      run: |
+        echo "Waiting for cert-manager to be ready..."
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=cert-manager -n cert-manager --timeout=300s
+        
+        echo "Checking cert-manager webhook..."
+        kubectl get pods -n cert-manager
+        
+        echo "✅ cert-manager is ready!"
+
+    - name: Skip message
+      if: steps.check.outputs.installed == 'true'
+      shell: bash
+      run: |
+        echo "ℹ️  cert-manager is already installed, skipping deployment"
+        kubectl get pods -n cert-manager
+
