@@ -112,6 +112,8 @@ jobs:
             fi
             echo "STATE_PREFIX=terraform/state/${TENANT_NAME}" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=$TENANT_NAME" >> $GITHUB_OUTPUT
+            # Enterprise tier: dedicated GKE cluster per tenant
+            echo "GKE_CLUSTER_NAME=tripico-${TENANT_NAME}-cluster" >> $GITHUB_OUTPUT
             # Enterprise tier: use custom domain if provided, otherwise use default
             if [ -n "$CUSTOM_DOMAIN" ]; then
               echo "CUSTOM_DOMAIN=$CUSTOM_DOMAIN" >> $GITHUB_OUTPUT
@@ -119,9 +121,13 @@ jobs:
           elif [ "$TF_ENV" = "standard" ]; then
             echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+            # Standard tier: uses shared GKE cluster
+            echo "GKE_CLUSTER_NAME=tripico-cluster" >> $GITHUB_OUTPUT
           else
             echo "STATE_PREFIX=terraform/state/free" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
+            # Free tier: shared GKE cluster
+            echo "GKE_CLUSTER_NAME=tripico-cluster" >> $GITHUB_OUTPUT
           fi
 
       - name: Terraform Init
@@ -138,7 +144,10 @@ jobs:
       - name: Get GKE credentials (if cluster exists)
         continue-on-error: true
         run: |
-          gcloud container clusters get-credentials tripico-cluster --region europe-west1 --project ${{ env.GCP_PROJECT_ID }} || echo "GKE cluster not yet created"
+          # For enterprise tier, connect to tenant-specific cluster; for others, use shared cluster
+          CLUSTER_NAME="${{ steps.set-env.outputs.GKE_CLUSTER_NAME }}"
+          echo "Connecting to GKE cluster: $CLUSTER_NAME"
+          gcloud container clusters get-credentials "$CLUSTER_NAME" --region europe-west1 --project ${{ env.GCP_PROJECT_ID }} || echo "GKE cluster not yet created"
 
       - name: Verify kubeconfig setup
         continue-on-error: true
@@ -216,6 +225,8 @@ jobs:
             fi
             echo "STATE_PREFIX=terraform/state/${TENANT_NAME}" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=$TENANT_NAME" >> $GITHUB_OUTPUT
+            # Enterprise tier: dedicated GKE cluster per tenant
+            echo "GKE_CLUSTER_NAME=tripico-${TENANT_NAME}-cluster" >> $GITHUB_OUTPUT
             # Enterprise tier: use custom domain if provided, otherwise use default
             if [ -n "$CUSTOM_DOMAIN" ]; then
               echo "CUSTOM_DOMAIN=$CUSTOM_DOMAIN" >> $GITHUB_OUTPUT
@@ -223,9 +234,13 @@ jobs:
           elif [ "$TF_ENV" = "standard" ]; then
             echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+            # Standard tier: uses shared GKE cluster
+            echo "GKE_CLUSTER_NAME=tripico-cluster" >> $GITHUB_OUTPUT
           else
             echo "STATE_PREFIX=terraform/state/free" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
+            # Free tier: shared GKE cluster
+            echo "GKE_CLUSTER_NAME=tripico-cluster" >> $GITHUB_OUTPUT
           fi
 
       - name: Terraform Init
@@ -242,7 +257,10 @@ jobs:
       - name: Get GKE credentials (if cluster exists)
         continue-on-error: true
         run: |
-          gcloud container clusters get-credentials tripico-cluster --region europe-west1 --project ${{ env.GCP_PROJECT_ID }} || echo "GKE cluster not yet created"
+          # For enterprise tier, connect to tenant-specific cluster; for others, use shared cluster
+          CLUSTER_NAME="${{ steps.set-env.outputs.GKE_CLUSTER_NAME }}"
+          echo "Connecting to GKE cluster: $CLUSTER_NAME"
+          gcloud container clusters get-credentials "$CLUSTER_NAME" --region europe-west1 --project ${{ env.GCP_PROJECT_ID }} || echo "GKE cluster not yet created"
 
       - name: Verify kubeconfig setup
         continue-on-error: true
@@ -353,6 +371,8 @@ jobs:
             fi
             echo "STATE_PREFIX=terraform/state/${TENANT_NAME}" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=$TENANT_NAME" >> $GITHUB_OUTPUT
+            # Enterprise tier: dedicated GKE cluster per tenant
+            echo "GKE_CLUSTER_NAME=tripico-${TENANT_NAME}-cluster" >> $GITHUB_OUTPUT
             # Enterprise tier: use custom domain if provided, otherwise use default
             if [ -n "$CUSTOM_DOMAIN" ]; then
               echo "CUSTOM_DOMAIN=$CUSTOM_DOMAIN" >> $GITHUB_OUTPUT
@@ -360,9 +380,13 @@ jobs:
           elif [ "$TF_ENV" = "standard" ]; then
             echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+            # Standard tier: uses shared GKE cluster
+            echo "GKE_CLUSTER_NAME=tripico-cluster" >> $GITHUB_OUTPUT
           else
             echo "STATE_PREFIX=terraform/state/free" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
+            # Free tier: shared GKE cluster
+            echo "GKE_CLUSTER_NAME=tripico-cluster" >> $GITHUB_OUTPUT
           fi
 
       - name: Terraform Init
@@ -379,7 +403,10 @@ jobs:
       - name: Get GKE credentials (if cluster exists)
         continue-on-error: true
         run: |
-          gcloud container clusters get-credentials tripico-cluster --region europe-west1 --project ${{ env.GCP_PROJECT_ID }} || echo "GKE cluster not yet created"
+          # For enterprise tier, connect to tenant-specific cluster; for others, use shared cluster
+          CLUSTER_NAME="${{ steps.set-env.outputs.GKE_CLUSTER_NAME }}"
+          echo "Connecting to GKE cluster: $CLUSTER_NAME"
+          gcloud container clusters get-credentials "$CLUSTER_NAME" --region europe-west1 --project ${{ env.GCP_PROJECT_ID }} || echo "GKE cluster not yet created"
 
       - name: Verify kubeconfig setup
         continue-on-error: true
@@ -443,10 +470,12 @@ jobs:
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         run: |
           echo "api_gateway_url=$(terraform output -raw api_gateway_url)" >> $GITHUB_OUTPUT
-          # GKE cluster name only exists in free tier (shared infrastructure)
-          if [ "${{ steps.set-env.outputs.TF_ENV }}" = "free" ]; then
+          # GKE cluster name exists in free and enterprise tiers (they create clusters)
+          if [ "${{ steps.set-env.outputs.TF_ENV }}" = "free" ] || [ "${{ steps.set-env.outputs.TF_ENV }}" = "enterprise" ]; then
             echo "gke_cluster_name=$(terraform output -raw gke_cluster_name)" >> $GITHUB_OUTPUT
-          else
+          fi
+          # Tenant name exists in standard and enterprise tiers
+          if [ "${{ steps.set-env.outputs.TF_ENV }}" = "standard" ] || [ "${{ steps.set-env.outputs.TF_ENV }}" = "enterprise" ]; then
             echo "tenant_name=$(terraform output -raw tenant_name)" >> $GITHUB_OUTPUT
           fi
 
@@ -514,6 +543,8 @@ jobs:
             fi
             echo "STATE_PREFIX=terraform/state/${TENANT_NAME}" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=$TENANT_NAME" >> $GITHUB_OUTPUT
+            # Enterprise tier: dedicated GKE cluster per tenant
+            echo "GKE_CLUSTER_NAME=tripico-${TENANT_NAME}-cluster" >> $GITHUB_OUTPUT
             # Enterprise tier: use custom domain if provided, otherwise use default
             if [ -n "$CUSTOM_DOMAIN" ]; then
               echo "CUSTOM_DOMAIN=$CUSTOM_DOMAIN" >> $GITHUB_OUTPUT
@@ -521,9 +552,13 @@ jobs:
           elif [ "$TF_ENV" = "standard" ]; then
             echo "STATE_PREFIX=terraform/state/standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=standard-${TENANT_NUM}" >> $GITHUB_OUTPUT
+            # Standard tier: uses shared GKE cluster
+            echo "GKE_CLUSTER_NAME=tripico-cluster" >> $GITHUB_OUTPUT
           else
             echo "STATE_PREFIX=terraform/state/free" >> $GITHUB_OUTPUT
             echo "TENANT_NAME=free" >> $GITHUB_OUTPUT
+            # Free tier: shared GKE cluster
+            echo "GKE_CLUSTER_NAME=tripico-cluster" >> $GITHUB_OUTPUT
           fi
 
       - name: Terraform Init

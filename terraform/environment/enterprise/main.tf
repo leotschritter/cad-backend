@@ -1,34 +1,31 @@
 # =============================================================================
-# Enterprise Tier Tenant Configuration
+# Enterprise Tier Tenant Configuration - FULLY ISOLATED
 # =============================================================================
-# This configuration creates tenant-specific resources for Enterprise tier.
-# It assumes shared infrastructure (GKE, DNS, Artifact Registry, Firestore, IAM)
-# already exists from the base/free tier deployment.
+# This configuration creates a FULLY ISOLATED infrastructure for Enterprise tier.
+# Each enterprise tenant gets their own:
+# - GKE Cluster (dedicated Kubernetes cluster)
+# - VPC Network (isolated networking)
+# - IAM Service Account (dedicated identity)
+# - Storage Bucket (dedicated object storage)
+# - API Gateway (dedicated API endpoint)
 #
-# Enterprise tier tenants:
-# - Get their own API Gateway with configurable domain
-# - Get their own Storage bucket for images
-# - SHARE the GCP service account with freemium (tripico-sa)
-# - Share GKE cluster, DNS zone, Artifact Registry with all tenants
-# - Use shared Firestore (tenant isolation via collections/prefixes)
-# - Get dedicated namespace in GKE for their microservices
-# - Have full control over their services (no shared services)
+# Shared resources (from free tier, read-only access):
+# - Artifact Registry (for pulling container images)
+# - DNS Zone (for domain records)
+# - Project APIs (already enabled)
+# - Firestore (per-project, tenant isolation via collections)
 # =============================================================================
 
 # Local variables for resource naming
 locals {
-  # Tenant-specific naming
-  tenant_suffix    = var.tenant_name
-  bucket_name      = "${var.project_id}-${var.bucket_name}-${var.tenant_name}"
-  api_gateway_name = "${var.app_name}-${var.tenant_name}"
-
-  # Use the shared service account from freemium tier
-  # This is the service account created by the free tier Terraform
-  shared_service_account_name  = "${var.app_name}-sa"
-  shared_service_account_email = "${local.shared_service_account_name}@${var.project_id}.iam.gserviceaccount.com"
+  # Tenant-specific naming - use tenant_name for all resources
+  # This creates isolated resources like: tripico-acme-corp-cluster, tripico-acme-corp-network
+  tenant_app_name      = "${var.app_name}-${var.tenant_name}"
+  service_account_name = "${var.app_name}-${var.tenant_name}-sa"
+  bucket_name          = "${var.project_id}-${var.bucket_name}-${var.tenant_name}"
 
   # List of Kubernetes service accounts that need Workload Identity bindings
-  # These match the serviceAccount.name in the Helm values files
+  # Enterprise tier has ALL services (no shared services)
   k8s_service_accounts = [
     "itinerary-service-sa",
     "comments-likes-sa",
@@ -46,7 +43,7 @@ locals {
       ingress_url  = "https://cl-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/comment"
       service_name = "comment-service"
-      namespace    = var.tenant_name
+      namespace    = "default"
       port         = 8080
     }
     itinerary = {
@@ -54,7 +51,7 @@ locals {
       ingress_url  = "https://itinerary-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/itinerary"
       service_name = "itinerary-service"
-      namespace    = var.tenant_name
+      namespace    = "default"
       port         = 8080
     }
     like = {
@@ -62,7 +59,7 @@ locals {
       ingress_url  = "https://cl-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/like"
       service_name = "like-service"
-      namespace    = var.tenant_name
+      namespace    = "default"
       port         = 8080
     }
     location = {
@@ -70,7 +67,7 @@ locals {
       ingress_url  = "https://itinerary-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/location"
       service_name = "location-service"
-      namespace    = var.tenant_name
+      namespace    = "default"
       port         = 8080
     }
     user = {
@@ -78,25 +75,25 @@ locals {
       ingress_url  = "https://itinerary-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/user"
       service_name = "user-service"
-      namespace    = var.tenant_name
+      namespace    = "default"
       port         = 8080
     }
-    # Enterprise tier gets dedicated travel-warnings service (not shared)
+    # Enterprise tier gets dedicated travel-warnings service
     travel-warnings = {
       name         = "travel-warnings-service"
       ingress_url  = "https://warnings-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/warnings"
       service_name = "travel-warnings-service"
-      namespace    = var.tenant_name
+      namespace    = "default"
       port         = 8080
     }
-    # Enterprise tier gets dedicated weather service (not shared)
+    # Enterprise tier gets dedicated weather service
     weather = {
       name         = "weather-forecast-service"
       ingress_url  = "https://weather-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/api/weather"
       service_name = "weather-forecast-service"
-      namespace    = var.tenant_name
+      namespace    = "default"
       port         = 8080
     }
     feed = {
@@ -104,7 +101,7 @@ locals {
       ingress_url  = "https://recommendation-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/feed"
       service_name = "recommendation-service"
-      namespace    = var.tenant_name
+      namespace    = "default"
       port         = 8080
     }
     graph = {
@@ -112,36 +109,27 @@ locals {
       ingress_url  = "https://recommendation-${var.tenant_name}.${var.domain_name}"
       path_prefix  = "/graph"
       service_name = "recommendation-service"
-      namespace    = var.tenant_name
+      namespace    = "default"
       port         = 8080
     }
   }
 }
 
 # =============================================================================
-# Tenant-Specific Resources
-# =============================================================================
-# These resources are created for each Enterprise tier tenant.
-# Shared infrastructure (GKE, DNS, etc.) is NOT created here.
+# Fully Isolated Enterprise Resources
 # =============================================================================
 
-# Reference the existing shared service account (created by free tier)
-data "google_service_account" "shared_sa" {
-  account_id = local.shared_service_account_name
-  project    = var.project_id
+# IAM Module - Dedicated service account for this enterprise tenant
+module "iam" {
+  source = "../../modules/iam"
+
+  project_id           = var.project_id
+  app_name             = local.tenant_app_name
+  service_account_name = local.service_account_name
+  tenant_name          = "default" # Enterprise uses 'default' namespace in its own cluster
 }
 
-# Workload Identity bindings for this tenant's namespace
-# This allows Kubernetes service accounts in the tenant's namespace to use the shared GCP service account
-resource "google_service_account_iam_member" "workload_identity_bindings" {
-  for_each = toset(local.k8s_service_accounts)
-
-  service_account_id = data.google_service_account.shared_sa.name
-  role               = "roles/iam.workloadIdentityUser"
-  member             = "serviceAccount:${var.project_id}.svc.id.goog[${var.tenant_name}/${each.key}]"
-}
-
-# Storage Module - Tenant-specific bucket
+# Storage Module - Dedicated bucket for this enterprise tenant
 module "storage" {
   source = "../../modules/storage"
 
@@ -149,20 +137,40 @@ module "storage" {
   bucket_name           = local.bucket_name
   bucket_location       = var.bucket_location
   force_destroy         = var.bucket_force_destroy
-  service_account_email = local.shared_service_account_email
+  service_account_email = module.iam.service_account_email
   labels = merge(var.labels, {
     tenant = var.tenant_name
     tier   = "enterprise"
   })
 }
 
-# API Gateway Module - Tenant-specific gateway with configurable domain
+# GKE Module - Dedicated Kubernetes cluster for this enterprise tenant
+# Cluster name will be: tripico-{tenant_name}-cluster (e.g., tripico-acme-corp-cluster)
+module "gke" {
+  source = "../../modules/gke"
+
+  project_id          = var.project_id
+  region              = var.region
+  app_name            = local.tenant_app_name
+  gke_subnet_cidr     = var.gke_subnet_cidr
+  gke_services_cidr   = var.gke_services_cidr
+  gke_pods_cidr       = var.gke_pods_cidr
+  deletion_protection = var.deletion_protection
+}
+
+# API Gateway Module - Dedicated gateway for this enterprise tenant
 module "api_gateway" {
   source = "../../modules/api-gateway"
 
   project_id            = var.project_id
   region                = var.region
-  app_name              = local.api_gateway_name
-  service_account_email = local.shared_service_account_email
+  app_name              = local.tenant_app_name
+  service_account_email = module.iam.service_account_email
   microservices         = local.microservices
 }
+
+# =============================================================================
+# Outputs for deployment workflows
+# =============================================================================
+# The outputs.tf file contains all the outputs needed for Helm deployments
+# and other downstream processes.

@@ -1,8 +1,13 @@
 # =============================================================================
-# Enterprise Tier Variables
+# Enterprise Tier Variables - FULLY ISOLATED
 # =============================================================================
-# These variables are specific to Enterprise tier tenant configuration.
-# Enterprise tenants get fully dedicated resources with configurable domains.
+# These variables configure a fully isolated enterprise tenant with:
+# - Dedicated GKE cluster
+# - Dedicated networking (VPC/subnet)
+# - Dedicated IAM service account
+# - Dedicated storage bucket
+# - Dedicated API Gateway
+# - Configurable domain name
 # =============================================================================
 
 # Project Configuration
@@ -19,7 +24,7 @@ variable "region" {
 
 # Application Configuration
 variable "app_name" {
-  description = "The name of the application"
+  description = "The base name of the application (tenant name will be appended)"
   type        = string
   default     = "tripico"
 }
@@ -60,13 +65,39 @@ variable "bucket_force_destroy" {
   default     = false
 }
 
+# GKE Configuration
+# Each enterprise tenant gets a separate cluster in its own VPC, so CIDR ranges don't conflict
+variable "gke_subnet_cidr" {
+  description = "CIDR range for GKE subnetwork"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "gke_services_cidr" {
+  description = "CIDR range for GKE services (secondary IP range)"
+  type        = string
+  default     = "192.168.0.0/24"
+}
+
+variable "gke_pods_cidr" {
+  description = "CIDR range for GKE pods (secondary IP range)"
+  type        = string
+  default     = "192.168.1.0/24"
+}
+
+variable "deletion_protection" {
+  description = "Enable deletion protection for GKE cluster"
+  type        = bool
+  default     = false
+}
+
 # Tags and Labels
 variable "labels" {
   description = "Labels to apply to resources"
   type        = map(string)
   default = {
-    app         = "tripico"
-    managed-by  = "terraform"
-    tier        = "enterprise"
+    app        = "tripico"
+    managed-by = "terraform"
+    tier       = "enterprise"
   }
 }

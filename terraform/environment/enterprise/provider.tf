@@ -1,8 +1,10 @@
 # =============================================================================
-# Enterprise Tier Tenant Terraform Configuration
+# Enterprise Tier Terraform Configuration - FULLY ISOLATED
 # =============================================================================
-# This configuration only creates tenant-specific resources (API Gateway,
-# Storage, Workload Identity bindings). It does NOT require helm or random providers.
+# This configuration creates fully isolated infrastructure including:
+# - Dedicated GKE cluster
+# - Dedicated VPC network
+# - Dedicated IAM service account
 # =============================================================================
 
 terraform {
@@ -16,6 +18,10 @@ terraform {
     google-beta = {
       source  = "hashicorp/google-beta"
       version = "~> 6.38"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.13"
     }
   }
 
@@ -40,4 +46,10 @@ provider "google-beta" {
   region                = var.region
   user_project_override = true
   billing_project       = var.project_id
+}
+
+provider "helm" {
+  kubernetes {
+    config_path = pathexpand("~/.kube/config")
+  }
 }
