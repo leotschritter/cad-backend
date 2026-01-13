@@ -1,0 +1,144 @@
+# Helm values for itinerary-service in enterprise tier (DEV)
+# Enterprise uses default namespace in dedicated cluster
+namespaceOverride: default
+
+itineraryService:
+  image: "ghcr.io/leotschritter/cad-backend:latest"
+  cors:
+    origins: "*"
+    methods: "GET,POST,PUT,DELETE,OPTIONS"
+    headers: "accept,authorization,content-type,x-requested-with"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: "itinerary-service-sa"
+  annotations:
+    iam.gke.io/gcp-service-account: "tripico-sa@iaas-476910.iam.gserviceaccount.com"
+
+gcp:
+  projectId: "iaas-476910"
+  serviceAccountEmail: "tripico-sa@iaas-476910.iam.gserviceaccount.com"
+  bucketName: "iaas-476910-tripico-images"
+
+backendUrl: "https://itinerary-enterprise.dev.tripico.fun"
+
+podAnnotations:
+  tier: enterprise
+  environment: dev
+
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+  name: http
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  # Host will be set via --set ingress.host in pipeline
+  host: ""
+  # TLS secret name will be set via --set ingress.tlsSecretName in pipeline
+  tlsSecretName: ""
+
+resources:
+  limits:
+    cpu: 1000m    # Enterprise tier gets more resources
+    memory: 1Gi
+  requests:
+    cpu: 100m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+# Quarkus application configuration
+quarkus:
+  http:
+    port: 8080
+    host: "0.0.0.0"
+  profile: "prod"
+
+# Database configuration
+database:
+  user: "itinerary_user"
+  password: "" # provided via --set
+  url: "jdbc:postgresql://itinerary-postgres.default.svc.cluster.local:5432/itinerary_db"
+
+# PostgreSQL Database Pod Configuration
+postgres:
+  name: itinerary-postgres
+  image: postgres:15-alpine
+  port: 5432
+  replicas: 1
+  environmentVariables:
+    database: itinerary_db
+    user: itinerary_user
+    pgdata: /var/lib/postgresql/data/pgdata
+  volumeMounts:
+    mountPath: /var/lib/postgresql/data
+    name: itinerary-postgres-storage
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  readinessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+postgresPvc:
+  name: itinerary-postgres-pvc
+  storage: 10Gi  # More storage for enterprise
+
+# Identity Platform Authentication Configuration
+identityPlatform:
+  authEnabled: "true"
+  primaryHeader: "X-Forwarded-Authorization"
+  fallbackHeader: "Authorization"
+
+# Service discovery - Enterprise has dedicated services in same cluster
+sharedServices:
+  weatherService:
+    url: "http://weather-forecast-service.default.svc.cluster.local:8080"
+  travelWarningsService:
+    url: "http://travel-warnings-service.default.svc.cluster.local:8080"
+
+# Health check probes
+probes:
+  startup:
+    httpGet:
+      path: /q/health/started
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+  liveness:
+    httpGet:
+      path: /q/health/live
+      port: 8080
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 5
+  readiness:
+    httpGet:
+      path: /q/health/ready
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+
