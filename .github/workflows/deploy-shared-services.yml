@@ -103,6 +103,7 @@ jobs:
       id-token: write
 
     strategy:
+      max-parallel: 1  # Deploy one service at a time to avoid race conditions
       matrix:
         service:
           - name: weather-forecast
