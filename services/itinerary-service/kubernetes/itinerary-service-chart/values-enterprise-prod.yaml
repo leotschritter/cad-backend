@@ -5,6 +5,8 @@ namespaceOverride: default
 itineraryService:
   image: "ghcr.io/leotschritter/cad-backend:latest"
   cors:
+    # CORS origin will be overridden via --set in pipeline
+    # Pattern: https://frontend.{tenant_name}.tripico.fun
     origins: "*"
     methods: "GET,POST,PUT,DELETE,OPTIONS"
     headers: "accept,authorization,content-type,x-requested-with"
@@ -23,7 +25,9 @@ gcp:
   serviceAccountEmail: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
   bucketName: "graphite-plane-474510-s9-tripico-images"
 
-backendUrl: "https://itinerary-enterprise.tripico.fun"
+# Backend URL will be overridden via --set backendUrl in pipeline
+# Pattern: https://itinerary.{tenant_name}.tripico.fun
+backendUrl: ""
 
 podAnnotations:
   tier: enterprise

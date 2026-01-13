@@ -491,30 +491,32 @@ jobs:
       max-parallel: 1
       matrix:
         service:
+          # Enterprise uses subdomain pattern: {service}.{tenant_name}.{domain}
+          # e.g., itinerary.enterprise-1.dev.tripico.fun
           - name: itinerary-service
             chart: services/itinerary-service/kubernetes/itinerary-service-chart
             values_dev: services/itinerary-service/kubernetes/itinerary-service-chart/values-enterprise-dev.yaml
             values_prod: services/itinerary-service/kubernetes/itinerary-service-chart/values-enterprise-prod.yaml
-            domain_pattern_dev: "itinerary-{tenant}.dev.tripico.fun"
-            domain_pattern_prod: "itinerary-{tenant}.tripico.fun"
-            frontend_domain_pattern_dev: "https://frontend-{tenant}.dev.tripico.fun"
-            frontend_domain_pattern_prod: "https://frontend-{tenant}.tripico.fun"
+            domain_pattern_dev: "itinerary.{tenant}.dev.tripico.fun"
+            domain_pattern_prod: "itinerary.{tenant}.tripico.fun"
+            frontend_domain_pattern_dev: "https://frontend.{tenant}.dev.tripico.fun"
+            frontend_domain_pattern_prod: "https://frontend.{tenant}.tripico.fun"
           - name: recommendation-service
             chart: services/recommendation-service/recommendation-service-chart
             values_dev: services/recommendation-service/recommendation-service-chart/values-enterprise-dev.yaml
             values_prod: services/recommendation-service/recommendation-service-chart/values-enterprise-prod.yaml
-            domain_pattern_dev: "recommendation-{tenant}.dev.tripico.fun"
-            domain_pattern_prod: "recommendation-{tenant}.tripico.fun"
-            frontend_domain_pattern_dev: "https://frontend-{tenant}.dev.tripico.fun"
-            frontend_domain_pattern_prod: "https://frontend-{tenant}.tripico.fun"
+            domain_pattern_dev: "recommendation.{tenant}.dev.tripico.fun"
+            domain_pattern_prod: "recommendation.{tenant}.tripico.fun"
+            frontend_domain_pattern_dev: "https://frontend.{tenant}.dev.tripico.fun"
+            frontend_domain_pattern_prod: "https://frontend.{tenant}.tripico.fun"
           - name: comments-likes-service
             chart: services/comments-likes-service/comments-likes-chart
             values_dev: services/comments-likes-service/comments-likes-chart/values-enterprise-dev.yaml
             values_prod: services/comments-likes-service/comments-likes-chart/values-enterprise-prod.yaml
-            domain_pattern_dev: "cl-{tenant}.dev.tripico.fun"
-            domain_pattern_prod: "cl-{tenant}.tripico.fun"
-            frontend_domain_pattern_dev: "https://frontend-{tenant}.dev.tripico.fun"
-            frontend_domain_pattern_prod: "https://frontend-{tenant}.tripico.fun"
+            domain_pattern_dev: "cl.{tenant}.dev.tripico.fun"
+            domain_pattern_prod: "cl.{tenant}.tripico.fun"
+            frontend_domain_pattern_dev: "https://frontend.{tenant}.dev.tripico.fun"
+            frontend_domain_pattern_prod: "https://frontend.{tenant}.tripico.fun"
 
     steps:
       - uses: actions/checkout@v4

@@ -14,6 +14,8 @@ fullnameOverride: ""
 
 commentsLikesService:
   cors:
+    # CORS origin will be overridden via --set in pipeline
+    # Pattern: https://frontend.{tenant_name}.tripico.fun
     origins: "*"
     methods: "GET,POST,PUT,DELETE,OPTIONS,PATCH,HEAD"
     headers: "accept,authorization,content-type,x-requested-with,cache-control,if-modified-since"
@@ -28,7 +30,9 @@ gcp:
   projectId: "graphite-plane-474510-s9"
   serviceAccountEmail: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
 
-backendUrl: "https://cl-enterprise.tripico.fun"
+# Backend URL will be overridden via --set backendUrl in pipeline
+# Pattern: https://cl.{tenant_name}.tripico.fun
+backendUrl: ""
 
 podAnnotations:
   tier: enterprise

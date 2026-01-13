@@ -65,6 +65,8 @@ recommendationApi:
       cpu: "1000m"
 
   cors:
+    # CORS origin will be overridden via --set in pipeline
+    # Pattern: https://frontend.{tenant_name}.dev.tripico.fun
     origins: "*"
     methods: "GET,POST,PUT,DELETE,OPTIONS"
     headers: "accept,authorization,content-type,x-requested-with"
