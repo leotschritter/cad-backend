@@ -5,7 +5,7 @@ namespaceOverride: default
 replicaCount: 2
 
 image:
-  repository: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/comments-likes-service
+  repository: ghcr.io/leotschritter/cad-backend/graphite-plane-474510-s9/comments-likes-service
   pullPolicy: Always
 
 imagePullSecrets: []
