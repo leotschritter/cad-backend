@@ -95,6 +95,7 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-neo4j</artifactId>
+            <version>${quarkus.platform.version}</version>
         </dependency>
 
         <!-- Testing -->
