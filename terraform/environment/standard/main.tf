@@ -128,10 +128,12 @@ data "google_service_account" "shared_sa" {
   project    = var.project_id
 }
 
-# Reference the base Identity Platform config (created by free tier)
-# This must exist before we can create tenants
-data "google_identity_platform_config" "default" {
+# Check that Identity Platform is properly configured
+# We need to verify the identitytoolkit API is enabled and accessible
+# This will fail early if free tier wasn't deployed first
+data "google_project_service" "identitytoolkit" {
   project = var.project_id
+  service = "identitytoolkit.googleapis.com"
 }
 
 # =============================================================================
@@ -142,6 +144,12 @@ data "google_identity_platform_config" "default" {
 # cannot access services of another tenant.
 #
 # Freemium users (no tenant) are NOT allowed to access standard tier.
+#
+# PREREQUISITE: Free tier must be deployed first to:
+# 1. Enable identitytoolkit.googleapis.com API
+# 2. Create base Identity Platform config (google_identity_platform_config)
+#
+# Without the base config, tenant creation will fail with INVALID_PROJECT_ID.
 # =============================================================================
 resource "google_identity_platform_tenant" "tenant" {
   project = var.project_id
@@ -151,7 +159,8 @@ resource "google_identity_platform_tenant" "tenant" {
   enable_email_link_signin = true
   disable_auth             = false
 
-  depends_on = [data.google_identity_platform_config.default]
+  # Ensure API is enabled before creating tenant
+  depends_on = [data.google_project_service.identitytoolkit]
 }
 
 # Workload Identity bindings for this tenant's namespace
