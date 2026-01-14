@@ -140,6 +140,12 @@ data "google_service_account" "shared_sa" {
   project    = var.project_id
 }
 
+# Reference the base Identity Platform config (created by free tier)
+# This must exist before we can create tenants
+data "google_identity_platform_config" "default" {
+  project = var.project_id
+}
+
 # =============================================================================
 # Identity Platform Tenant for User Isolation
 # =============================================================================
@@ -157,6 +163,8 @@ resource "google_identity_platform_tenant" "tenant" {
   allow_password_signup    = true
   enable_email_link_signin = true
   disable_auth             = false
+
+  depends_on = [data.google_identity_platform_config.default]
 }
 
 # Reference the existing DNS zone (created by free tier)
