@@ -449,6 +449,22 @@ jobs:
             echo "No import needed - either API not enabled or resource already in state"
           fi
 
+          # For enterprise tier, also check if tenant needs to be imported
+          if [ "${{ steps.set-env.outputs.TF_ENV }}" = "enterprise" ]; then
+            echo "Checking if Identity Platform tenant needs to be imported..."
+
+            # Check if the tenant resource is already in Terraform state
+            TENANT_IN_STATE=$(terraform state list 2>/dev/null | grep -q "google_identity_platform_tenant.tenant" && echo "true" || echo "false")
+
+            if [ "$TENANT_IN_STATE" = "false" ]; then
+              echo "Tenant not in state, attempting to import if it exists..."
+              # Try to find and import existing tenant
+              timeout 30 terraform import google_identity_platform_tenant.tenant "projects/${{ env.GCP_PROJECT_ID }}/tenants/ent-${{ steps.set-env.outputs.TENANT_NAME }}" || echo "Tenant import failed or doesn't exist"
+            else
+              echo "Tenant already in Terraform state"
+            fi
+          fi
+
       - name: Apply plan (use artifact if present, otherwise create+apply)
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         env:

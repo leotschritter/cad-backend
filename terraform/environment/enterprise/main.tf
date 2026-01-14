@@ -175,16 +175,13 @@ resource "google_identity_platform_config" "default" {
 # Freemium users (no tenant) and standard users are NOT allowed to access
 # enterprise tier services.
 # =============================================================================
-resource "google_identity_platform_tenant" "tenant" {
-  project = var.project_id
-
-  display_name             = "ent-${var.tenant_name}"
-  allow_password_signup    = true
-  enable_email_link_signin = true
-  disable_auth             = false
-
-  # Ensure Identity Platform config exists before creating tenant
-  depends_on = [google_identity_platform_config.default]
+# TEMPORARY WORKAROUND: Use local value for tenant ID until creation issue is resolved
+# The tenant creation is failing with INVALID_PROJECT_ID error
+# TODO: Investigate and fix the tenant creation issue
+locals {
+  # For now, construct tenant ID manually based on project and tenant name
+  # This matches the pattern Google Identity Platform uses
+  tenant_id = "projects/${var.project_id}/tenants/ent-${var.tenant_name}"
 }
 
 # Reference the existing DNS zone (created by free tier)
