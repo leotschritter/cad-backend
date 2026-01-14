@@ -427,6 +427,11 @@ jobs:
         if: ${{ steps.set-env.outputs.TF_ENV == 'standard' || steps.set-env.outputs.TF_ENV == 'enterprise' }}
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         continue-on-error: true
+        env:
+          TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
+          TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
+          TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
+          TF_VAR_tenant_name: ${{ steps.set-env.outputs.TENANT_NAME }}
         run: |
           echo "Checking if Identity Platform config needs to be imported..."
 
