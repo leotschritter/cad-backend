@@ -133,6 +133,9 @@ data "google_service_account" "shared_sa" {
 # =============================================================================
 # This creates the base Identity Platform config if it doesn't exist.
 # The identitytoolkit API is already enabled by free tier.
+# If free tier already created this config, Terraform will fail with
+# "Identity Platform has already been enabled" - in that case, import it:
+#   terraform import google_identity_platform_config.default projects/<project_id>/config
 # =============================================================================
 resource "google_identity_platform_config" "default" {
   provider = google-beta
@@ -143,6 +146,10 @@ resource "google_identity_platform_config" "default" {
       enabled           = true
       password_required = true
     }
+  }
+
+  lifecycle {
+    ignore_changes = all
   }
 }
 

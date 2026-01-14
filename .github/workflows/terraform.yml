@@ -423,6 +423,16 @@ jobs:
           path: terraform
         continue-on-error: true
 
+      - name: Import existing Identity Platform config (standard/enterprise only)
+        if: ${{ steps.set-env.outputs.TF_ENV == 'standard' || steps.set-env.outputs.TF_ENV == 'enterprise' }}
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
+        continue-on-error: true
+        run: |
+          echo "Checking if Identity Platform config needs to be imported..."
+          # Try to import the existing Identity Platform config
+          # This will fail if it's already in state, which is fine
+          terraform import google_identity_platform_config.default "projects/${{ env.GCP_PROJECT_ID }}/config" || echo "Import skipped (already in state or not needed)"
+
       - name: Apply plan (use artifact if present, otherwise create+apply)
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         env:
