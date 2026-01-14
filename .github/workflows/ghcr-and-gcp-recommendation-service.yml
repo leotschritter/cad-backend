@@ -5,6 +5,7 @@ on:
     branches:
         - "main"
         - "develop"
+        - "feature/tenant-terraform"
     tags: [ "v*.*.*" ]
     paths:
       - "services/recommendation-service/recommendation-service-chart/Chart.yaml"
