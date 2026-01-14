@@ -430,17 +430,22 @@ jobs:
         run: |
           echo "Checking if Identity Platform config needs to be imported..."
 
-          # Check if Identity Platform is already enabled and config exists
-          CONFIG_EXISTS=$(gcloud identity platform configs list --project="${{ env.GCP_PROJECT_ID }}" --format="value(name)" 2>/dev/null || echo "")
+          # Check if Identity Platform API is enabled (more reliable than configs list)
+          IDENTITY_API_ENABLED=$(gcloud services list --enabled --project="${{ env.GCP_PROJECT_ID }}" --filter="name:identitytoolkit.googleapis.com" --format="value(name)" 2>/dev/null || echo "")
 
-          if [ -n "$CONFIG_EXISTS" ]; then
-            echo "Identity Platform config found: $CONFIG_EXISTS"
-            echo "Attempting to import existing config into Terraform state..."
-            # Try to import the existing Identity Platform config
-            # This will fail if it's already in state, which is fine
-            terraform import google_identity_platform_config.default "projects/${{ env.GCP_PROJECT_ID }}/config" || echo "Import skipped (already in state)"
+          if [ -n "$IDENTITY_API_ENABLED" ]; then
+            echo "Identity Platform API is enabled, checking if config exists in Terraform state..."
+
+            # Check if the resource is already in Terraform state
+            if terraform state list | grep -q "google_identity_platform_config.default"; then
+              echo "Identity Platform config already exists in Terraform state"
+            else
+              echo "Identity Platform API enabled but not in Terraform state, attempting to import..."
+              # Try to import the existing Identity Platform config
+              terraform import google_identity_platform_config.default "projects/${{ env.GCP_PROJECT_ID }}/config" || echo "Import failed, will handle during apply"
+            fi
           else
-            echo "No existing Identity Platform config found - will be created by Terraform"
+            echo "Identity Platform API not enabled - will be created by Terraform"
           fi
 
       - name: Apply plan (use artifact if present, otherwise create+apply)
@@ -453,11 +458,33 @@ jobs:
         run: |
           if [ -f tfplan ]; then
             echo "Found uploaded plan artifact; applying it"
-            terraform apply -auto-approve tfplan
+            # Handle Identity Platform "already enabled" error by retrying with import
+            terraform apply -auto-approve tfplan || {
+              echo "Apply failed, checking if it's Identity Platform related..."
+              if terraform plan | grep -q "Identity Platform has already been enabled"; then
+                echo "Identity Platform already enabled error detected, attempting to import and retry..."
+                terraform import google_identity_platform_config.default "projects/${{ env.GCP_PROJECT_ID }}/config" || echo "Import failed"
+                terraform apply -auto-approve tfplan
+              else
+                echo "Apply failed for different reasons, exiting"
+                exit 1
+              fi
+            }
           else
             echo "No plan artifact found; running plan then apply"
             terraform plan -out=tfplan
-            terraform apply -auto-approve tfplan
+            # Handle Identity Platform "already enabled" error by retrying with import
+            terraform apply -auto-approve tfplan || {
+              echo "Apply failed, checking if it's Identity Platform related..."
+              if terraform plan | grep -q "Identity Platform has already been enabled"; then
+                echo "Identity Platform already enabled error detected, attempting to import and retry..."
+                terraform import google_identity_platform_config.default "projects/${{ env.GCP_PROJECT_ID }}/config" || echo "Import failed"
+                terraform apply -auto-approve tfplan
+              else
+                echo "Apply failed for different reasons, exiting"
+                exit 1
+              fi
+            }
           fi
 
       - name: Terraform Outputs
