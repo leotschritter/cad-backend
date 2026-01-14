@@ -429,9 +429,19 @@ jobs:
         continue-on-error: true
         run: |
           echo "Checking if Identity Platform config needs to be imported..."
-          # Try to import the existing Identity Platform config
-          # This will fail if it's already in state, which is fine
-          terraform import google_identity_platform_config.default "projects/${{ env.GCP_PROJECT_ID }}/config" || echo "Import skipped (already in state or not needed)"
+
+          # Check if Identity Platform is already enabled and config exists
+          CONFIG_EXISTS=$(gcloud identity platform configs list --project="${{ env.GCP_PROJECT_ID }}" --format="value(name)" 2>/dev/null || echo "")
+
+          if [ -n "$CONFIG_EXISTS" ]; then
+            echo "Identity Platform config found: $CONFIG_EXISTS"
+            echo "Attempting to import existing config into Terraform state..."
+            # Try to import the existing Identity Platform config
+            # This will fail if it's already in state, which is fine
+            terraform import google_identity_platform_config.default "projects/${{ env.GCP_PROJECT_ID }}/config" || echo "Import skipped (already in state)"
+          else
+            echo "No existing Identity Platform config found - will be created by Terraform"
+          fi
 
       - name: Apply plan (use artifact if present, otherwise create+apply)
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
