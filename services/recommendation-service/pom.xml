@@ -14,7 +14,7 @@
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.version>3.28.1</quarkus.platform.version>
-        <quarkiverse-neo4j.version>3.0.4</quarkiverse-neo4j.version>
+        <quarkiverse-neo4j.version>3.9.0</quarkiverse-neo4j.version>
         <skipITs>true</skipITs>
         <surefire-plugin.version>3.5.3</surefire-plugin.version>
         <mockito.version>5.14.2</mockito.version>
@@ -30,14 +30,6 @@
                 <groupId>${quarkus.platform.group-id}</groupId>
                 <artifactId>${quarkus.platform.artifact-id}</artifactId>
                 <version>${quarkus.platform.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <!-- Quarkiverse Neo4j BOM -->
-            <dependency>
-                <groupId>io.quarkiverse.neo4j</groupId>
-                <artifactId>quarkus-neo4j-parent</artifactId>
-                <version>${quarkiverse-neo4j.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
