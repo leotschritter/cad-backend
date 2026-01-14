@@ -94,9 +94,9 @@
 
         <!-- Neo4j Graph Database -->
         <dependency>
-            <groupId>io.quarkiverse.neo4j</groupId>
-            <artifactId>quarkus-neo4j</artifactId>
-            <version>${quarkiverse-neo4j.version}</version>
+            <groupId>org.neo4j.driver</groupId>
+            <artifactId>neo4j-java-driver</artifactId>
+            <version>${neo4j-java-driver.version}</version>
         </dependency>
 
         <!-- Testing -->
