@@ -427,6 +427,7 @@ jobs:
         if: ${{ steps.set-env.outputs.TF_ENV == 'standard' || steps.set-env.outputs.TF_ENV == 'enterprise' }}
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         continue-on-error: true
+        timeout-minutes: 2
         run: |
           echo "Checking if Identity Platform config needs to be imported..."
 
@@ -441,8 +442,8 @@ jobs:
               echo "Identity Platform config already exists in Terraform state"
             else
               echo "Identity Platform API enabled but not in Terraform state, attempting to import..."
-              # Try to import the existing Identity Platform config
-              terraform import google_identity_platform_config.default "projects/${{ env.GCP_PROJECT_ID }}/config" || echo "Import failed, will handle during apply"
+              # Try to import the existing Identity Platform config with timeout
+              timeout 60 terraform import google_identity_platform_config.default "projects/${{ env.GCP_PROJECT_ID }}/config" || echo "Import failed or timed out, will handle during apply"
             fi
           else
             echo "Identity Platform API not enabled - will be created by Terraform"
@@ -463,7 +464,7 @@ jobs:
               echo "Apply failed, checking if it's Identity Platform related..."
               if terraform plan | grep -q "Identity Platform has already been enabled"; then
                 echo "Identity Platform already enabled error detected, attempting to import and retry..."
-                terraform import google_identity_platform_config.default "projects/${{ env.GCP_PROJECT_ID }}/config" || echo "Import failed"
+                timeout 60 terraform import google_identity_platform_config.default "projects/${{ env.GCP_PROJECT_ID }}/config" || echo "Import failed or timed out"
                 terraform apply -auto-approve tfplan
               else
                 echo "Apply failed for different reasons, exiting"
@@ -478,7 +479,7 @@ jobs:
               echo "Apply failed, checking if it's Identity Platform related..."
               if terraform plan | grep -q "Identity Platform has already been enabled"; then
                 echo "Identity Platform already enabled error detected, attempting to import and retry..."
-                terraform import google_identity_platform_config.default "projects/${{ env.GCP_PROJECT_ID }}/config" || echo "Import failed"
+                timeout 60 terraform import google_identity_platform_config.default "projects/${{ env.GCP_PROJECT_ID }}/config" || echo "Import failed or timed out"
                 terraform apply -auto-approve tfplan
               else
                 echo "Apply failed for different reasons, exiting"
