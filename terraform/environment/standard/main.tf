@@ -140,7 +140,7 @@ data "google_service_account" "shared_sa" {
 resource "google_identity_platform_tenant" "tenant" {
   project = var.project_id
 
-  display_name             = "Standard - ${var.tenant_name}"
+  display_name             = "std-${var.tenant_name}"
   allow_password_signup    = true
   enable_email_link_signin = true
   disable_auth             = false
