@@ -140,6 +140,25 @@ data "google_service_account" "shared_sa" {
   project    = var.project_id
 }
 
+# =============================================================================
+# Identity Platform Tenant for User Isolation
+# =============================================================================
+# Enterprise tier tenants get their own Identity Platform tenant.
+# This creates a completely isolated user pool - users registered in one
+# enterprise tenant cannot access services of another enterprise or standard tenant.
+#
+# Freemium users (no tenant) and standard users are NOT allowed to access
+# enterprise tier services.
+# =============================================================================
+resource "google_identity_platform_tenant" "tenant" {
+  project = var.project_id
+
+  display_name             = "Enterprise - ${var.tenant_name}"
+  allow_password_signup    = true
+  enable_email_link_signin = true
+  disable_auth             = false
+}
+
 # Reference the existing DNS zone (created by free tier)
 data "google_dns_managed_zone" "main" {
   project = var.project_id

@@ -80,6 +80,8 @@ identityPlatform:
   authEnabled: "true"
   primaryHeader: "X-Forwarded-Authorization"
   fallbackHeader: "Authorization"
+  # Tenant ID for multi-tenancy - set via pipeline from Terraform output
+  tenantId: ""  # Will be set via --set identityPlatform.tenantId=<tenant_id>
 
 # Service discovery for shared services
 sharedServices:

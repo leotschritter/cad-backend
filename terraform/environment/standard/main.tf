@@ -128,6 +128,24 @@ data "google_service_account" "shared_sa" {
   project    = var.project_id
 }
 
+# =============================================================================
+# Identity Platform Tenant for User Isolation
+# =============================================================================
+# Standard tier tenants get their own Identity Platform tenant.
+# This creates an isolated user pool - users registered in one tenant
+# cannot access services of another tenant.
+#
+# Freemium users (no tenant) are NOT allowed to access standard tier.
+# =============================================================================
+resource "google_identity_platform_tenant" "tenant" {
+  project = var.project_id
+
+  display_name             = "Standard - ${var.tenant_name}"
+  allow_password_signup    = true
+  enable_email_link_signin = true
+  disable_auth             = false
+}
+
 # Workload Identity bindings for this tenant's namespace
 # This allows Kubernetes service accounts in the tenant's namespace to use the shared GCP service account
 resource "google_service_account_iam_member" "workload_identity_bindings" {
