@@ -143,13 +143,12 @@ data "google_service_account" "shared_sa" {
 # =============================================================================
 # Identity Platform Configuration
 # =============================================================================
-# Check if Identity Platform config already exists to avoid "already enabled" error
-data "google_identity_platform_config" "existing" {
-  provider = google-beta
-  project  = var.project_id
-}
-
-# Only create the config if it doesn't already exist
+# This creates the base Identity Platform config if it doesn't exist.
+# The identitytoolkit API is already enabled by free tier.
+# If free tier already created this config, Terraform will fail with
+# "Identity Platform has already been enabled" - the workflow handles this
+# by checking if the API is enabled and attempting import if needed.
+# =============================================================================
 resource "google_identity_platform_config" "default" {
   provider = google-beta
   project  = var.project_id
@@ -164,9 +163,6 @@ resource "google_identity_platform_config" "default" {
   lifecycle {
     ignore_changes = all
   }
-
-  # Prevent creation if the config already exists
-  count = data.google_identity_platform_config.existing.id != null ? 0 : 1
 }
 
 # =============================================================================

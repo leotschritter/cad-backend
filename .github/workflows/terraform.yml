@@ -423,6 +423,27 @@ jobs:
           path: terraform
         continue-on-error: true
 
+      - name: Import existing Identity Platform config (standard/enterprise only)
+        if: ${{ steps.set-env.outputs.TF_ENV == 'standard' || steps.set-env.outputs.TF_ENV == 'enterprise' }}
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
+        continue-on-error: true
+        run: |
+          echo "Checking if Identity Platform config needs to be imported..."
+
+          # Check if Identity Platform API is enabled
+          IDENTITY_API_ENABLED=$(gcloud services list --enabled --project="${{ env.GCP_PROJECT_ID }}" --filter="name:identitytoolkit.googleapis.com" --format="value(name)" 2>/dev/null || echo "")
+
+          # Check if the resource is already in Terraform state
+          RESOURCE_IN_STATE=$(terraform state list 2>/dev/null | grep -q "google_identity_platform_config.default" && echo "true" || echo "false")
+
+          if [ -n "$IDENTITY_API_ENABLED" ] && [ "$RESOURCE_IN_STATE" = "false" ]; then
+            echo "Identity Platform API enabled but not in Terraform state, attempting to import..."
+            # Import with timeout to prevent hanging
+            timeout 30 terraform import google_identity_platform_config.default "projects/${{ env.GCP_PROJECT_ID }}/config" || echo "Import failed or timed out"
+          else
+            echo "No import needed - either API not enabled or resource already in state"
+          fi
+
       - name: Apply plan (use artifact if present, otherwise create+apply)
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         env:
