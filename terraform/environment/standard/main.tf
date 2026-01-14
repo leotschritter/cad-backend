@@ -128,12 +128,32 @@ data "google_service_account" "shared_sa" {
   project    = var.project_id
 }
 
-# Check that Identity Platform is properly configured
-# We need to verify the identitytoolkit API is enabled and accessible
-# This will fail early if free tier wasn't deployed first
-data "google_project_service" "identitytoolkit" {
-  project = var.project_id
-  service = "identitytoolkit.googleapis.com"
+# Enable Identity Platform API (required for tenant creation)
+resource "google_project_service" "identitytoolkit" {
+  project            = var.project_id
+  service            = "identitytoolkit.googleapis.com"
+  disable_on_destroy = false
+}
+
+# =============================================================================
+# Identity Platform Configuration
+# =============================================================================
+# This creates the base Identity Platform config if it doesn't exist.
+# The config is project-level and will be shared across all tiers.
+# Terraform will import the existing config if free tier already created it.
+# =============================================================================
+resource "google_identity_platform_config" "default" {
+  provider = google-beta
+  project  = var.project_id
+
+  sign_in {
+    email {
+      enabled           = true
+      password_required = true
+    }
+  }
+
+  depends_on = [google_project_service.identitytoolkit]
 }
 
 # =============================================================================
@@ -144,12 +164,6 @@ data "google_project_service" "identitytoolkit" {
 # cannot access services of another tenant.
 #
 # Freemium users (no tenant) are NOT allowed to access standard tier.
-#
-# PREREQUISITE: Free tier must be deployed first to:
-# 1. Enable identitytoolkit.googleapis.com API
-# 2. Create base Identity Platform config (google_identity_platform_config)
-#
-# Without the base config, tenant creation will fail with INVALID_PROJECT_ID.
 # =============================================================================
 resource "google_identity_platform_tenant" "tenant" {
   project = var.project_id
@@ -159,8 +173,8 @@ resource "google_identity_platform_tenant" "tenant" {
   enable_email_link_signin = true
   disable_auth             = false
 
-  # Ensure API is enabled before creating tenant
-  depends_on = [data.google_project_service.identitytoolkit]
+  # Ensure Identity Platform config exists before creating tenant
+  depends_on = [google_identity_platform_config.default]
 }
 
 # Workload Identity bindings for this tenant's namespace
