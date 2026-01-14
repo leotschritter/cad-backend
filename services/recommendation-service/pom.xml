@@ -104,6 +104,7 @@
         <dependency>
             <groupId>io.quarkiverse.neo4j</groupId>
             <artifactId>quarkus-neo4j</artifactId>
+            <version>${quarkiverse-neo4j.version}</version>
         </dependency>
 
         <!-- Testing -->
