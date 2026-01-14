@@ -140,19 +140,11 @@ data "google_service_account" "shared_sa" {
   project    = var.project_id
 }
 
-# Enable Identity Platform API (required for tenant creation)
-resource "google_project_service" "identitytoolkit" {
-  project            = var.project_id
-  service            = "identitytoolkit.googleapis.com"
-  disable_on_destroy = false
-}
-
 # =============================================================================
 # Identity Platform Configuration
 # =============================================================================
 # This creates the base Identity Platform config if it doesn't exist.
-# The config is project-level and will be shared across all tiers.
-# Terraform will import the existing config if free tier already created it.
+# The identitytoolkit API is already enabled by free tier.
 # =============================================================================
 resource "google_identity_platform_config" "default" {
   provider = google-beta
@@ -164,8 +156,6 @@ resource "google_identity_platform_config" "default" {
       password_required = true
     }
   }
-
-  depends_on = [google_project_service.identitytoolkit]
 }
 
 # =============================================================================
