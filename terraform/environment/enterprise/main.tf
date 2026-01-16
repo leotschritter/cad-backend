@@ -141,31 +141,6 @@ data "google_service_account" "shared_sa" {
 }
 
 # =============================================================================
-# Identity Platform Configuration
-# =============================================================================
-# This creates the base Identity Platform config if it doesn't exist.
-# The identitytoolkit API is already enabled by free tier.
-# If free tier already created this config, Terraform will fail with
-# "Identity Platform has already been enabled" - the workflow handles this
-# by checking if the API is enabled and attempting import if needed.
-# =============================================================================
-resource "google_identity_platform_config" "default" {
-  provider = google-beta
-  project  = var.project_id
-
-  sign_in {
-    email {
-      enabled           = true
-      password_required = true
-    }
-  }
-
-  lifecycle {
-    ignore_changes = all
-  }
-}
-
-# =============================================================================
 # Identity Platform Tenant for User Isolation
 # =============================================================================
 # Enterprise tier tenants get their own Identity Platform tenant.
@@ -174,14 +149,23 @@ resource "google_identity_platform_config" "default" {
 #
 # Freemium users (no tenant) and standard users are NOT allowed to access
 # enterprise tier services.
+#
+# NOTE: The base Identity Platform config is created by the free tier (project module).
+# We only create tenant-specific resources here.
 # =============================================================================
-# TEMPORARY WORKAROUND: Use local value for tenant ID until creation issue is resolved
-# The tenant creation is failing with INVALID_PROJECT_ID error
-# TODO: Investigate and fix the tenant creation issue
+resource "google_identity_platform_tenant" "tenant" {
+  provider = google-beta
+  project  = var.project_id
+
+  display_name             = "ent-${var.tenant_name}"
+  allow_password_signup    = true
+  enable_email_link_signin = true
+  disable_auth             = false
+}
+
 locals {
-  # For now, construct tenant ID manually based on project and tenant name
-  # This matches the pattern Google Identity Platform uses
-  tenant_id = "projects/${var.project_id}/tenants/ent-${var.tenant_name}"
+  # Use the actual tenant name from the resource
+  tenant_id = google_identity_platform_tenant.tenant.name
 }
 
 # Reference the existing DNS zone (created by free tier)

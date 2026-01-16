@@ -32,9 +32,7 @@ locals {
     "comments-likes-sa"
   ]
 
-  # For now, construct tenant ID manually based on project and tenant name
-  # This matches the pattern Google Identity Platform uses
-  tenant_id = "projects/${var.project_id}/tenants/std-${var.tenant_name}"
+  # Tenant ID is set after the resource is created - see google_identity_platform_tenant.tenant.name
 
   # Build tenant-specific microservices URLs
   # Tenant-specific services: itinerary, comments-likes, recommendation
@@ -127,17 +125,10 @@ locals {
 # =============================================================================
 
 # Reference the existing shared service account (created by free tier)
-resource "google_service_account" "shared_sa" {
+data "google_service_account" "shared_sa" {
   account_id = local.shared_service_account_name
   project    = var.project_id
-
-  lifecycle {
-    ignore_changes = all
-  }
 }
-
-# Identity Platform config is handled by workflow import step
-# No need to create resource here since it's imported from free tier
 
 # =============================================================================
 # Identity Platform Tenant for User Isolation
@@ -147,16 +138,19 @@ resource "google_service_account" "shared_sa" {
 # cannot access services of another tenant.
 #
 # Freemium users (no tenant) are NOT allowed to access standard tier.
+#
+# NOTE: The base Identity Platform config is created by the free tier (project module).
+# We only create tenant-specific resources here.
 # =============================================================================
-# resource "google_identity_platform_tenant" "tenant" {
-#   project = var.project_id
-#
-#   display_name             = "std-${var.tenant_name}"
-#   allow_password_signup    = true
-#   enable_email_link_signin = true
-#   disable_auth             = false
-#
-# }
+resource "google_identity_platform_tenant" "tenant" {
+  provider = google-beta
+  project  = var.project_id
+
+  display_name             = "std-${var.tenant_name}"
+  allow_password_signup    = true
+  enable_email_link_signin = true
+  disable_auth             = false
+}
 
 # Workload Identity bindings for this tenant's namespace
 # This allows Kubernetes service accounts in the tenant's namespace to use the shared GCP service account

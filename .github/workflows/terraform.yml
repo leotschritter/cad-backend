@@ -423,7 +423,7 @@ jobs:
           path: terraform
         continue-on-error: true
 
-      - name: Import existing Identity Platform config (standard/enterprise only)
+      - name: Import existing Identity Platform tenant (standard/enterprise only)
         if: ${{ steps.set-env.outputs.TF_ENV == 'standard' || steps.set-env.outputs.TF_ENV == 'enterprise' }}
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         continue-on-error: true
@@ -433,36 +433,26 @@ jobs:
           TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
           TF_VAR_tenant_name: ${{ steps.set-env.outputs.TENANT_NAME }}
         run: |
-          echo "Checking if Identity Platform config needs to be imported..."
+          echo "Checking if Identity Platform tenant needs to be imported..."
 
-          # Check if Identity Platform API is enabled
-          IDENTITY_API_ENABLED=$(gcloud services list --enabled --project="${{ env.GCP_PROJECT_ID }}" --filter="name:identitytoolkit.googleapis.com" --format="value(name)" 2>/dev/null || echo "")
-
-          # Check if the resource is already in Terraform state
-          RESOURCE_IN_STATE=$(terraform state list 2>/dev/null | grep -q "google_identity_platform_config.default" && echo "true" || echo "false")
-
-          if [ -n "$IDENTITY_API_ENABLED" ] && [ "$RESOURCE_IN_STATE" = "false" ]; then
-            echo "Identity Platform API enabled but not in Terraform state, attempting to import..."
-            # Import with timeout to prevent hanging
-            timeout 30 terraform import google_identity_platform_config.default "projects/${{ env.GCP_PROJECT_ID }}/config" || echo "Import failed or timed out"
+          # Determine the tenant prefix based on environment
+          if [ "${{ steps.set-env.outputs.TF_ENV }}" = "enterprise" ]; then
+            TENANT_PREFIX="ent"
           else
-            echo "No import needed - either API not enabled or resource already in state"
+            TENANT_PREFIX="std"
           fi
 
-          # For enterprise tier, also check if tenant needs to be imported
-          if [ "${{ steps.set-env.outputs.TF_ENV }}" = "enterprise" ]; then
-            echo "Checking if Identity Platform tenant needs to be imported..."
+          # Check if the tenant resource is already in Terraform state
+          TENANT_IN_STATE=$(terraform state list 2>/dev/null | grep -q "google_identity_platform_tenant.tenant" && echo "true" || echo "false")
 
-            # Check if the tenant resource is already in Terraform state
-            TENANT_IN_STATE=$(terraform state list 2>/dev/null | grep -q "google_identity_platform_tenant.tenant" && echo "true" || echo "false")
-
-            if [ "$TENANT_IN_STATE" = "false" ]; then
-              echo "Tenant not in state, attempting to import if it exists..."
-              # Try to find and import existing tenant
-              timeout 30 terraform import google_identity_platform_tenant.tenant "projects/${{ env.GCP_PROJECT_ID }}/tenants/ent-${{ steps.set-env.outputs.TENANT_NAME }}" || echo "Tenant import failed or doesn't exist"
-            else
-              echo "Tenant already in Terraform state"
-            fi
+          if [ "$TENANT_IN_STATE" = "false" ]; then
+            echo "Tenant not in state, attempting to import if it exists in GCP..."
+            # Try to import existing tenant (will fail gracefully if it doesn't exist)
+            timeout 30 terraform import google_identity_platform_tenant.tenant \
+              "projects/${{ env.GCP_PROJECT_ID }}/tenants/${TENANT_PREFIX}-${{ steps.set-env.outputs.TENANT_NAME }}" \
+              || echo "Tenant import failed or tenant doesn't exist yet - will be created"
+          else
+            echo "Tenant already in Terraform state"
           fi
 
       - name: Apply plan (use artifact if present, otherwise create+apply)
