@@ -141,6 +141,36 @@ data "google_service_account" "shared_sa" {
 }
 
 # =============================================================================
+# Identity Platform Configuration
+# =============================================================================
+# This references/creates the Identity Platform config for the project.
+# The config is a singleton - only one per project. We use lifecycle rules
+# to handle the case where it already exists (created by free tier).
+# This resource MUST exist before tenants can be created.
+# =============================================================================
+resource "google_identity_platform_config" "default" {
+  provider = google-beta
+  project  = var.project_id
+
+  sign_in {
+    email {
+      enabled           = true
+      password_required = true
+    }
+  }
+
+  # Allow tenants to be created
+  multi_tenant {
+    allow_tenants = true
+  }
+
+  lifecycle {
+    # Don't try to modify or destroy this resource - it may be shared with other tiers
+    ignore_changes = all
+  }
+}
+
+# =============================================================================
 # Identity Platform Tenant for User Isolation
 # =============================================================================
 # Enterprise tier tenants get their own Identity Platform tenant.
@@ -149,9 +179,6 @@ data "google_service_account" "shared_sa" {
 #
 # Freemium users (no tenant) and standard users are NOT allowed to access
 # enterprise tier services.
-#
-# NOTE: The base Identity Platform config is created by the free tier (project module).
-# We only create tenant-specific resources here.
 # =============================================================================
 resource "google_identity_platform_tenant" "tenant" {
   provider = google-beta
@@ -161,6 +188,8 @@ resource "google_identity_platform_tenant" "tenant" {
   allow_password_signup    = true
   enable_email_link_signin = true
   disable_auth             = false
+
+  depends_on = [google_identity_platform_config.default]
 }
 
 locals {

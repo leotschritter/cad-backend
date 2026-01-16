@@ -23,6 +23,11 @@ resource "google_identity_platform_config" "default" {
     }
   }
 
+  # Enable multi-tenancy for standard/enterprise tier user isolation
+  multi_tenant {
+    allow_tenants = true
+  }
+
   authorized_domains = var.authorized_domains
 
   depends_on = [google_project_service.identitytoolkit]
