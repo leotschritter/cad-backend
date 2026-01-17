@@ -15,3 +15,5 @@ identity-platform:
     enabled: ${IDENTITY_PLATFORM_AUTH_ENABLED:true}  # Disabled by default for local development without credentials
     primary-header: ${IDENTITY_PLATFORM_AUTH_PRIMARY_HEADER:Authorization}  # Primary header to check for token
     fallback-header: ${IDENTITY_PLATFORM_AUTH_FALLBACK_HEADER:Authorization}  # Fallback header if primary is not present
+  tenant:
+    expected-id: ${IDENTITY_PLATFORM_TENANT_EXPECTED_ID:}  # Empty for freemium, set for standard/enterprise

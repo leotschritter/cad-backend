@@ -52,3 +52,5 @@ identity-platform:
     enabled: true  # Enable Identity Platform authentication in production
     primary-header: X-Forwarded-Authorization  # API Gateway preserves original token here
     fallback-header: Authorization  # Fallback for direct access (Swagger UI, debugging)
+  tenant:
+    expected-id: ${IDENTITY_PLATFORM_TENANT_EXPECTED_ID:}  # Empty for freemium, set for standard/enterprise
