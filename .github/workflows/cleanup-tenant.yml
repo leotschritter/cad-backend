@@ -1,0 +1,67 @@
+name: Cleanup Tenant Namespace
+
+on:
+  repository_dispatch:
+    types: [cleanup-tenant]
+  workflow_dispatch:
+    inputs:
+      namespace:
+        description: 'Namespace to delete (e.g., standard-1)'
+        required: true
+        type: string
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Configure kubectl for GKE
+        run: |
+          gcloud container clusters get-credentials tripico-cluster --region europe-west1
+
+      - name: Delete Namespace
+        env:
+          NAMESPACE: ${{ github.event.client_payload.namespace || inputs.namespace }}
+        run: |
+          echo "Deleting namespace: $NAMESPACE"
+          
+          if kubectl get namespace $NAMESPACE &>/dev/null; then
+            echo "Namespace exists, deleting..."
+            kubectl delete namespace $NAMESPACE --wait=false
+            
+            echo "Waiting for namespace deletion (timeout 5 minutes)..."
+            kubectl wait --for=delete namespace/$NAMESPACE --timeout=300s || echo "Timeout waiting for deletion"
+            
+            echo "✅ Namespace $NAMESPACE deleted"
+          else
+            echo "ℹ️  Namespace $NAMESPACE not found (may already be deleted)"
+          fi
+
+      - name: Verify Cleanup
+        env:
+          NAMESPACE: ${{ github.event.client_payload.namespace || inputs.namespace }}
+        run: |
+          if kubectl get namespace $NAMESPACE &>/dev/null; then
+            echo "⚠️ Warning: Namespace still exists (may be in terminating state)"
+            kubectl get namespace $NAMESPACE
+          else
+            echo "✅ Namespace successfully removed"
+          fi
