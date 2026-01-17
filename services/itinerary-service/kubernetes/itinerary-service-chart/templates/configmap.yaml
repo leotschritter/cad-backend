@@ -14,4 +14,6 @@ data:
   identity_platform_auth_enabled: {{ .Values.identityPlatform.authEnabled | quote }}
   identity_platform_auth_primary_header: {{ .Values.identityPlatform.primaryHeader | quote }}
   identity_platform_auth_fallback_header: {{ .Values.identityPlatform.fallbackHeader | quote }}
+  # Tenant ID for multi-tenancy (empty for freemium, set for standard/enterprise)
+  identity_platform_tenant_expected_id: {{ .Values.identityPlatform.tenantId | default "" | quote }}
 

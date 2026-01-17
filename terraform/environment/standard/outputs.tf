@@ -10,6 +10,14 @@ output "tenant_name" {
   value       = var.tenant_name
 }
 
+# Identity Platform Tenant ID
+# This is used by frontend to authenticate users with the correct tenant
+# and by backend to validate that tokens belong to this tenant
+output "identity_platform_tenant_id" {
+  description = "The Identity Platform tenant ID for user isolation"
+  value       = google_identity_platform_tenant.tenant.name
+}
+
 output "project_id" {
   description = "The GCP project ID"
   value       = var.project_id

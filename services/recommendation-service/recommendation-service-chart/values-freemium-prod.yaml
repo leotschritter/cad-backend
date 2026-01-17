@@ -46,7 +46,7 @@ neo4jPvc:
 
 recommendationApi:
   name: recommendation-service
-  image: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/recommendation-service:latest
+  image: ghcr.io/leotschritter/cad-backend/graphite-plane-474510-s9/recommendation-service:latest
   port: 8080
   strategy:
     type: RollingUpdate

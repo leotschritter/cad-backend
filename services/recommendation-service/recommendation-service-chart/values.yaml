@@ -94,6 +94,7 @@ recommendationConfig:
     authEnabled: "true"
     primaryHeader: "X-Forwarded-Authorization"
     fallbackHeader: "Authorization"
+    tenantId: ""  # Empty for freemium, set for standard/enterprise via --set
   recommendation:
     feedMaxItems: "30"
   openapiServerUrl: "https://recommendation.tripico.fun"

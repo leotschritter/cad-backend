@@ -1,4 +1,4 @@
-name: Docker push to GHCR, GCP Artifact Registry and deploy Cert Manager/Itinerary Service
+name: Docker push to GHCR and deploy Cert Manager/Itinerary Service
 
 on:
   push:
@@ -60,7 +60,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-      id-token: write  # needed for GCP Workload Identity
 
     outputs:
       backend_image: ${{ steps.export_image.outputs.backend_image }}
@@ -77,20 +76,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Login to Google Artifact Registry
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Configure Docker for GCP
-        run: gcloud auth configure-docker europe-west1-docker.pkg.dev
-
-      # Build and push to both registries
-      - name: Build and push to GHCR and GCP
+      # Build and push to GHCR
+      - name: Build and push to GHCR
         uses: docker/build-push-action@v6
         with:
           context: ./services/itinerary-service
@@ -99,12 +86,10 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}:latest
             ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}:${{ needs.check-versions.outputs.itinerary_service_app_version }}
-            europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/travel-backend:latest
-            europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/travel-backend:${{ needs.check-versions.outputs.itinerary_service_app_version }}
 
       - name: Export image reference
         id: export_image
-        run: echo "backend_image=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/travel-backend:${{ needs.check-versions.outputs.itinerary_service_app_version }}" >> "$GITHUB_OUTPUT"
+        run: echo "backend_image=ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}:${{ needs.check-versions.outputs.itinerary_service_app_version }}" >> "$GITHUB_OUTPUT"
 
       - name: Export app version
         id: export_app_version

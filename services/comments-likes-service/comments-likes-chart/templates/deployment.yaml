@@ -71,6 +71,11 @@ spec:
                 configMapKeyRef:
                   name: {{ include "comments-likes-service.fullname" . }}-config
                   key: identity_platform_auth_fallback_header
+            - name: IDENTITY_PLATFORM_TENANT_EXPECTED_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "comments-likes-service.fullname" . }}-config
+                  key: identity_platform_tenant_expected_id
             - name: BACKEND_URL
               valueFrom:
                 configMapKeyRef:
