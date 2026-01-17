@@ -45,6 +45,11 @@ on:
           - tripico-cluster
           - tripico-freemium-cluster
         default: tripico-cluster
+      tenant_id:
+        description: 'Tenant ID (used for authentication in standard/enterprise tenants)'
+        required: false
+        type: string
+        default: ''
   repository_dispatch:
     types: [deploy-multi-namespace]
 
@@ -359,6 +364,7 @@ jobs:
         env:
           DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event.client_payload.environment || 'dev' }}
           TENANT_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_number || github.event.client_payload.tenant_number || '1' }}
+          TENANT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_id || github.event.client_payload.tenant_id || '' }}
         run: |
           VALUES_FILE=${{ matrix.service.values_dev }}
           DOMAIN=${{ matrix.service.domain_dev }}
@@ -419,6 +425,16 @@ jobs:
           fi
           if [ "${{ matrix.service.name }}" = "recommendation-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
             HELM_ARGS="$HELM_ARGS --set recommendationApi.cors.origins=$FRONTEND_DOMAIN"
+          fi
+
+          # Set tenant ID for Identity Platform authentication (standard tier)
+          if [ -n "$TENANT_ID" ]; then
+            echo "Setting tenant ID: $TENANT_ID"
+            if [ "${{ matrix.service.name }}" = "recommendation-service" ]; then
+              HELM_ARGS="$HELM_ARGS --set recommendationConfig.identityPlatform.tenantId=$TENANT_ID"
+            else
+              HELM_ARGS="$HELM_ARGS --set identityPlatform.tenantId=$TENANT_ID"
+            fi
           fi
 
           helm upgrade --install ${{ matrix.service.name }}-standard-${TENANT_NUMBER} ${{ matrix.service.chart }} \
@@ -556,6 +572,7 @@ jobs:
         env:
           DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event.client_payload.environment || 'dev' }}
           TENANT_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_name || github.event.client_payload.tenant_name || 'enterprise-1' }}
+          TENANT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_id || github.event.client_payload.tenant_id || '' }}
         run: |
           VALUES_FILE=${{ matrix.service.values_dev }}
           DOMAIN_PATTERN="${{ matrix.service.domain_pattern_dev }}"
@@ -616,6 +633,16 @@ jobs:
           fi
           if [ "${{ matrix.service.name }}" = "recommendation-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
             HELM_ARGS="$HELM_ARGS --set recommendationApi.cors.origins=$FRONTEND_DOMAIN"
+          fi
+
+          # Set tenant ID for Identity Platform authentication (enterprise tier)
+          if [ -n "$TENANT_ID" ]; then
+            echo "Setting tenant ID: $TENANT_ID"
+            if [ "${{ matrix.service.name }}" = "recommendation-service" ]; then
+              HELM_ARGS="$HELM_ARGS --set recommendationConfig.identityPlatform.tenantId=$TENANT_ID"
+            else
+              HELM_ARGS="$HELM_ARGS --set identityPlatform.tenantId=$TENANT_ID"
+            fi
           fi
 
           helm upgrade --install ${{ matrix.service.name }}-${TENANT_NAME} ${{ matrix.service.chart }} \
