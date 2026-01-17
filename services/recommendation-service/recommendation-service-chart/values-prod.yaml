@@ -11,7 +11,7 @@ ingress:
 # Higher availability and resources for production
 recommendationApi:
   replicas: 2
-  image: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/recommendation-service:latest
+  image: ghcr.io/leotschritter/cad-backend/graphite-plane-474510-s9/recommendation-service:latest
 
   resources:
     requests:

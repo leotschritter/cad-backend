@@ -1,10 +1,11 @@
-# Helm values for comments-likes-service in freemium namespace (DEV)
-namespaceOverride: freemium
+# Helm values for comments-likes-service in enterprise tier (DEV)
+# Enterprise uses default namespace in dedicated cluster
+namespaceOverride: default
 
 replicaCount: 2
 
 image:
-  repository: ghcr.io/leotschritter/cad-backend/graphite-plane-474510-s9/comments-likes-service
+  repository: ghcr.io/leotschritter/cad-backend/iaas-476910/comments-likes-service
   pullPolicy: Always
 
 imagePullSecrets: []
@@ -13,6 +14,8 @@ fullnameOverride: ""
 
 commentsLikesService:
   cors:
+    # CORS origin will be overridden via --set in pipeline
+    # Pattern: https://frontend.{tenant_name}.dev.tripico.fun
     origins: "*"
     methods: "GET,POST,PUT,DELETE,OPTIONS,PATCH,HEAD"
     headers: "accept,authorization,content-type,x-requested-with,cache-control,if-modified-since"
@@ -21,19 +24,18 @@ serviceAccount:
   create: true
   name: "comments-likes-sa"
   annotations:
-    # This must match the GCP service account created by Terraform
-    iam.gke.io/gcp-service-account: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+    iam.gke.io/gcp-service-account: "tripico-sa@iaas-476910.iam.gserviceaccount.com"
 
-# GCP configuration
 gcp:
-  projectId: "graphite-plane-474510-s9"
-  serviceAccountEmail: "comments-likes-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+  projectId: "iaas-476910"
+  serviceAccountEmail: "tripico-sa@iaas-476910.iam.gserviceaccount.com"
 
-# Backend URL
-backendUrl: "https://cl-freemium.tripico.fun"
+# Backend URL will be overridden via --set backendUrl in pipeline
+# Pattern: https://cl.{tenant_name}.dev.tripico.fun
+backendUrl: ""
 
 podAnnotations:
-  tier: freemium
+  tier: enterprise
   environment: dev
 
 podSecurityContext: {}
@@ -60,10 +62,10 @@ ingress:
 
 resources:
   limits:
-    cpu: 1000m
+    cpu: 1000m    # Enterprise tier gets more resources
     memory: 1Gi
   requests:
-    cpu: 250m
+    cpu: 100m
     memory: 512Mi
 
 autoscaling:
@@ -84,13 +86,15 @@ identityPlatform:
   authEnabled: "true"
   primaryHeader: "X-Forwarded-Authorization"
   fallbackHeader: "Authorization"
+  # Tenant ID for multi-tenancy - set via pipeline from Terraform output
+  tenantId: ""  # Will be set via --set identityPlatform.tenantId=<tenant_id>
 
-# Service discovery for shared services
+# Service discovery - Enterprise has dedicated services in same cluster
 sharedServices:
   weatherService:
-    url: "http://weather-forecast-service.shared.svc.cluster.local:8080"
+    url: "http://weather-forecast-service.default.svc.cluster.local:8080"
   travelWarningsService:
-    url: "http://travel-warnings-service.shared.svc.cluster.local:8080"
+    url: "http://travel-warnings-service.default.svc.cluster.local:8080"
 
 # Health check probes
 probes:
@@ -122,3 +126,4 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+

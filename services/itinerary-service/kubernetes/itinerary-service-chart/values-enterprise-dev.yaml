@@ -1,9 +1,12 @@
-# Helm values for itinerary-service in pro namespace (DEV)
-namespaceOverride: standard
+# Helm values for itinerary-service in enterprise tier (DEV)
+# Enterprise uses default namespace in dedicated cluster
+namespaceOverride: default
 
 itineraryService:
   image: "ghcr.io/leotschritter/cad-backend:latest"
   cors:
+    # CORS origin will be overridden via --set in pipeline
+    # Pattern: https://frontend.{tenant_name}.dev.tripico.fun
     origins: "*"
     methods: "GET,POST,PUT,DELETE,OPTIONS"
     headers: "accept,authorization,content-type,x-requested-with"
@@ -12,18 +15,22 @@ nameOverride: ""
 fullnameOverride: ""
 
 serviceAccount:
+  create: true
+  name: "itinerary-service-sa"
   annotations:
-    iam.gke.io/gcp-service-account: "travel-backend-sa@iaas-476910.iam.gserviceaccount.com"
+    iam.gke.io/gcp-service-account: "tripico-sa@iaas-476910.iam.gserviceaccount.com"
 
 gcp:
   projectId: "iaas-476910"
-  serviceAccountEmail: "travel-backend-sa@iaas-476910.iam.gserviceaccount.com"
+  serviceAccountEmail: "tripico-sa@iaas-476910.iam.gserviceaccount.com"
   bucketName: "iaas-476910-tripico-images"
 
-backendUrl: "https://itinerary-standard.dev.tripico.fun"
+# Backend URL will be overridden via --set backendUrl in pipeline
+# Pattern: https://itinerary.{tenant_name}.dev.tripico.fun
+backendUrl: ""
 
 podAnnotations:
-  tier: standard
+  tier: enterprise
   environment: dev
 
 service:
@@ -36,7 +43,7 @@ ingress:
   enabled: true
   className: "nginx"
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"  # Staging for dev
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
   # Host will be set via --set ingress.host in pipeline
@@ -46,16 +53,16 @@ ingress:
 
 resources:
   limits:
-    cpu: 500m     # Erhöht für stabile Ausführung
-    memory: 512Mi # Erhöht - Java braucht mehr Memory
+    cpu: 1000m    # Enterprise tier gets more resources
+    memory: 1Gi
   requests:
-    cpu: 50m      # Erhöht
-    memory: 256Mi # Erhöht
+    cpu: 100m
+    memory: 512Mi
 
 autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 2
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
   targetCPUUtilizationPercentage: 70
 
 # Quarkus application configuration
@@ -69,11 +76,11 @@ quarkus:
 database:
   user: "itinerary_user"
   password: "" # provided via --set
-  url: "jdbc:postgresql://itinerary-postgres-standard.standard.svc.cluster.local:5432/itinerary_db"
+  url: "jdbc:postgresql://itinerary-postgres.default.svc.cluster.local:5432/itinerary_db"
 
 # PostgreSQL Database Pod Configuration
 postgres:
-  name: itinerary-postgres-standard
+  name: itinerary-postgres
   image: postgres:15-alpine
   port: 5432
   replicas: 1
@@ -86,11 +93,11 @@ postgres:
     name: itinerary-postgres-storage
   resources:
     requests:
-      cpu: 50m       # Klein halten für mehr Pods
-      memory: 128Mi
-    limits:
-      cpu: 250m
+      cpu: 100m
       memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
   readinessProbe:
     initialDelaySeconds: 30
     periodSeconds: 10
@@ -98,8 +105,8 @@ postgres:
     failureThreshold: 6
 
 postgresPvc:
-  name: itinerary-postgres-standard-pvc
-  storage: 5Gi
+  name: itinerary-postgres-pvc
+  storage: 10Gi  # More storage for enterprise
 
 # Identity Platform Authentication Configuration
 identityPlatform:
@@ -107,15 +114,14 @@ identityPlatform:
   primaryHeader: "X-Forwarded-Authorization"
   fallbackHeader: "Authorization"
   # Tenant ID for multi-tenancy - set via pipeline from Terraform output
-  # Empty for freemium, actual tenant ID for standard/enterprise
   tenantId: ""  # Will be set via --set identityPlatform.tenantId=<tenant_id>
 
-# Service discovery for shared services
+# Service discovery - Enterprise has dedicated services in same cluster
 sharedServices:
   weatherService:
-    url: "http://weather-forecast-service.shared.svc.cluster.local:8080"
+    url: "http://weather-forecast-service.default.svc.cluster.local:8080"
   travelWarningsService:
-    url: "http://travel-warnings-service.shared.svc.cluster.local:8080"
+    url: "http://travel-warnings-service.default.svc.cluster.local:8080"
 
 # Health check probes
 probes:
@@ -141,3 +147,4 @@ probes:
     initialDelaySeconds: 30
     periodSeconds: 10
     timeoutSeconds: 5
+

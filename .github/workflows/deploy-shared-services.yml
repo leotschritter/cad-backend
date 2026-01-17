@@ -6,7 +6,6 @@ on:
       - main
       - develop
       - feature/namespaces-01
-      - feature/tenant-terraform
     paths:
       - 'services/weather-forecast-service/**'
       - 'services/travel_warnings/**'
@@ -103,6 +102,7 @@ jobs:
       id-token: write
 
     strategy:
+      max-parallel: 1  # Deploy one service at a time to avoid race conditions
       matrix:
         service:
           - name: weather-forecast
@@ -162,22 +162,51 @@ jobs:
           ENTERPRISE_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.enterprise_name || github.event.client_payload.enterprise_name || '' }}
           TIER: ${{ github.event_name == 'workflow_dispatch' && inputs.tier || github.event.client_payload.tier || 'shared' }}
         run: |
-          VALUES_FILE=${{ matrix.service.values_dev }}
+          # Select values file based on tier and environment
+          if [ "$TIER" = "enterprise" ]; then
+            # Use enterprise-specific values files with higher resources
+            if [ "$DEPLOY_ENV" = "prod" ]; then
+              if [ "${{ matrix.service.name }}" = "weather-forecast" ]; then
+                VALUES_FILE="services/weather-forecast-service/helm/weather-forecast-service/values-enterprise-prod.yaml"
+              else
+                VALUES_FILE="services/travel_warnings/travel-warnings-chart/values-enterprise-prod.yaml"
+              fi
+            else
+              if [ "${{ matrix.service.name }}" = "weather-forecast" ]; then
+                VALUES_FILE="services/weather-forecast-service/helm/weather-forecast-service/values-enterprise-dev.yaml"
+              else
+                VALUES_FILE="services/travel_warnings/travel-warnings-chart/values-enterprise-dev.yaml"
+              fi
+            fi
+          else
+            # Use shared values files for freemium/standard
+            VALUES_FILE=${{ matrix.service.values_dev }}
+            if [ "$DEPLOY_ENV" = "prod" ]; then
+              VALUES_FILE=${{ matrix.service.values_prod }}
+            fi
+          fi
+          
           DOMAIN=${{ matrix.service.domain_dev }}
-
           if [ "$DEPLOY_ENV" = "prod" ]; then
-            VALUES_FILE=${{ matrix.service.values_prod }}
             DOMAIN=${{ matrix.service.domain_prod }}
           fi
 
           # Update domain for enterprise tier
           if [ "$TIER" = "enterprise" ] && [ -n "$ENTERPRISE_NAME" ]; then
-            # For enterprise: weather-{tenant}.dev.tripico.fun or warnings-{tenant}.dev.tripico.fun
-            SERVICE_PREFIX="${{ matrix.service.name }}"
-            if [ "$DEPLOY_ENV" = "prod" ]; then
-              DOMAIN="${SERVICE_PREFIX}-${ENTERPRISE_NAME}.tripico.fun"
+            # For enterprise: weather.{tenant}.dev.tripico.fun or warnings.{tenant}.dev.tripico.fun
+            # Map service names to domain prefixes
+            if [ "${{ matrix.service.name }}" = "weather-forecast" ]; then
+              SERVICE_PREFIX="weather"
+            elif [ "${{ matrix.service.name }}" = "travel-warnings" ]; then
+              SERVICE_PREFIX="warnings"
             else
-              DOMAIN="${SERVICE_PREFIX}-${ENTERPRISE_NAME}.dev.tripico.fun"
+              SERVICE_PREFIX="${{ matrix.service.name }}"
+            fi
+            
+            if [ "$DEPLOY_ENV" = "prod" ]; then
+              DOMAIN="${SERVICE_PREFIX}.${ENTERPRISE_NAME}.tripico.fun"
+            else
+              DOMAIN="${SERVICE_PREFIX}.${ENTERPRISE_NAME}.dev.tripico.fun"
             fi
             echo "Enterprise domain: $DOMAIN"
           fi
@@ -186,9 +215,9 @@ jobs:
           if [ "$TIER" = "enterprise" ] && [ -n "$ENTERPRISE_NAME" ]; then
             # For enterprise: allow only that tenant's frontend
             if [ "$DEPLOY_ENV" = "prod" ]; then
-              CORS_ORIGINS="https://frontend-${ENTERPRISE_NAME}.tripico.fun"
+              CORS_ORIGINS="https://frontend.${ENTERPRISE_NAME}.tripico.fun"
             else
-              CORS_ORIGINS="https://frontend-${ENTERPRISE_NAME}.dev.tripico.fun"
+              CORS_ORIGINS="https://frontend.${ENTERPRISE_NAME}.dev.tripico.fun"
             fi
           else
             # For shared tier: use regex pattern for all tenants (freemium + standard-*)
@@ -215,15 +244,15 @@ jobs:
           # Add service-specific secrets and CORS configuration
           if [ "${{ matrix.service.name }}" = "weather-forecast" ]; then
             HELM_ARGS="$HELM_ARGS --set meteosource.apiKey=${{ secrets.METEOSOURCE_API_KEY }}"
-            # Optionally override image with vars.PROJECT_ID
-            HELM_ARGS="$HELM_ARGS --set weatherForecastApi.image=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/weather-forecast-service:latest"
+            # Use GitHub Container Registry image
+            HELM_ARGS="$HELM_ARGS --set weatherForecastApi.image=ghcr.io/leotschritter/cad-backend/${{ vars.PROJECT_ID }}/weather-forecast-service:latest"
             # Set CORS origins for weather-forecast
             HELM_ARGS="$HELM_ARGS --set weatherForecastApi.cors.origins=$CORS_ORIGINS"
           elif [ "${{ matrix.service.name }}" = "travel-warnings" ]; then
             HELM_ARGS="$HELM_ARGS --set smtp.user=${{ secrets.SMTP_USER }}"
             HELM_ARGS="$HELM_ARGS --set smtp.password=${{ secrets.SMTP_PASSWORD }}"
-            # Optionally override image with vars.PROJECT_ID
-            HELM_ARGS="$HELM_ARGS --set travelWarningsApi.image=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/travel-warnings:latest"
+            # Use GitHub Container Registry image
+            HELM_ARGS="$HELM_ARGS --set travelWarningsApi.image=ghcr.io/leotschritter/cad-backend/${{ vars.PROJECT_ID }}/travel-warnings:latest"
             # Set CORS origins for travel-warnings
             HELM_ARGS="$HELM_ARGS --set travelWarningsApi.cors.origins=$CORS_ORIGINS"
           fi

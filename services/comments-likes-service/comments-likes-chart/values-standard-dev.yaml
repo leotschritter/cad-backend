@@ -4,7 +4,7 @@ namespaceOverride: standard
 replicaCount: 1  # Optimized for dev - weniger Pods
 
 image:
-  repository: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/comments-likes-service
+  repository: ghcr.io/leotschritter/cad-backend/iaas-476910/comments-likes-service
   pullPolicy: Always
 
 imagePullSecrets: []
@@ -83,6 +83,8 @@ identityPlatform:
   authEnabled: "true"
   primaryHeader: "X-Forwarded-Authorization"
   fallbackHeader: "Authorization"
+  # Tenant ID for multi-tenancy - set via pipeline from Terraform output
+  tenantId: ""  # Will be set via --set identityPlatform.tenantId=<tenant_id>
 
 # Service discovery for shared services
 sharedServices:

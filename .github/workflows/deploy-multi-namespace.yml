@@ -17,6 +17,7 @@ on:
           - all
           - freemium
           - standard
+          - enterprise
         default: all
       environment:
         description: 'Environment to deploy to'
@@ -31,6 +32,11 @@ on:
         required: false
         type: string
         default: '1'
+      tenant_name:
+        description: 'Tenant name for enterprise tier (e.g., acme-corp, company-x)'
+        required: false
+        type: string
+        default: 'enterprise-test'
       cluster:
         description: 'Target cluster'
         required: true
@@ -39,6 +45,11 @@ on:
           - tripico-cluster
           - tripico-freemium-cluster
         default: tripico-cluster
+      tenant_id:
+        description: 'Tenant ID (used for authentication in standard/enterprise tenants)'
+        required: false
+        type: string
+        default: ''
   repository_dispatch:
     types: [deploy-multi-namespace]
 
@@ -94,8 +105,58 @@ jobs:
 
           echo "Network policies applied successfully"
 
-  deploy-freemium-services:
+  deploy-freemium-cert-manager:
     needs: setup-namespaces
+    if: ${{ github.event_name == 'push' || github.event.client_payload.tier == 'all' || github.event.client_payload.tier == 'freemium' || inputs.tier == 'all' || inputs.tier == 'freemium' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.ref || github.ref }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE Credentials for Shared Cluster
+        run: |
+          CLUSTER_NAME="tripico-cluster"
+          
+          echo "Connecting to shared cluster: $CLUSTER_NAME"
+          gcloud container clusters get-credentials $CLUSTER_NAME \
+            --region europe-west1 \
+            --project ${{ vars.PROJECT_ID }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.13.0'
+
+      - name: Deploy cert-manager to Shared Cluster
+        uses: ./.github/actions/deploy-cert-manager
+        with:
+          cluster_name: "tripico-cluster"
+          cluster_region: "europe-west1"
+          project_id: ${{ vars.PROJECT_ID }}
+          gcp_credentials: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          cert_manager_sa_key: ${{ secrets.CERT_MANAGER_DNS01_SA_KEY }}
+          environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event.client_payload.environment || 'dev' }}
+
+  deploy-freemium-services:
+    needs: [setup-namespaces, deploy-freemium-cert-manager]
     if: ${{ github.event_name == 'push' || github.event.client_payload.tier == 'all' || github.event.client_payload.tier == 'freemium' || inputs.tier == 'all' || inputs.tier == 'freemium' }}
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
@@ -215,8 +276,24 @@ jobs:
             --wait \
             --timeout 10m
 
+  deploy-standard-cert-manager:
+    needs: [setup-namespaces, deploy-freemium-cert-manager]
+    if: ${{ github.event_name == 'push' || github.event.client_payload.tier == 'all' || github.event.client_payload.tier == 'standard' || inputs.tier == 'all' || inputs.tier == 'standard' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Skip cert-manager deployment
+        run: |
+          echo "ℹ️  Standard tier shares the cluster with freemium"
+          echo "ℹ️  cert-manager was already checked/installed by deploy-freemium-cert-manager job"
+          echo "✅ Skipping cert-manager deployment for standard tier"
+
   deploy-standard-services:
-    needs: setup-namespaces
+    needs: [setup-namespaces, deploy-standard-cert-manager]
     if: ${{ github.event_name == 'push' || github.event.client_payload.tier == 'all' || github.event.client_payload.tier == 'standard' || inputs.tier == 'all' || inputs.tier == 'standard' }}
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
@@ -287,6 +364,7 @@ jobs:
         env:
           DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event.client_payload.environment || 'dev' }}
           TENANT_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_number || github.event.client_payload.tenant_number || '1' }}
+          TENANT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_id || github.event.client_payload.tenant_id || '' }}
         run: |
           VALUES_FILE=${{ matrix.service.values_dev }}
           DOMAIN=${{ matrix.service.domain_dev }}
@@ -349,17 +427,239 @@ jobs:
             HELM_ARGS="$HELM_ARGS --set recommendationApi.cors.origins=$FRONTEND_DOMAIN"
           fi
 
+          # Set tenant ID for Identity Platform authentication (standard tier)
+          if [ -n "$TENANT_ID" ]; then
+            echo "Setting tenant ID: $TENANT_ID"
+            if [ "${{ matrix.service.name }}" = "recommendation-service" ]; then
+              HELM_ARGS="$HELM_ARGS --set recommendationConfig.identityPlatform.tenantId=$TENANT_ID"
+            else
+              HELM_ARGS="$HELM_ARGS --set identityPlatform.tenantId=$TENANT_ID"
+            fi
+          fi
+
           helm upgrade --install ${{ matrix.service.name }}-standard-${TENANT_NUMBER} ${{ matrix.service.chart }} \
             $HELM_ARGS \
             --wait \
             --timeout 10m
 
+  deploy-enterprise-cert-manager:
+    needs: setup-namespaces
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.tier == 'all' || inputs.tier == 'enterprise') || github.event.client_payload.tier == 'enterprise' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.ref || github.ref }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE Credentials for Enterprise Cluster
+        env:
+          TENANT_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_name || github.event.client_payload.tenant_name || 'enterprise-1' }}
+        run: |
+          CLUSTER_NAME="tripico-${TENANT_NAME}-cluster"
+          
+          echo "Connecting to enterprise cluster: $CLUSTER_NAME"
+          gcloud container clusters get-credentials $CLUSTER_NAME \
+            --region europe-west1 \
+            --project ${{ vars.PROJECT_ID }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.13.0'
+
+      - name: Deploy cert-manager to Enterprise Cluster
+        uses: ./.github/actions/deploy-cert-manager
+        with:
+          cluster_name: "not-used"
+          cluster_region: "europe-west1"
+          project_id: ${{ vars.PROJECT_ID }}
+          gcp_credentials: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          cert_manager_sa_key: ${{ secrets.CERT_MANAGER_DNS01_SA_KEY }}
+          environment: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event.client_payload.environment || 'dev' }}
+
+  deploy-enterprise-services:
+    needs: [setup-namespaces, deploy-enterprise-cert-manager]
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.tier == 'all' || inputs.tier == 'enterprise') || github.event.client_payload.tier == 'enterprise' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
+    permissions:
+      contents: read
+      id-token: write
+
+    strategy:
+      max-parallel: 1
+      matrix:
+        service:
+          # Enterprise uses subdomain pattern: {service}.{tenant_name}.{domain}
+          # e.g., itinerary.enterprise-1.dev.tripico.fun
+          - name: itinerary-service
+            chart: services/itinerary-service/kubernetes/itinerary-service-chart
+            values_dev: services/itinerary-service/kubernetes/itinerary-service-chart/values-enterprise-dev.yaml
+            values_prod: services/itinerary-service/kubernetes/itinerary-service-chart/values-enterprise-prod.yaml
+            domain_pattern_dev: "itinerary.{tenant}.dev.tripico.fun"
+            domain_pattern_prod: "itinerary.{tenant}.tripico.fun"
+            frontend_domain_pattern_dev: "https://frontend.{tenant}.dev.tripico.fun"
+            frontend_domain_pattern_prod: "https://frontend.{tenant}.tripico.fun"
+          - name: recommendation-service
+            chart: services/recommendation-service/recommendation-service-chart
+            values_dev: services/recommendation-service/recommendation-service-chart/values-enterprise-dev.yaml
+            values_prod: services/recommendation-service/recommendation-service-chart/values-enterprise-prod.yaml
+            domain_pattern_dev: "recommendation.{tenant}.dev.tripico.fun"
+            domain_pattern_prod: "recommendation.{tenant}.tripico.fun"
+            frontend_domain_pattern_dev: "https://frontend.{tenant}.dev.tripico.fun"
+            frontend_domain_pattern_prod: "https://frontend.{tenant}.tripico.fun"
+          - name: comments-likes-service
+            chart: services/comments-likes-service/comments-likes-chart
+            values_dev: services/comments-likes-service/comments-likes-chart/values-enterprise-dev.yaml
+            values_prod: services/comments-likes-service/comments-likes-chart/values-enterprise-prod.yaml
+            domain_pattern_dev: "cl.{tenant}.dev.tripico.fun"
+            domain_pattern_prod: "cl.{tenant}.tripico.fun"
+            frontend_domain_pattern_dev: "https://frontend.{tenant}.dev.tripico.fun"
+            frontend_domain_pattern_prod: "https://frontend.{tenant}.tripico.fun"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.ref || github.ref }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE Credentials for Enterprise Cluster
+        env:
+          TENANT_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_name || github.event.client_payload.tenant_name || 'enterprise-1' }}
+        run: |
+          # Enterprise tier uses dedicated cluster: tripico-{tenant_name}-cluster
+          CLUSTER_NAME="tripico-${TENANT_NAME}-cluster"
+          
+          echo "Connecting to enterprise cluster: $CLUSTER_NAME"
+          gcloud container clusters get-credentials $CLUSTER_NAME \
+            --region europe-west1 \
+            --project ${{ vars.PROJECT_ID }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: '3.13.0'
+
+      - name: Deploy ${{ matrix.service.name }} to enterprise namespace
+        env:
+          DEPLOY_ENV: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event.client_payload.environment || 'dev' }}
+          TENANT_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_name || github.event.client_payload.tenant_name || 'enterprise-1' }}
+          TENANT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_id || github.event.client_payload.tenant_id || '' }}
+        run: |
+          VALUES_FILE=${{ matrix.service.values_dev }}
+          DOMAIN_PATTERN="${{ matrix.service.domain_pattern_dev }}"
+          FRONTEND_DOMAIN_PATTERN="${{ matrix.service.frontend_domain_pattern_dev }}"
+
+          if [ "$DEPLOY_ENV" = "prod" ]; then
+            VALUES_FILE=${{ matrix.service.values_prod }}
+            DOMAIN_PATTERN="${{ matrix.service.domain_pattern_prod }}"
+            FRONTEND_DOMAIN_PATTERN="${{ matrix.service.frontend_domain_pattern_prod }}"
+          fi
+
+          # Replace {tenant} placeholder with actual tenant name
+          DOMAIN="${DOMAIN_PATTERN//\{tenant\}/$TENANT_NAME}"
+          FRONTEND_DOMAIN="${FRONTEND_DOMAIN_PATTERN//\{tenant\}/$TENANT_NAME}"
+
+          # Enterprise uses default namespace in its dedicated cluster
+          NAMESPACE="default"
+
+          echo "Deploying to namespace: $NAMESPACE"
+          echo "Domain: $DOMAIN"
+          echo "Frontend domain: $FRONTEND_DOMAIN"
+          echo "Tenant name: $TENANT_NAME"
+
+          # Build helm arguments
+          HELM_ARGS="--namespace $NAMESPACE --create-namespace --values $VALUES_FILE"
+          HELM_ARGS="$HELM_ARGS --set database.password=${{ secrets.DB_PASSWORD }}"
+          HELM_ARGS="$HELM_ARGS --set neo4j.password=${{ secrets.NEO4J_PASSWORD }}"
+
+          # Set backendUrl based on the domain
+          HELM_ARGS="$HELM_ARGS --set backendUrl=https://$DOMAIN"
+
+          # Override namespaceOverride for enterprise (uses default namespace)
+          HELM_ARGS="$HELM_ARGS --set namespaceOverride=default"
+
+          # recommendation-service uses ingress.prod.* for both dev and prod
+          if [ "${{ matrix.service.name }}" = "recommendation-service" ]; then
+            HELM_ARGS="$HELM_ARGS --set ingress.prod.host=$DOMAIN"
+            HELM_ARGS="$HELM_ARGS --set ingress.prod.tlsSecretName=${{ matrix.service.name }}-${TENANT_NAME}-tls"
+          elif [ "${{ matrix.service.name }}" = "itinerary-service" ] || [ "${{ matrix.service.name }}" = "comments-likes-service" ]; then
+            # itinerary and comments-likes use ingress.hosts array structure
+            HELM_ARGS="$HELM_ARGS --set ingress.hosts[0].host=$DOMAIN"
+            HELM_ARGS="$HELM_ARGS --set ingress.hosts[0].paths[0].path=/"
+            HELM_ARGS="$HELM_ARGS --set ingress.hosts[0].paths[0].pathType=Prefix"
+            HELM_ARGS="$HELM_ARGS --set ingress.tls[0].hosts[0]=$DOMAIN"
+            HELM_ARGS="$HELM_ARGS --set ingress.tls[0].secretName=${{ matrix.service.name }}-${TENANT_NAME}-tls"
+          else
+            # Fallback: use simple ingress.host
+            HELM_ARGS="$HELM_ARGS --set ingress.host=$DOMAIN"
+            HELM_ARGS="$HELM_ARGS --set ingress.tlsSecretName=${{ matrix.service.name }}-${TENANT_NAME}-tls"
+          fi
+
+          # Set CORS origins for services
+          if [ "${{ matrix.service.name }}" = "itinerary-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
+            HELM_ARGS="$HELM_ARGS --set itineraryService.cors.origins=$FRONTEND_DOMAIN"
+          fi
+          if [ "${{ matrix.service.name }}" = "comments-likes-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
+            HELM_ARGS="$HELM_ARGS --set commentsLikesService.cors.origins=$FRONTEND_DOMAIN"
+          fi
+          if [ "${{ matrix.service.name }}" = "recommendation-service" ] && [ -n "$FRONTEND_DOMAIN" ]; then
+            HELM_ARGS="$HELM_ARGS --set recommendationApi.cors.origins=$FRONTEND_DOMAIN"
+          fi
+
+          # Set tenant ID for Identity Platform authentication (enterprise tier)
+          if [ -n "$TENANT_ID" ]; then
+            echo "Setting tenant ID: $TENANT_ID"
+            if [ "${{ matrix.service.name }}" = "recommendation-service" ]; then
+              HELM_ARGS="$HELM_ARGS --set recommendationConfig.identityPlatform.tenantId=$TENANT_ID"
+            else
+              HELM_ARGS="$HELM_ARGS --set identityPlatform.tenantId=$TENANT_ID"
+            fi
+          fi
+
+          helm upgrade --install ${{ matrix.service.name }}-${TENANT_NAME} ${{ matrix.service.chart }} \
+            $HELM_ARGS \
+            --wait \
+            --timeout 10m
+
   verify-deployment:
-    needs: [deploy-freemium-services, deploy-standard-services]
+    needs: [deploy-freemium-cert-manager, deploy-freemium-services, deploy-standard-cert-manager, deploy-standard-services, deploy-enterprise-cert-manager, deploy-enterprise-services]
     if: |
       always() &&
+      (needs.deploy-freemium-cert-manager.result == 'success' || needs.deploy-freemium-cert-manager.result == 'skipped') &&
       (needs.deploy-freemium-services.result == 'success' || needs.deploy-freemium-services.result == 'skipped') &&
-      (needs.deploy-standard-services.result == 'success' || needs.deploy-standard-services.result == 'skipped')
+      (needs.deploy-standard-cert-manager.result == 'success' || needs.deploy-standard-cert-manager.result == 'skipped') &&
+      (needs.deploy-standard-services.result == 'success' || needs.deploy-standard-services.result == 'skipped') &&
+      (needs.deploy-enterprise-cert-manager.result == 'success' || needs.deploy-enterprise-cert-manager.result == 'skipped') &&
+      (needs.deploy-enterprise-services.result == 'success' || needs.deploy-enterprise-services.result == 'skipped')
     runs-on: ubuntu-latest
     environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || (github.ref_name == 'main' && 'production' || 'develop') }}
     permissions:

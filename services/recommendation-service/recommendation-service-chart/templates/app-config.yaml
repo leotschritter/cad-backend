@@ -10,6 +10,8 @@ data:
   identity_platform_auth_enabled: {{ .Values.recommendationConfig.identityPlatform.authEnabled | quote }}
   identity_platform_auth_primary_header: {{ .Values.recommendationConfig.identityPlatform.primaryHeader | quote }}
   identity_platform_auth_fallback_header: {{ .Values.recommendationConfig.identityPlatform.fallbackHeader | quote }}
+  # Tenant ID for multi-tenancy (empty for freemium, set for standard/enterprise)
+  identity_platform_tenant_expected_id: {{ .Values.recommendationConfig.identityPlatform.tenantId | default "" | quote }}
   recommendation_feed_max_items: {{ .Values.recommendationConfig.recommendation.feedMaxItems | quote }}
   openapi_server_url: {{ .Values.recommendationConfig.openapiServerUrl | quote }}
 

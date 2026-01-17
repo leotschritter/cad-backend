@@ -2,7 +2,7 @@ name: Docker push to GHCR, GCP Artifact Registry and deploy Comments/Likes Servi
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "main", "develop", "feature/tenant-terraform"]
     tags: [ 'v*.*.*' ]
     paths:
       - 'services/comments-likes-service/comments-likes-chart/Chart.yaml'
@@ -96,12 +96,10 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}/comments-likes-service:latest
             ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}/comments-likes-service:${{ needs.check-versions.outputs.comments_likes_service_app_version }}
-            europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/comments-likes-service:latest
-            europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/comments-likes-service:${{ needs.check-versions.outputs.comments_likes_service_app_version }}
 
       - name: Export image reference
         id: export_image
-        run: echo "image=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/comments-likes-service:${{ needs.check-versions.outputs.comments_likes_service_app_version }}" >> "$GITHUB_OUTPUT"
+        run: echo "image=ghcr.io/${{ github.repository }}/${{ vars.PROJECT_ID }}/comments-likes-service:${{ needs.check-versions.outputs.comments_likes_service_app_version }}" >> "$GITHUB_OUTPUT"
 
       - name: Export app version
         id: export_app_version
@@ -120,6 +118,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Deprecated – Job deactivated
+        shell: bash
+        run: |
+          echo "This job is outdated and is not being executed anymore."
+          echo "Please manually deploy through the deploy-multi-namespace.yml workflow."
+          exit 1
 
       # Authenticate again for kubectl
       - name: Authenticate to Google Cloud

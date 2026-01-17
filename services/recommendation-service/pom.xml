@@ -14,6 +14,7 @@
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.version>3.28.1</quarkus.platform.version>
+        <quarkiverse-neo4j.version>3.9.0</quarkiverse-neo4j.version>
         <skipITs>true</skipITs>
         <surefire-plugin.version>3.5.3</surefire-plugin.version>
         <mockito.version>5.14.2</mockito.version>
@@ -93,8 +94,9 @@
 
         <!-- Neo4j Graph Database -->
         <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-neo4j</artifactId>
+            <groupId>org.neo4j.driver</groupId>
+            <artifactId>neo4j-java-driver</artifactId>
+            <version>${neo4j-java-driver.version}</version>
         </dependency>
 
         <!-- Testing -->
