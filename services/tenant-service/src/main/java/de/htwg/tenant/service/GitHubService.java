@@ -505,35 +505,6 @@ public class GitHubService {
     }
 
     /**
-     * Get the most recent deploy-multi-namespace workflow run.
-     * Used to monitor backend deployment progress.
-     */
-    public Optional<WorkflowRun> getLatestDeploymentRun() {
-        try {
-            WorkflowRunsResponse response = githubClient.getWorkflowRuns(
-                repoOwner,
-                repoName,
-                "deploy-multi-namespace.yml",
-                "Bearer " + githubToken,
-                "application/vnd.github+json",
-                5  // Get last 5 runs
-            );
-
-            if (response.getWorkflowRuns() != null && !response.getWorkflowRuns().isEmpty()) {
-                // Return the most recent run
-                return response.getWorkflowRuns().stream()
-                    .max(Comparator.comparing(WorkflowRun::getCreatedAt));
-            }
-
-            return Optional.empty();
-
-        } catch (Exception e) {
-            LOG.errorf(e, "❌ Failed to get deployment workflow runs");
-            return Optional.empty();
-        }
-    }
-
-    /**
      * Retrieve Terraform outputs from GitHub Actions artifacts.
      * Downloads the tf-outputs.json artifact and parses it.
      *
