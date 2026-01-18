@@ -229,6 +229,57 @@ public class TenantResource {
     }
 
     /**
+     * Manually trigger Terraform destroy for a tenant in DEPROVISIONING state.
+     * This endpoint can be used when Kubernetes cleanup is complete and you want to
+     * immediately trigger Terraform destroy without waiting for the automatic check.
+     */
+    @POST
+    @Path("/{tenantId}/destroy-infrastructure")
+    @Operation(summary = "Trigger Terraform destroy", 
+               description = "Manually triggers Terraform destroy for a tenant after Kubernetes cleanup completes")
+    public Response destroyTenantInfrastructure(@PathParam("tenantId") String tenantId) {
+        try {
+            LOG.infof("📥 Received manual Terraform destroy request for tenant: %s", tenantId);
+            
+            Optional<Tenant> optTenant = tenantService.getTenant(tenantId);
+            if (optTenant.isEmpty()) {
+                return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Tenant not found: " + tenantId))
+                    .build();
+            }
+            
+            Tenant tenant = optTenant.get();
+            
+            // Can only trigger Terraform destroy if in DEPROVISIONING state
+            if (tenant.state != Tenant.ProvisioningState.DEPROVISIONING) {
+                return Response.status(Response.Status.CONFLICT)
+                    .entity(new ErrorResponse("Tenant must be in DEPROVISIONING state to destroy infrastructure. Current state: " + tenant.state))
+                    .build();
+            }
+            
+            // Call the private method via reflection or make it public
+            // For now, let's make the triggerTerraformDestroy method public in WorkflowMonitoringService
+            workflowMonitoringService.triggerTerraformDestroyManually(tenant);
+            
+            return Response.ok()
+                .entity(new SuccessResponse("Terraform destroy triggered. Infrastructure will be cleaned up shortly."))
+                .build();
+
+        } catch (IllegalArgumentException e) {
+            LOG.warnf("⚠️ Invalid request: %s", e.getMessage());
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity(new ErrorResponse(e.getMessage()))
+                .build();
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to trigger Terraform destroy for tenant %s: %s", tenantId, e.getMessage());
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(new ErrorResponse("Failed to trigger Terraform destroy: " + e.getMessage()))
+                .build();
+        }
+    }
+
+    /**
      * Health check endpoint.
      */
     @GET
