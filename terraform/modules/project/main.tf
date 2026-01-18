@@ -31,4 +31,11 @@ resource "google_identity_platform_config" "default" {
   authorized_domains = var.authorized_domains
 
   depends_on = [google_project_service.identitytoolkit]
+
+  # Identity Platform config is a singleton per project.
+  # Once created by any environment (dev/prod), it exists project-wide.
+  # Ignore all changes to prevent conflicts between environments.
+  lifecycle {
+    ignore_changes = all
+  }
 }
