@@ -188,14 +188,8 @@ public class WorkflowMonitoringService {
 
     /**
      * Poll for tenants in PROVISIONING state and check if their backend deployment has completed.
+     * When backend deployment completes successfully, trigger frontend deployment and user creation.
      * This runs every 60 seconds.
-     * 
-     * Note: This is a simplified implementation. In a production system, you would:
-     * 1. Query GitHub API for workflow run status
-     * 2. Match runs to tenants using dispatch IDs
-     * 3. Update state based on actual workflow completion
-     * 
-     * For now, this serves as a placeholder for the manual activation endpoint.
      */
     @Scheduled(every = "60s", delay = 5)
     void checkProvisioningTenants() {
@@ -206,16 +200,79 @@ public class WorkflowMonitoringService {
                 LOG.infof("🔍 Checking status of %d tenants in PROVISIONING state", provisioningTenants.size());
                 
                 for (Tenant tenant : provisioningTenants) {
-                    LOG.debugf("Tenant %s is in PROVISIONING state (dispatch ID: %s)", 
-                        tenant.tenantId, tenant.provisioningDispatchId);
+                    LOG.debugf("Checking backend deployment status for tenant %s", tenant.tenantId);
                     
-                    // In a full implementation, you would:
-                    // 1. Query GitHub API for workflow runs
-                    // 2. Find the run matching this tenant's dispatch ID
-                    // 3. Check if it's completed (success/failure)
-                    // 4. Call activateTenant() or markAsFailed() accordingly
+                    // Query GitHub API for deploy-multi-namespace workflow status
+                    Optional<WorkflowRun> latestRun = githubService.getLatestDeploymentRun();
                     
-                    // For now, this is handled manually via the REST endpoint
+                    if (latestRun.isPresent()) {
+                        WorkflowRun run = latestRun.get();
+                        String status = run.getStatus();
+                        String conclusion = run.getConclusion();
+                        
+                        LOG.debugf("Latest deployment run status: %s, conclusion: %s", status, conclusion);
+                        
+                        if ("completed".equals(status)) {
+                            if ("success".equals(conclusion)) {
+                                LOG.infof("✅ Backend deployment completed successfully for tenant: %s", tenant.tenantId);
+                                
+                                // Complete provisioning: add user to Identity Platform and deploy frontend
+                                try {
+                                    tenantService.completeTenantProvisioning(tenant);
+                                    
+                                    // Update state to ACTIVE
+                                    tenantService.updateTenantState(tenant, Tenant.ProvisioningState.ACTIVE, null);
+                                    
+                                    // Send activation email
+                                    emailService.sendTenantActivationEmail(
+                                        tenant.ownerEmail,
+                                        tenant.name,
+                                        tenant.frontendDomain,
+                                        tenant.tenantId
+                                    );
+                                    
+                                    LOG.infof("✅ Tenant activated successfully: %s", tenant.tenantId);
+                                    
+                                } catch (Exception e) {
+                                    LOG.errorf(e, "❌ Failed to complete provisioning for tenant: %s", tenant.tenantId);
+                                    String errorMessage = "Failed to complete provisioning: " + e.getMessage();
+                                    tenantService.updateTenantState(tenant, Tenant.ProvisioningState.FAILED, errorMessage);
+                                    emailService.sendTenantProvisioningFailedEmail(tenant.ownerEmail, tenant.name, errorMessage);
+                                }
+                                
+                            } else {
+                                LOG.errorf("❌ Backend deployment failed for tenant %s: %s", tenant.tenantId, conclusion);
+                                String errorMessage = String.format("Backend deployment failed with status: %s", conclusion);
+                                tenantService.updateTenantState(tenant, Tenant.ProvisioningState.FAILED, errorMessage);
+                                emailService.sendTenantProvisioningFailedEmail(tenant.ownerEmail, tenant.name, errorMessage);
+                            }
+                        }
+                    } else {
+                        // If we can't find workflow status, check if tenant has been waiting too long
+                        java.time.Duration timeSinceCreation = java.time.Duration.between(
+                            tenant.createdAt, 
+                            java.time.LocalDateTime.now()
+                        );
+                        
+                        // If tenant has been in PROVISIONING for > 30 minutes, assume deployment is done
+                        if (timeSinceCreation.toMinutes() >= 30) {
+                            LOG.warnf("⏰ Backend deployment timeout for tenant %s (%d minutes), assuming deployment completed",
+                                tenant.tenantId, timeSinceCreation.toMinutes());
+                            
+                            try {
+                                tenantService.completeTenantProvisioning(tenant);
+                                tenantService.updateTenantState(tenant, Tenant.ProvisioningState.ACTIVE, null);
+                                emailService.sendTenantActivationEmail(
+                                    tenant.ownerEmail,
+                                    tenant.name,
+                                    tenant.frontendDomain,
+                                    tenant.tenantId
+                                );
+                            } catch (Exception e) {
+                                LOG.errorf(e, "❌ Failed to complete provisioning after timeout for tenant: %s", tenant.tenantId);
+                            }
+                        }
+                    }
                 }
             }
             

@@ -229,6 +229,56 @@ public class TenantResource {
     }
 
     /**
+     * Manually complete tenant provisioning (trigger frontend deployment and user creation).
+     * This endpoint can be used when backend deployment is complete and you want to
+     * immediately activate the tenant without waiting for the automatic check.
+     */
+    @POST
+    @Path("/{tenantId}/complete-provisioning")
+    @Operation(summary = "Complete tenant provisioning", 
+               description = "Manually triggers frontend deployment and user creation after backend deployment completes")
+    public Response completeTenantProvisioning(@PathParam("tenantId") String tenantId) {
+        try {
+            LOG.infof("📥 Received manual provisioning completion request for tenant: %s", tenantId);
+            
+            Optional<Tenant> optTenant = tenantService.getTenant(tenantId);
+            if (optTenant.isEmpty()) {
+                return Response.status(Response.Status.NOT_FOUND)
+                    .entity(new ErrorResponse("Tenant not found: " + tenantId))
+                    .build();
+            }
+            
+            Tenant tenant = optTenant.get();
+            
+            // Can only complete provisioning if in PROVISIONING state
+            if (tenant.state != Tenant.ProvisioningState.PROVISIONING) {
+                return Response.status(Response.Status.CONFLICT)
+                    .entity(new ErrorResponse("Tenant must be in PROVISIONING state. Current state: " + tenant.state))
+                    .build();
+            }
+            
+            // Call the activation method
+            workflowMonitoringService.activateTenant(tenant.tenantId);
+            
+            return Response.ok()
+                .entity(new SuccessResponse("Provisioning completed. Frontend deployment triggered and user created."))
+                .build();
+
+        } catch (IllegalArgumentException e) {
+            LOG.warnf("⚠️ Invalid request: %s", e.getMessage());
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity(new ErrorResponse(e.getMessage()))
+                .build();
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to complete provisioning for tenant %s: %s", tenantId, e.getMessage());
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(new ErrorResponse("Failed to complete provisioning: " + e.getMessage()))
+                .build();
+        }
+    }
+
+    /**
      * Manually trigger Terraform destroy for a tenant in DEPROVISIONING state.
      * This endpoint can be used when Kubernetes cleanup is complete and you want to
      * immediately trigger Terraform destroy without waiting for the automatic check.
