@@ -289,6 +289,8 @@ public class TenantService {
 
             // Step 2: Trigger frontend deployment
             LOG.infof("🚀 Triggering frontend deployment for tenant: %s", tenant.tenantId);
+            LOG.infof("   Using Identity Platform Tenant ID: %s", tenant.identityPlatformTenantId);
+            LOG.infof("   Using API Gateway URL: %s", tenant.apiGatewayUrl);
             String frontendDispatchId;
             
             if (tenant.tier == Tenant.TenantTier.ENTERPRISE) {

@@ -122,15 +122,43 @@ public class WorkflowMonitoringService {
                 tenantRepository.update(tenant);
                 
             } else {
-                LOG.warnf("⚠️ Could not retrieve Terraform outputs, using template-based values");
-                LOG.infof("   Current API Gateway URL: %s", tenant.apiGatewayUrl);
-                LOG.infof("   Current Identity Platform Tenant ID: %s", tenant.identityPlatformTenantId);
+                LOG.errorf("❌ Could not retrieve Terraform outputs for tenant: %s", tenantName);
+                LOG.errorf("   Cannot proceed with Kubernetes deployment without Terraform outputs");
+                LOG.errorf("   Current API Gateway URL: %s", tenant.apiGatewayUrl);
+                LOG.errorf("   Current Identity Platform Tenant ID: %s", tenant.identityPlatformTenantId);
+                throw new IllegalStateException("Terraform outputs not available for tenant: " + tenantName + 
+                    ". Cannot proceed with deployment without Identity Platform tenant ID.");
             }
+            
+            // Validate that we have the required values from Terraform
+            if (tenant.identityPlatformTenantId == null || tenant.identityPlatformTenantId.isEmpty()) {
+                LOG.errorf("❌ Identity Platform Tenant ID is missing after retrieving Terraform outputs");
+                throw new IllegalStateException("Identity Platform Tenant ID is not set from Terraform outputs for tenant: " + tenantName);
+            }
+            
+            if (tenant.apiGatewayUrl == null || tenant.apiGatewayUrl.isEmpty()) {
+                LOG.errorf("❌ API Gateway URL is missing after retrieving Terraform outputs");
+                throw new IllegalStateException("API Gateway URL is not set from Terraform outputs for tenant: " + tenantName);
+            }
+            
+            // Verify that the Identity Platform tenant ID is not the placeholder value
+            // The placeholder is the original tenantId (e.g., "stdtest7"), while the real ID is from Terraform (e.g., "std-standard-7-7wt9c")
+            if (tenant.identityPlatformTenantId.equals(tenant.tenantId)) {
+                LOG.errorf("❌ Identity Platform Tenant ID appears to be placeholder value: %s", tenant.identityPlatformTenantId);
+                LOG.errorf("   Expected format: std-standard-{number}-{suffix} or enterprise-{name}-{suffix}");
+                throw new IllegalStateException("Identity Platform Tenant ID is still placeholder value. " +
+                    "Terraform outputs may not have been retrieved correctly for tenant: " + tenantName);
+            }
+            
+            LOG.infof("✅ Validated Terraform outputs - Identity Platform Tenant ID: %s, API Gateway URL: %s", 
+                tenant.identityPlatformTenantId, tenant.apiGatewayUrl);
             
             String multiNamespaceDispatchId;
             
             if (tenant.tier == Tenant.TenantTier.ENTERPRISE) {
                 // Trigger enterprise deployment
+                LOG.infof("🚀 Triggering enterprise deployment with Identity Platform Tenant ID: %s", 
+                    tenant.identityPlatformTenantId);
                 multiNamespaceDispatchId = githubService.triggerEnterpriseDeployment(
                     tenant.enterpriseName,
                     environment,
@@ -140,6 +168,7 @@ public class WorkflowMonitoringService {
                 
                 LOG.infof("✅ Enterprise deployment triggered for tenant: %s (dispatch ID: %s)", 
                     tenant.tenantId, multiNamespaceDispatchId);
+                LOG.infof("   Using Identity Platform Tenant ID: %s", tenant.identityPlatformTenantId);
                 
                 // Trigger shared services on dedicated cluster
                 String sharedServicesDispatchId = githubService.triggerSharedServicesDeployment(
@@ -152,6 +181,8 @@ public class WorkflowMonitoringService {
                     sharedServicesDispatchId);
             } else {
                 // Trigger standard deployment
+                LOG.infof("🚀 Triggering standard deployment with Identity Platform Tenant ID: %s", 
+                    tenant.identityPlatformTenantId);
                 multiNamespaceDispatchId = githubService.triggerTenantDeployment(
                     tenant.tenantNumber,
                     environment,
@@ -161,6 +192,7 @@ public class WorkflowMonitoringService {
                 
                 LOG.infof("✅ Standard deployment triggered for tenant: %s (dispatch ID: %s)", 
                     tenant.tenantId, multiNamespaceDispatchId);
+                LOG.infof("   Using Identity Platform Tenant ID: %s", tenant.identityPlatformTenantId);
                 
                 // Trigger shared services deployment
                 String sharedServicesDispatchId = githubService.triggerSharedServicesDeployment(
