@@ -10,7 +10,9 @@ commentsLikesService:
 
 replicaCount: 1
 
-
+image:
+  repository: ghcr.io/leotschritter/cad-backend/comments-likes-service
+  pullPolicy: IfNotPresent
 
 imagePullSecrets: []
 nameOverride: ""
