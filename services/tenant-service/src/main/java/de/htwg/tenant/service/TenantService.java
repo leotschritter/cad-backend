@@ -137,7 +137,8 @@ public class TenantService {
                 multiNamespaceDispatchId = githubService.triggerEnterpriseDeployment(
                     tenant.enterpriseName,
                     environment,
-                    tenant.clusterName
+                    tenant.clusterName,
+                    tenant.identityPlatformTenantId
                 );
                 
                 LOG.infof("✅ Enterprise deployment triggered for tenant: %s (dispatch ID: %s)", 
@@ -157,7 +158,8 @@ public class TenantService {
                 multiNamespaceDispatchId = githubService.triggerTenantDeployment(
                     tenant.tenantNumber,
                     environment,
-                    tenant.clusterName
+                    tenant.clusterName,
+                    tenant.identityPlatformTenantId
                 );
                 
                 LOG.infof("✅ Standard deployment triggered for tenant: %s (dispatch ID: %s)", 

@@ -58,7 +58,7 @@ public class GitHubService {
      * @param cluster Cluster name (e.g., "tripico-cluster")
      * @return Dispatch ID for tracking
      */
-    public String triggerTenantDeployment(Integer tenantNumber, String environment, String cluster) {
+    public String triggerTenantDeployment(Integer tenantNumber, String environment, String cluster, String identityPlatformTenantId) {
         try {
             String dispatchId = UUID.randomUUID().toString();
             
@@ -67,6 +67,7 @@ public class GitHubService {
             clientPayload.put("tenant_number", tenantNumber.toString());
             clientPayload.put("environment", environment);
             clientPayload.put("cluster", cluster);
+            clientPayload.put("tenant_id", identityPlatformTenantId);
             clientPayload.put("ref", branch);
             clientPayload.put("dispatch_id", dispatchId); // For tracking
 
@@ -103,7 +104,7 @@ public class GitHubService {
      * @param cluster Dedicated cluster name (e.g., "tripico-acme-corp-cluster")
      * @return Dispatch ID for tracking
      */
-    public String triggerEnterpriseDeployment(String enterpriseName, String environment, String cluster) {
+    public String triggerEnterpriseDeployment(String enterpriseName, String environment, String cluster, String identityPlatformTenantId) {
         try {
             String dispatchId = UUID.randomUUID().toString();
             
@@ -112,6 +113,7 @@ public class GitHubService {
             clientPayload.put("tenant_name", enterpriseName);
             clientPayload.put("environment", environment);
             clientPayload.put("cluster", cluster);
+            clientPayload.put("tenant_id", identityPlatformTenantId);
             clientPayload.put("ref", branch);
             clientPayload.put("dispatch_id", dispatchId);
 
