@@ -216,28 +216,38 @@ public class WorkflowMonitoringService {
                             if ("success".equals(conclusion)) {
                                 LOG.infof("✅ Backend deployment completed successfully for tenant: %s", tenant.tenantId);
                                 
+                                // Refresh tenant from database to ensure we have latest Terraform outputs
+                                Tenant refreshedTenant = Tenant.findByTenantId(tenant.tenantId);
+                                if (refreshedTenant == null) {
+                                    LOG.errorf("❌ Tenant not found in database: %s", tenant.tenantId);
+                                    continue;
+                                }
+                                
+                                LOG.infof("   Refreshed tenant - Identity Platform Tenant ID: %s", refreshedTenant.identityPlatformTenantId);
+                                LOG.infof("   Refreshed tenant - API Gateway URL: %s", refreshedTenant.apiGatewayUrl);
+                                
                                 // Complete provisioning: add user to Identity Platform and deploy frontend
                                 try {
-                                    tenantService.completeTenantProvisioning(tenant);
+                                    tenantService.completeTenantProvisioning(refreshedTenant);
                                     
                                     // Update state to ACTIVE
-                                    tenantService.updateTenantState(tenant, Tenant.ProvisioningState.ACTIVE, null);
+                                    tenantService.updateTenantState(refreshedTenant, Tenant.ProvisioningState.ACTIVE, null);
                                     
                                     // Send activation email
                                     emailService.sendTenantActivationEmail(
-                                        tenant.ownerEmail,
-                                        tenant.name,
-                                        tenant.frontendDomain,
-                                        tenant.tenantId
+                                        refreshedTenant.ownerEmail,
+                                        refreshedTenant.name,
+                                        refreshedTenant.frontendDomain,
+                                        refreshedTenant.tenantId
                                     );
                                     
-                                    LOG.infof("✅ Tenant activated successfully: %s", tenant.tenantId);
+                                    LOG.infof("✅ Tenant activated successfully: %s", refreshedTenant.tenantId);
                                     
                                 } catch (Exception e) {
-                                    LOG.errorf(e, "❌ Failed to complete provisioning for tenant: %s", tenant.tenantId);
+                                    LOG.errorf(e, "❌ Failed to complete provisioning for tenant: %s", refreshedTenant.tenantId);
                                     String errorMessage = "Failed to complete provisioning: " + e.getMessage();
-                                    tenantService.updateTenantState(tenant, Tenant.ProvisioningState.FAILED, errorMessage);
-                                    emailService.sendTenantProvisioningFailedEmail(tenant.ownerEmail, tenant.name, errorMessage);
+                                    tenantService.updateTenantState(refreshedTenant, Tenant.ProvisioningState.FAILED, errorMessage);
+                                    emailService.sendTenantProvisioningFailedEmail(refreshedTenant.ownerEmail, refreshedTenant.name, errorMessage);
                                 }
                                 
                             } else {
@@ -259,17 +269,24 @@ public class WorkflowMonitoringService {
                             LOG.warnf("⏰ Backend deployment timeout for tenant %s (%d minutes), assuming deployment completed",
                                 tenant.tenantId, timeSinceCreation.toMinutes());
                             
+                            // Refresh tenant from database to ensure we have latest Terraform outputs
+                            Tenant refreshedTenant = Tenant.findByTenantId(tenant.tenantId);
+                            if (refreshedTenant == null) {
+                                LOG.errorf("❌ Tenant not found in database: %s", tenant.tenantId);
+                                continue;
+                            }
+                            
                             try {
-                                tenantService.completeTenantProvisioning(tenant);
-                                tenantService.updateTenantState(tenant, Tenant.ProvisioningState.ACTIVE, null);
+                                tenantService.completeTenantProvisioning(refreshedTenant);
+                                tenantService.updateTenantState(refreshedTenant, Tenant.ProvisioningState.ACTIVE, null);
                                 emailService.sendTenantActivationEmail(
-                                    tenant.ownerEmail,
-                                    tenant.name,
-                                    tenant.frontendDomain,
-                                    tenant.tenantId
+                                    refreshedTenant.ownerEmail,
+                                    refreshedTenant.name,
+                                    refreshedTenant.frontendDomain,
+                                    refreshedTenant.tenantId
                                 );
                             } catch (Exception e) {
-                                LOG.errorf(e, "❌ Failed to complete provisioning after timeout for tenant: %s", tenant.tenantId);
+                                LOG.errorf(e, "❌ Failed to complete provisioning after timeout for tenant: %s", refreshedTenant.tenantId);
                             }
                         }
                     }

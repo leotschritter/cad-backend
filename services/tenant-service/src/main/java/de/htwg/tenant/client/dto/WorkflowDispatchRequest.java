@@ -9,10 +9,10 @@ import java.util.Map;
  * Used to trigger workflows with specific inputs.
  */
 public class WorkflowDispatchRequest {
-    
+
     @JsonProperty("ref")
     private String ref;
-    
+
     @JsonProperty("inputs")
     private Map<String, String> inputs;
 

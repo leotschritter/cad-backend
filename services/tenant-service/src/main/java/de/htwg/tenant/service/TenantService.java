@@ -247,12 +247,33 @@ public class TenantService {
     public void completeTenantProvisioning(Tenant tenant) {
         try {
             LOG.infof("🎉 Completing provisioning for tenant: %s", tenant.tenantId);
+            LOG.infof("   Identity Platform Tenant ID: %s", tenant.identityPlatformTenantId);
+            LOG.infof("   API Gateway URL: %s", tenant.apiGatewayUrl);
+
+            // Validate required fields
+            if (tenant.identityPlatformTenantId == null || tenant.identityPlatformTenantId.isEmpty()) {
+                LOG.errorf("❌ Identity Platform Tenant ID is missing for tenant: %s", tenant.tenantId);
+                LOG.errorf("   This usually means Terraform outputs were not retrieved successfully.");
+                throw new IllegalStateException("Identity Platform Tenant ID is not set for tenant: " + tenant.tenantId + 
+                    ". Terraform outputs may not have been retrieved.");
+            }
+            
+            if (tenant.apiGatewayUrl == null || tenant.apiGatewayUrl.isEmpty()) {
+                LOG.errorf("❌ API Gateway URL is missing for tenant: %s", tenant.tenantId);
+                throw new IllegalStateException("API Gateway URL is not set for tenant: " + tenant.tenantId);
+            }
+            
+            if (tenant.ownerPasswordHash == null || tenant.ownerPasswordHash.isEmpty()) {
+                LOG.errorf("❌ Owner password hash is missing for tenant: %s", tenant.tenantId);
+                throw new IllegalStateException("Owner password hash is not set for tenant: " + tenant.tenantId);
+            }
 
             // Decode the password from base64 (temporary storage)
             String password = new String(java.util.Base64.getDecoder().decode(tenant.ownerPasswordHash));
 
             // Step 1: Add owner user to Identity Platform tenant
-            LOG.infof("👤 Adding owner user to Identity Platform tenant");
+            LOG.infof("👤 Adding owner user to Identity Platform tenant: %s (tenant: %s)", 
+                tenant.ownerEmail, tenant.identityPlatformTenantId);
             String ownerUid = identityPlatformService.addUserToTenant(
                 tenant.identityPlatformTenantId,
                 tenant.ownerEmail,
@@ -260,8 +281,8 @@ public class TenantService {
             );
             
             tenant.ownerUid = ownerUid;
-            tenant.updatedAt = LocalDateTime.now();
-            tenantRepository.update(tenant);
+        tenant.updatedAt = LocalDateTime.now();
+        tenantRepository.update(tenant);
 
             LOG.infof("✅ Owner user added to Identity Platform: %s (UID: %s)", 
                 tenant.ownerEmail, ownerUid);

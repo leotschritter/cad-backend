@@ -33,6 +33,20 @@ public class IdentityPlatformService {
      * @return The user's UID in Identity Platform
      */
     public String addUserToTenant(String tenantId, String email, String password) {
+        // Validate inputs
+        if (tenantId == null || tenantId.isEmpty()) {
+            throw new IllegalArgumentException("Tenant ID cannot be null or empty");
+        }
+        if (email == null || email.isEmpty()) {
+            throw new IllegalArgumentException("Email cannot be null or empty");
+        }
+        if (password == null || password.isEmpty()) {
+            throw new IllegalArgumentException("Password cannot be null or empty");
+        }
+        if (apiKey == null || apiKey.isEmpty()) {
+            throw new IllegalStateException("Identity Platform API key is not configured");
+        }
+        
         Client client = ClientBuilder.newClient();
         
         try {
@@ -47,13 +61,17 @@ public class IdentityPlatformService {
             payload.put("returnSecureToken", true);
             
             LOG.infof("👤 Creating user in Identity Platform tenant %s: %s", tenantId, email);
+            LOG.debugf("   Request URL: %s", requestUrl.replace(apiKey, "***REDACTED***"));
+            LOG.debugf("   Payload: tenantId=%s, email=%s", tenantId, email);
             
             // Send the request
             Response response = client.target(requestUrl)
                 .request(MediaType.APPLICATION_JSON)
                 .post(Entity.json(payload));
             
-            if (response.getStatus() == 200) {
+            int statusCode = response.getStatus();
+            
+            if (statusCode == 200) {
                 Map<String, Object> responseData = response.readEntity(Map.class);
                 String uid = (String) responseData.get("localId");
                 
@@ -61,10 +79,25 @@ public class IdentityPlatformService {
                 return uid;
                 
             } else {
-                String errorBody = response.readEntity(String.class);
+                // Try to read error response
+                String errorBody = "";
+                try {
+                    if (response.hasEntity()) {
+                        errorBody = response.readEntity(String.class);
+                    }
+                } catch (Exception e) {
+                    LOG.warnf("Could not read error response body: %s", e.getMessage());
+                    errorBody = "Could not read error response";
+                }
+                
                 LOG.errorf("❌ Failed to create user in Identity Platform. Status: %d, Body: %s", 
-                    response.getStatus(), errorBody);
-                throw new RuntimeException("Failed to create user in Identity Platform: " + errorBody);
+                    statusCode, errorBody);
+                LOG.errorf("   Request URL: %s", requestUrl);
+                LOG.errorf("   Tenant ID: %s, Email: %s", tenantId, email);
+                
+                throw new RuntimeException(String.format(
+                    "Failed to create user in Identity Platform (Status: %d): %s", 
+                    statusCode, errorBody.isEmpty() ? "No error details available" : errorBody));
             }
             
         } catch (Exception e) {
