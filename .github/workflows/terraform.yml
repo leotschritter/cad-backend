@@ -423,8 +423,7 @@ jobs:
           path: terraform
         continue-on-error: true
 
-      - name: Import existing Identity Platform resources (standard/enterprise only)
-        if: ${{ steps.set-env.outputs.TF_ENV == 'standard' || steps.set-env.outputs.TF_ENV == 'enterprise' }}
+      - name: Import existing Identity Platform config (all environments)
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
         continue-on-error: true
         env:
@@ -434,18 +433,29 @@ jobs:
           TF_VAR_tenant_name: ${{ steps.set-env.outputs.TENANT_NAME }}
         run: |
           # Import Identity Platform config if not in state
-          # This config is a project singleton - may already exist from free tier
-          CONFIG_IN_STATE=$(terraform state list 2>/dev/null | grep -q "google_identity_platform_config.default" && echo "true" || echo "false")
+          # This config is a project singleton - exists once per GCP project
+          # The resource is inside the project module
+          CONFIG_IN_STATE=$(terraform state list 2>/dev/null | grep -q "module.project.google_identity_platform_config.default" && echo "true" || echo "false")
 
           if [ "$CONFIG_IN_STATE" = "false" ]; then
             echo "Identity Platform config not in state, attempting to import..."
-            timeout 30 terraform import google_identity_platform_config.default \
+            timeout 30 terraform import 'module.project.google_identity_platform_config.default' \
               "projects/${{ env.GCP_PROJECT_ID }}/config" \
-              || echo "Config import failed - will be created"
+              || echo "Config import failed or already exists - continuing"
           else
             echo "Identity Platform config already in Terraform state"
           fi
 
+      - name: Import existing Identity Platform tenant (standard/enterprise only)
+        if: ${{ steps.set-env.outputs.TF_ENV == 'standard' || steps.set-env.outputs.TF_ENV == 'enterprise' }}
+        working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
+        continue-on-error: true
+        env:
+          TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
+          TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
+          TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
+          TF_VAR_tenant_name: ${{ steps.set-env.outputs.TENANT_NAME }}
+        run: |
           # Import Identity Platform tenant if not in state
           # Determine the tenant prefix based on environment
           if [ "${{ steps.set-env.outputs.TF_ENV }}" = "enterprise" ]; then
@@ -458,7 +468,7 @@ jobs:
 
           if [ "$TENANT_IN_STATE" = "false" ]; then
             echo "Tenant not in state, attempting to import if it exists in GCP..."
-            timeout 30 terraform import google_identity_platform_tenant.tenant \
+            timeout 30 terraform import 'google_identity_platform_tenant.tenant' \
               "projects/${{ env.GCP_PROJECT_ID }}/tenants/${TENANT_PREFIX}-${{ steps.set-env.outputs.TENANT_NAME }}" \
               || echo "Tenant import failed or doesn't exist yet - will be created"
           else
