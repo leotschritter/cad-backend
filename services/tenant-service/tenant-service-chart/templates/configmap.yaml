@@ -23,6 +23,11 @@ data:
   # GitHub Configuration
   github_repo_owner: {{ .Values.github.repository.owner | quote }}
   github_repo_name: {{ .Values.github.repository.name | quote }}
+  github_branch: {{ .Values.github.repository.branch | default "main" | quote }}
+  # GitHub Frontend Repository Configuration
+  github_frontend_repo_owner: {{ .Values.github.frontend.owner | quote }}
+  github_frontend_repo_name: {{ .Values.github.frontend.name | quote }}
+  github_frontend_branch: {{ .Values.github.frontend.branch | default "main" | quote }}
   # Tenant Configuration
   tenant_base_domain: {{ .Values.tenant.baseDomain | quote }}
   tenant_polling_interval_seconds: {{ .Values.tenant.pollingIntervalSeconds | quote }}

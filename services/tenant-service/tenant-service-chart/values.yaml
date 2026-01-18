@@ -79,6 +79,9 @@ identityPlatform:
   authEnabled: "true"
   primaryHeader: "X-Forwarded-Authorization"
   fallbackHeader: "Authorization"
+  # API key for creating users in Identity Platform
+  # Should be provided via --set or separate values file
+  apiKey: ""
 
 # SMTP Configuration for email notifications
 smtp:
@@ -96,8 +99,14 @@ github:
   # Should be provided via --set or separate values file
   token: ""
   repository:
-    owner: ""  # e.g., "your-org"
-    name: ""   # e.g., "cad-backend"
+    owner: "leotschritter"  # e.g., "your-org"
+    name: "cad-backend"   # e.g., "cad-backend"
+    branch: "main"
+  # Frontend repository configuration
+  frontend:
+    owner: "leotschritter"  # e.g., "your-org"
+    name: "cad-frontend"   # e.g., "cad-frontend"
+    branch: "main"
   workflow:
     provision: "provision-tenant.yml"
     deprovision: "deprovision-tenant.yml"

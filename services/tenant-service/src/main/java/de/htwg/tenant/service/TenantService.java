@@ -34,6 +34,9 @@ public class TenantService {
     @Inject
     EmailService emailService;
 
+    @Inject
+    IdentityPlatformService identityPlatformService;
+
     @ConfigProperty(name = "tenant.base-domain")
     String baseDomain;
 
@@ -70,9 +73,10 @@ public class TenantService {
         Integer tenantNumber = allocateNextTenantNumber();
         LOG.infof("Allocated tenant number: %d", tenantNumber);
 
-        // Build namespace and domain
+        // Build namespace, domain, and API Gateway URL
         String namespace = "standard-" + tenantNumber;
         String frontendDomain = String.format("frontend-standard-%d.%s", tenantNumber, baseDomain);
+        String apiGatewayUrl = buildApiGatewayUrl(tenantNumber);
 
         // Create tenant entity
         Tenant tenant = new Tenant();
@@ -81,6 +85,7 @@ public class TenantService {
         tenant.tenantNumber = tenantNumber;
         tenant.namespace = namespace;
         tenant.frontendDomain = frontendDomain;
+        tenant.apiGatewayUrl = apiGatewayUrl;
         tenant.ownerEmail = request.getOwnerEmail();
         tenant.ownerPasswordHash = hashPassword(request.getOwnerPassword());
         tenant.state = Tenant.ProvisioningState.PENDING;
@@ -203,6 +208,69 @@ public class TenantService {
     }
 
     /**
+     * Complete tenant provisioning after backend deployment is successful.
+     * This method should be called after the backend GitHub workflow completes.
+     * It will:
+     * 1. Add the owner user to the Identity Platform tenant
+     * 2. Trigger the frontend deployment
+     * 
+     * @param tenant The tenant that was successfully provisioned
+     */
+    @Transactional
+    public void completeTenantProvisioning(Tenant tenant) {
+        try {
+            LOG.infof("🎉 Completing provisioning for tenant: %s", tenant.tenantId);
+
+            // Decode the password from base64 (temporary storage)
+            String password = new String(java.util.Base64.getDecoder().decode(tenant.ownerPasswordHash));
+
+            // Step 1: Add owner user to Identity Platform tenant
+            LOG.infof("👤 Adding owner user to Identity Platform tenant");
+            String ownerUid = identityPlatformService.addUserToTenant(
+                tenant.identityPlatformTenantId,
+                tenant.ownerEmail,
+                password
+            );
+            
+            tenant.ownerUid = ownerUid;
+            tenant.updatedAt = LocalDateTime.now();
+            tenantRepository.update(tenant);
+
+            LOG.infof("✅ Owner user added to Identity Platform: %s (UID: %s)", 
+                tenant.ownerEmail, ownerUid);
+
+            // Step 2: Trigger frontend deployment
+            LOG.infof("🚀 Triggering frontend deployment for tenant: %s", tenant.tenantId);
+            String frontendDispatchId = githubService.triggerFrontendDeployment(
+                tenant.tenantNumber,
+                environment,
+                tenant.apiGatewayUrl,
+                tenant.identityPlatformTenantId
+            );
+
+            tenant.frontendDeploymentDispatchId = frontendDispatchId;
+            tenant.updatedAt = LocalDateTime.now();
+            tenantRepository.update(tenant);
+
+            LOG.infof("✅ Frontend deployment triggered successfully");
+
+            // Clear the password hash now that user is created
+            tenant.ownerPasswordHash = null;
+            tenant.updatedAt = LocalDateTime.now();
+            tenantRepository.update(tenant);
+
+            LOG.infof("🎉 Tenant provisioning completed successfully: %s", tenant.tenantId);
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to complete tenant provisioning: %s", tenant.tenantId);
+            tenant.errorMessage = "Failed to complete provisioning: " + e.getMessage();
+            tenant.updatedAt = LocalDateTime.now();
+            tenantRepository.update(tenant);
+            throw new RuntimeException("Failed to complete tenant provisioning", e);
+        }
+    }
+
+    /**
      * Get a tenant by tenant ID.
      */
     public Optional<Tenant> getTenant(String tenantId) {
@@ -250,6 +318,21 @@ public class TenantService {
      */
     private String hashPassword(String password) {
         return java.util.Base64.getEncoder().encodeToString(password.getBytes());
+    }
+
+    /**
+     * Build the API Gateway URL for a tenant based on tenant number.
+     * 
+     * @param tenantNumber The tenant number
+     * @return The API Gateway URL (e.g., "https://api-standard-1.tripico.fun")
+     */
+    private String buildApiGatewayUrl(Integer tenantNumber) {
+        // For development environment
+        if ("dev".equalsIgnoreCase(environment)) {
+            return String.format("https://api-standard-%d.dev.%s", tenantNumber, baseDomain);
+        }
+        // For production environment
+        return String.format("https://api-standard-%d.%s", tenantNumber, baseDomain);
     }
 }
 

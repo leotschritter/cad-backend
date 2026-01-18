@@ -37,6 +37,11 @@ public class Tenant extends PanacheMongoEntity {
     public String frontendDomain;
 
     /**
+     * API Gateway URL for this tenant (e.g., "https://api-standard-1.tripico.fun")
+     */
+    public String apiGatewayUrl;
+
+    /**
      * Email of the user who created this tenant
      */
     public String ownerEmail;
@@ -86,6 +91,11 @@ public class Tenant extends PanacheMongoEntity {
      * GitHub repository dispatch event ID for deprovisioning
      */
     public String deprovisioningDispatchId;
+
+    /**
+     * GitHub repository dispatch event ID for frontend deployment
+     */
+    public String frontendDeploymentDispatchId;
 
     /**
      * Additional error message if provisioning/deprovisioning failed
