@@ -159,7 +159,10 @@ mongodb:
     tag: "7.0"
     pullPolicy: IfNotPresent
   database: tenant_db
-  connectionString: "mongodb://mongodb-service:27017"
+  # Connection string with authentication
+  # Format: mongodb://username:password@host:port?options
+  # retryWrites=false is required for standalone MongoDB (not replica set)
+  connectionString: "mongodb://admin:CHANGE_ME_IN_PRODUCTION@mongodb-service:27017?retryWrites=false"
 
   # Authentication
   auth:
