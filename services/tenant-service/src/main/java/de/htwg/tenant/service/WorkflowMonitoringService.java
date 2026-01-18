@@ -125,7 +125,7 @@ public class WorkflowMonitoringService {
             tenantService.updateTenantState(tenant, Tenant.ProvisioningState.FAILED, errorMessage);
 
             // Send failure email
-            emailService.sendTenantFailureEmail(tenant.ownerEmail, tenant.name, errorMessage);
+            emailService.sendTenantProvisioningFailedEmail(tenant.ownerEmail, tenant.name, errorMessage);
 
             LOG.infof("Tenant marked as FAILED: %s", tenantId);
 
