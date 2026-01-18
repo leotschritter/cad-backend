@@ -2,6 +2,7 @@ package de.htwg.tenant.model;
 
 import io.quarkus.mongodb.panache.common.MongoEntity;
 import io.quarkus.mongodb.panache.PanacheMongoEntity;
+import io.quarkus.panache.common.Sort;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -161,7 +162,7 @@ public class Tenant extends PanacheMongoEntity {
     }
 
     public static Integer findMaxTenantNumber() {
-        Tenant tenant = find("ORDER BY tenantNumber DESC")
+        Tenant tenant = find("", Sort.descending("tenantNumber"))
             .page(0, 1)
             .firstResult();
         return tenant != null ? tenant.tenantNumber : 0;
