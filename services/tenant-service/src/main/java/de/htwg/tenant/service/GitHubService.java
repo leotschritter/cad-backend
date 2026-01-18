@@ -40,6 +40,15 @@ public class GitHubService {
     @ConfigProperty(name = "github.branch", defaultValue = "main")
     String branch;
 
+    @ConfigProperty(name = "github.frontend.repository.owner")
+    String frontendRepoOwner;
+
+    @ConfigProperty(name = "github.frontend.repository.name")
+    String frontendRepoName;
+
+    @ConfigProperty(name = "github.frontend.branch", defaultValue = "main")
+    String frontendBranch;
+
     /**
      * Trigger deployment for a standard tier tenant.
      * Uses repository_dispatch to trigger deploy-multi-namespace workflow.
@@ -86,6 +95,51 @@ public class GitHubService {
     }
 
     /**
+     * Trigger deployment for an enterprise tier tenant.
+     * Uses repository_dispatch to trigger deploy-multi-namespace workflow.
+     *
+     * @param enterpriseName The enterprise name (e.g., "acme-corp", "company-x")
+     * @param environment "prod" or "dev"
+     * @param cluster Dedicated cluster name (e.g., "tripico-acme-corp-cluster")
+     * @return Dispatch ID for tracking
+     */
+    public String triggerEnterpriseDeployment(String enterpriseName, String environment, String cluster) {
+        try {
+            String dispatchId = UUID.randomUUID().toString();
+            
+            Map<String, Object> clientPayload = new HashMap<>();
+            clientPayload.put("tier", "enterprise");
+            clientPayload.put("tenant_name", enterpriseName);
+            clientPayload.put("environment", environment);
+            clientPayload.put("cluster", cluster);
+            clientPayload.put("ref", branch);
+            clientPayload.put("dispatch_id", dispatchId);
+
+            RepositoryDispatchRequest request = new RepositoryDispatchRequest(
+                DEPLOY_EVENT_TYPE,
+                clientPayload
+            );
+
+            LOG.infof("🚀 Triggering enterprise deployment for %s (dispatch ID: %s)", enterpriseName, dispatchId);
+
+            githubClient.dispatchRepository(
+                repoOwner,
+                repoName,
+                "Bearer " + githubToken,
+                "application/vnd.github+json",
+                request
+            );
+
+            LOG.infof("✅ Enterprise deployment triggered successfully for %s", enterpriseName);
+            return dispatchId;
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to trigger enterprise deployment for: %s", enterpriseName);
+            throw new RuntimeException("Failed to trigger enterprise deployment", e);
+        }
+    }
+
+    /**
      * Trigger deployment of shared services (weather & travel warnings).
      * These services are deployed to the 'shared' namespace and used by all tenants.
      *
@@ -128,6 +182,51 @@ public class GitHubService {
     }
 
     /**
+     * Trigger deployment of shared services for enterprise tier.
+     * Includes tier and enterprise_name in payload.
+     *
+     * @param environment "prod" or "dev"
+     * @param cluster Enterprise cluster name
+     * @param enterpriseName Enterprise tenant name
+     * @return Dispatch ID for tracking
+     */
+    public String triggerSharedServicesDeployment(String environment, String cluster, String enterpriseName) {
+        try {
+            String dispatchId = UUID.randomUUID().toString();
+            
+            Map<String, Object> clientPayload = new HashMap<>();
+            clientPayload.put("tier", "enterprise");
+            clientPayload.put("enterprise_name", enterpriseName);
+            clientPayload.put("environment", environment);
+            clientPayload.put("cluster", cluster);
+            clientPayload.put("ref", branch);
+            clientPayload.put("dispatch_id", dispatchId);
+
+            RepositoryDispatchRequest request = new RepositoryDispatchRequest(
+                DEPLOY_SHARED_EVENT_TYPE,
+                clientPayload
+            );
+
+            LOG.infof("🚀 Triggering enterprise shared services deployment (dispatch ID: %s)", dispatchId);
+
+            githubClient.dispatchRepository(
+                repoOwner,
+                repoName,
+                "Bearer " + githubToken,
+                "application/vnd.github+json",
+                request
+            );
+
+            LOG.infof("✅ Enterprise shared services deployment triggered successfully");
+            return dispatchId;
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to trigger enterprise shared services deployment");
+            throw new RuntimeException("Failed to trigger enterprise shared services deployment", e);
+        }
+    }
+
+    /**
      * Trigger cleanup for a tenant namespace.
      * This will delete the namespace and all resources within it.
      *
@@ -164,6 +263,108 @@ public class GitHubService {
         } catch (Exception e) {
             LOG.errorf(e, "❌ Failed to trigger cleanup for namespace: %s", namespace);
             throw new RuntimeException("Failed to trigger tenant cleanup", e);
+        }
+    }
+
+    /**
+     * Trigger frontend deployment for a standard tier tenant.
+     * Uses repository_dispatch to trigger deploy-multi-namespace workflow in the frontend repository.
+     *
+     * @param tenantNumber The numeric tenant identifier (1, 2, 3, etc.)
+     * @param environment "prod" or "dev"
+     * @param apiGatewayUrl The API Gateway URL for this tenant
+     * @param tenantId The Identity Platform tenant ID
+     * @return Dispatch ID for tracking
+     */
+    public String triggerFrontendDeployment(Integer tenantNumber, String environment, 
+                                           String apiGatewayUrl, String tenantId) {
+        try {
+            String dispatchId = UUID.randomUUID().toString();
+            
+            Map<String, Object> clientPayload = new HashMap<>();
+            clientPayload.put("tier", "standard");
+            clientPayload.put("tenant_number", tenantNumber.toString());
+            clientPayload.put("environment", environment);
+            clientPayload.put("apiGatewayUrl", apiGatewayUrl);
+            clientPayload.put("tenant_id", tenantId);
+            clientPayload.put("ref", frontendBranch);
+            clientPayload.put("dispatch_id", dispatchId);
+
+            RepositoryDispatchRequest request = new RepositoryDispatchRequest(
+                "deploy-frontend-multi-namespace",
+                clientPayload
+            );
+
+            LOG.infof("🚀 Triggering frontend deployment for tenant number %d (dispatch ID: %s)", 
+                tenantNumber, dispatchId);
+            LOG.infof("   API Gateway URL: %s", apiGatewayUrl);
+            LOG.infof("   Tenant ID: %s", tenantId);
+
+            githubClient.dispatchRepository(
+                frontendRepoOwner,
+                frontendRepoName,
+                "Bearer " + githubToken,
+                "application/vnd.github+json",
+                request
+            );
+
+            LOG.infof("✅ Frontend deployment triggered successfully for tenant number %d", tenantNumber);
+            return dispatchId;
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to trigger frontend deployment for tenant number: %d", tenantNumber);
+            throw new RuntimeException("Failed to trigger frontend deployment", e);
+        }
+    }
+
+    /**
+     * Trigger frontend deployment for an enterprise tier tenant.
+     * Uses repository_dispatch to trigger deploy-multi-namespace workflow in the frontend repository.
+     *
+     * @param enterpriseName The enterprise name (e.g., "acme-corp")
+     * @param environment "prod" or "dev"
+     * @param apiGatewayUrl The API Gateway URL for this tenant
+     * @param tenantId The Identity Platform tenant ID
+     * @return Dispatch ID for tracking
+     */
+    public String triggerEnterpriseFrontendDeployment(String enterpriseName, String environment, 
+                                                      String apiGatewayUrl, String tenantId) {
+        try {
+            String dispatchId = UUID.randomUUID().toString();
+            
+            Map<String, Object> clientPayload = new HashMap<>();
+            clientPayload.put("tier", "enterprise");
+            clientPayload.put("enterprise_name", enterpriseName);
+            clientPayload.put("environment", environment);
+            clientPayload.put("apiGatewayUrl", apiGatewayUrl);
+            clientPayload.put("tenant_id", tenantId);
+            clientPayload.put("ref", frontendBranch);
+            clientPayload.put("dispatch_id", dispatchId);
+
+            RepositoryDispatchRequest request = new RepositoryDispatchRequest(
+                "deploy-frontend-multi-namespace",
+                clientPayload
+            );
+
+            LOG.infof("🚀 Triggering enterprise frontend deployment for %s (dispatch ID: %s)", 
+                enterpriseName, dispatchId);
+            LOG.infof("   API Gateway URL: %s", apiGatewayUrl);
+            LOG.infof("   Tenant ID: %s", tenantId);
+
+            githubClient.dispatchRepository(
+                frontendRepoOwner,
+                frontendRepoName,
+                "Bearer " + githubToken,
+                "application/vnd.github+json",
+                request
+            );
+
+            LOG.infof("✅ Enterprise frontend deployment triggered successfully for %s", enterpriseName);
+            return dispatchId;
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to trigger enterprise frontend deployment for: %s", enterpriseName);
+            throw new RuntimeException("Failed to trigger enterprise frontend deployment", e);
         }
     }
 

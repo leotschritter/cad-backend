@@ -21,14 +21,11 @@
 .idea/
 *.tmproj
 .vscode/
-# CI/CD
-.github/
-.gitlab-ci.yml
-.travis.yml
-# Documentation (keep README.md)
-OWNERS
-CONTRIBUTING.md
-# Testing
-test/
-tests/
 
+# Secrets files - never package these
+values-secrets.yaml
+values-secrets-*.yaml
+*-secrets.yaml
+
+# Documentation
+DEPLOYMENT_GUIDE.md

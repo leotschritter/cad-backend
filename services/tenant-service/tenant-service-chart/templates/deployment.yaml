@@ -15,6 +15,7 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/identity-platform-secret: {{ include (print $.Template.BasePath "/identity-platform-secret.yaml") . | sha256sum }}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -140,6 +141,33 @@ spec:
                 configMapKeyRef:
                   name: {{ include "tenant-service.fullname" . }}-config
                   key: github_repo_name
+            - name: GITHUB_BRANCH
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: github_branch
+            # GitHub Frontend Repository Configuration
+            - name: GITHUB_FRONTEND_REPO_OWNER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: github_frontend_repo_owner
+            - name: GITHUB_FRONTEND_REPO_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: github_frontend_repo_name
+            - name: GITHUB_FRONTEND_BRANCH
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-config
+                  key: github_frontend_branch
+            # Identity Platform API Key
+            - name: IDENTITY_PLATFORM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "tenant-service.fullname" . }}-identity-platform-secret
+                  key: identity_platform_api_key
             # Tenant Configuration
             - name: TENANT_BASE_DOMAIN
               valueFrom:

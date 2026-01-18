@@ -31,6 +31,9 @@ public class TenantResource {
     @Inject
     TenantService tenantService;
 
+    @Inject
+    de.htwg.tenant.service.WorkflowMonitoringService workflowMonitoringService;
+
     /**
      * Create a new tenant (Standard tier).
      */
@@ -142,6 +145,85 @@ public class TenantResource {
             LOG.errorf(e, "❌ Failed to delete tenant %s: %s", tenantId, e.getMessage());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                 .entity(new ErrorResponse("Failed to delete tenant: " + e.getMessage()))
+                .build();
+        }
+    }
+
+    /**
+     * Activate a tenant after backend deployment completes.
+     * This endpoint should be called when the backend GitHub workflow completes successfully.
+     * It will:
+     * 1. Add the owner user to the Identity Platform tenant
+     * 2. Trigger the frontend deployment
+     * 3. Update tenant state to ACTIVE
+     * 4. Send activation email
+     */
+    @POST
+    @Path("/{tenantId}/activate")
+    @Operation(summary = "Activate a tenant", 
+               description = "Activates a tenant after backend provisioning completes. Triggers user creation and frontend deployment.")
+    public Response activateTenant(@PathParam("tenantId") String tenantId) {
+        try {
+            LOG.infof("📥 Received activation request for tenant: %s", tenantId);
+            
+            workflowMonitoringService.activateTenant(tenantId);
+            
+            return Response.ok()
+                .entity(new SuccessResponse("Tenant activated successfully. Frontend deployment initiated."))
+                .build();
+
+        } catch (IllegalArgumentException e) {
+            LOG.warnf("⚠️ Tenant not found: %s", tenantId);
+            return Response.status(Response.Status.NOT_FOUND)
+                .entity(new ErrorResponse(e.getMessage()))
+                .build();
+
+        } catch (IllegalStateException e) {
+            LOG.warnf("⚠️ Invalid state for activation: %s", e.getMessage());
+            return Response.status(Response.Status.CONFLICT)
+                .entity(new ErrorResponse(e.getMessage()))
+                .build();
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to activate tenant %s: %s", tenantId, e.getMessage());
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(new ErrorResponse("Failed to activate tenant: " + e.getMessage()))
+                .build();
+        }
+    }
+
+    /**
+     * Mark a tenant as failed if backend deployment fails.
+     */
+    @POST
+    @Path("/{tenantId}/fail")
+    @Operation(summary = "Mark tenant as failed", 
+               description = "Marks a tenant as failed if backend provisioning fails")
+    public Response failTenant(
+            @PathParam("tenantId") String tenantId,
+            @QueryParam("error") String errorMessage) {
+        try {
+            LOG.infof("📥 Received failure notification for tenant: %s", tenantId);
+            
+            workflowMonitoringService.markTenantAsFailed(
+                tenantId, 
+                errorMessage != null ? errorMessage : "Backend deployment failed"
+            );
+            
+            return Response.ok()
+                .entity(new SuccessResponse("Tenant marked as failed"))
+                .build();
+
+        } catch (IllegalArgumentException e) {
+            LOG.warnf("⚠️ Tenant not found: %s", tenantId);
+            return Response.status(Response.Status.NOT_FOUND)
+                .entity(new ErrorResponse(e.getMessage()))
+                .build();
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to mark tenant as failed %s: %s", tenantId, e.getMessage());
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(new ErrorResponse("Failed to mark tenant as failed: " + e.getMessage()))
                 .build();
         }
     }
