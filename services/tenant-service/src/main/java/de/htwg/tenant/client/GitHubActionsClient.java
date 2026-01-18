@@ -55,5 +55,19 @@ public interface GitHubActionsClient {
         @HeaderParam("Authorization") String authorization,
         @HeaderParam("Accept") String accept
     );
+
+    /**
+     * Trigger a workflow dispatch event.
+     */
+    @POST
+    @Path("/actions/workflows/{workflow_id}/dispatches")
+    void dispatchWorkflow(
+        @PathParam("owner") String owner,
+        @PathParam("repo") String repo,
+        @PathParam("workflow_id") String workflowId,
+        @HeaderParam("Authorization") String authorization,
+        @HeaderParam("Accept") String accept,
+        de.htwg.tenant.client.dto.WorkflowDispatchRequest request
+    );
 }
 

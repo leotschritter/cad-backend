@@ -1,13 +1,16 @@
 package de.htwg.tenant.service;
 
+import de.htwg.tenant.client.dto.WorkflowRun;
 import de.htwg.tenant.model.Tenant;
 import de.htwg.tenant.repository.TenantRepository;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Service that monitors GitHub workflow status and updates tenant state accordingly.
@@ -26,6 +29,125 @@ public class WorkflowMonitoringService {
 
     @Inject
     EmailService emailService;
+
+    @Inject
+    GitHubService githubService;
+
+    @ConfigProperty(name = "tenant.environment", defaultValue = "prod")
+    String environment;
+
+    @ConfigProperty(name = "tenant.cluster", defaultValue = "tripico-cluster")
+    String cluster;
+
+    /**
+     * Poll for tenants in TERRAFORM_PROVISIONING state and check if Terraform has completed.
+     * When Terraform completes successfully, trigger the Kubernetes deployment.
+     * This runs every 60 seconds.
+     */
+    @Scheduled(every = "60s", delay = 5)
+    void checkTerraformProvisioningTenants() {
+        try {
+            List<Tenant> terraformTenants = tenantService.getTenantsByState(Tenant.ProvisioningState.TERRAFORM_PROVISIONING);
+            
+            if (!terraformTenants.isEmpty()) {
+                LOG.infof("🔍 Checking status of %d tenants in TERRAFORM_PROVISIONING state", terraformTenants.size());
+                
+                for (Tenant tenant : terraformTenants) {
+                    LOG.debugf("Checking Terraform status for tenant %s", tenant.tenantId);
+                    
+                    // Query GitHub API for Terraform workflow status
+                    Optional<WorkflowRun> latestRun = githubService.getLatestTerraformRun();
+                    
+                    if (latestRun.isPresent()) {
+                        WorkflowRun run = latestRun.get();
+                        String status = run.getStatus();
+                        String conclusion = run.getConclusion();
+                        
+                        LOG.debugf("Latest Terraform run status: %s, conclusion: %s", status, conclusion);
+                        
+                        if ("completed".equals(status)) {
+                            if ("success".equals(conclusion)) {
+                                LOG.infof("✅ Terraform completed successfully for tenant: %s", tenant.tenantId);
+                                triggerKubernetesDeployment(tenant);
+                            } else {
+                                LOG.errorf("❌ Terraform failed for tenant %s: %s", tenant.tenantId, conclusion);
+                                String errorMessage = String.format("Terraform workflow failed with status: %s", conclusion);
+                                tenantService.updateTenantState(tenant, Tenant.ProvisioningState.FAILED, errorMessage);
+                                emailService.sendTenantProvisioningFailedEmail(tenant.ownerEmail, tenant.name, errorMessage);
+                            }
+                        }
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Error checking Terraform provisioning tenants: %s", e.getMessage());
+        }
+    }
+
+    /**
+     * Trigger Kubernetes deployment after Terraform completes successfully.
+     */
+    private void triggerKubernetesDeployment(Tenant tenant) {
+        try {
+            String multiNamespaceDispatchId;
+            
+            if (tenant.tier == Tenant.TenantTier.ENTERPRISE) {
+                // Trigger enterprise deployment
+                multiNamespaceDispatchId = githubService.triggerEnterpriseDeployment(
+                    tenant.enterpriseName,
+                    environment,
+                    tenant.clusterName,
+                    tenant.identityPlatformTenantId
+                );
+                
+                LOG.infof("✅ Enterprise deployment triggered for tenant: %s (dispatch ID: %s)", 
+                    tenant.tenantId, multiNamespaceDispatchId);
+                
+                // Trigger shared services on dedicated cluster
+                String sharedServicesDispatchId = githubService.triggerSharedServicesDeployment(
+                    environment,
+                    tenant.clusterName,
+                    tenant.enterpriseName
+                );
+                
+                LOG.infof("✅ Enterprise shared services deployment triggered (dispatch ID: %s)", 
+                    sharedServicesDispatchId);
+            } else {
+                // Trigger standard deployment
+                multiNamespaceDispatchId = githubService.triggerTenantDeployment(
+                    tenant.tenantNumber,
+                    environment,
+                    tenant.clusterName,
+                    tenant.identityPlatformTenantId
+                );
+                
+                LOG.infof("✅ Standard deployment triggered for tenant: %s (dispatch ID: %s)", 
+                    tenant.tenantId, multiNamespaceDispatchId);
+                
+                // Trigger shared services deployment
+                String sharedServicesDispatchId = githubService.triggerSharedServicesDeployment(
+                    environment,
+                    tenant.clusterName
+                );
+                
+                LOG.infof("✅ Shared services deployment triggered (dispatch ID: %s)", 
+                    sharedServicesDispatchId);
+            }
+
+            // Update tenant state to PROVISIONING
+            tenant.state = Tenant.ProvisioningState.PROVISIONING;
+            tenant.provisioningDispatchId = multiNamespaceDispatchId;
+            tenant.updatedAt = java.time.LocalDateTime.now();
+            tenantRepository.update(tenant);
+            
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to trigger Kubernetes deployment for tenant: %s", tenant.tenantId);
+            String errorMessage = "Failed to trigger Kubernetes deployment: " + e.getMessage();
+            tenantService.updateTenantState(tenant, Tenant.ProvisioningState.FAILED, errorMessage);
+            emailService.sendTenantProvisioningFailedEmail(tenant.ownerEmail, tenant.name, errorMessage);
+        }
+    }
 
     /**
      * Poll for tenants in PROVISIONING state and check if their backend deployment has completed.

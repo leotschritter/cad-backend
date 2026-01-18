@@ -2,6 +2,7 @@ package de.htwg.tenant.service;
 
 import de.htwg.tenant.client.GitHubActionsClient;
 import de.htwg.tenant.client.dto.RepositoryDispatchRequest;
+import de.htwg.tenant.client.dto.WorkflowDispatchRequest;
 import de.htwg.tenant.client.dto.WorkflowRun;
 import de.htwg.tenant.client.dto.WorkflowRunsResponse;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -395,6 +396,82 @@ public class GitHubService {
 
         } catch (Exception e) {
             LOG.errorf(e, "❌ Failed to get workflow runs");
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Trigger Terraform workflow to provision infrastructure for a tenant.
+     * This should be called BEFORE triggering the Kubernetes/Helm deployment.
+     *
+     * @param tier "standard" or "enterprise"
+     * @param tenantNumber The numeric tenant identifier (for standard)
+     * @param tenantName Custom tenant name (for enterprise, optional)
+     * @return Workflow dispatch ID for tracking
+     */
+    public String triggerTerraformWorkflow(String tier, Integer tenantNumber, String tenantName) {
+        try {
+            Map<String, String> inputs = new HashMap<>();
+            inputs.put("action", "apply");
+            inputs.put("environment", tier); // "standard" or "enterprise"
+            
+            if ("standard".equals(tier)) {
+                inputs.put("tenant_number", tenantNumber.toString());
+            } else if ("enterprise".equals(tier)) {
+                inputs.put("tenant_number", tenantNumber.toString());
+                if (tenantName != null && !tenantName.isEmpty()) {
+                    inputs.put("tenant_name", tenantName);
+                }
+            }
+
+            WorkflowDispatchRequest request = new WorkflowDispatchRequest(branch, inputs);
+
+            LOG.infof("🚀 Triggering Terraform workflow for %s tier (tenant: %s)", tier, 
+                tenantName != null ? tenantName : "standard-" + tenantNumber);
+
+            githubClient.dispatchWorkflow(
+                repoOwner,
+                repoName,
+                "terraform.yml",
+                "Bearer " + githubToken,
+                "application/vnd.github+json",
+                request
+            );
+
+            LOG.infof("✅ Terraform workflow triggered successfully");
+            return UUID.randomUUID().toString(); // Return tracking ID
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to trigger Terraform workflow");
+            throw new RuntimeException("Failed to trigger Terraform workflow", e);
+        }
+    }
+
+    /**
+     * Get the most recent Terraform workflow run.
+     * Used to monitor Terraform apply progress.
+     */
+    public Optional<WorkflowRun> getLatestTerraformRun() {
+        try {
+            WorkflowRunsResponse response = githubClient.getWorkflowRuns(
+                repoOwner,
+                repoName,
+                "terraform.yml",
+                "Bearer " + githubToken,
+                "application/vnd.github+json",
+                5  // Get last 5 runs
+            );
+
+            if (response.getWorkflowRuns() != null && !response.getWorkflowRuns().isEmpty()) {
+                // Return the most recent run
+                return response.getWorkflowRuns().stream()
+                    .max(Comparator.comparing(WorkflowRun::getCreatedAt));
+            }
+
+            return Optional.empty();
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to get Terraform workflow runs");
             return Optional.empty();
         }
     }

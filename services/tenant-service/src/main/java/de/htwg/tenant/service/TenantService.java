@@ -127,66 +127,47 @@ public class TenantService {
         tenant.firestoreDatabaseId = tenantId;
 
         // Trigger GitHub workflows in sequence:
-        // 1. deploy-multi-namespace (creates namespace and deploys services)
-        // 2. deploy-shared-services (deploys shared services if needed)
+        // 1. terraform.yml (provisions infrastructure: GCP resources, API Gateway, Identity Platform tenant)
+        // 2. deploy-multi-namespace (creates namespace and deploys services) - triggered by WorkflowMonitoringService after Terraform completes
+        // 3. deploy-shared-services (deploys shared services if needed) - already handled in deploy-multi-namespace
+        // 4. deploy-frontend-multi-namespace (deploys frontend) - triggered by WorkflowMonitoringService after backend deployment completes
         try {
-            String multiNamespaceDispatchId;
+            String terraformDispatchId;
             
             if (tier == Tenant.TenantTier.ENTERPRISE) {
-                // Step 1: Trigger enterprise deployment
-                multiNamespaceDispatchId = githubService.triggerEnterpriseDeployment(
-                    tenant.enterpriseName,
-                    environment,
-                    tenant.clusterName,
-                    tenant.identityPlatformTenantId
-                );
-                
-                LOG.infof("✅ Enterprise deployment triggered for tenant: %s (dispatch ID: %s)", 
-                    tenantId, multiNamespaceDispatchId);
-                
-                // For enterprise, also trigger shared services on their dedicated cluster
-                String sharedServicesDispatchId = githubService.triggerSharedServicesDeployment(
-                    environment,
-                    tenant.clusterName,
+                // Step 1: Trigger Terraform for enterprise tier
+                terraformDispatchId = githubService.triggerTerraformWorkflow(
+                    "enterprise",
+                    tenant.tenantNumber,
                     tenant.enterpriseName
                 );
                 
-                LOG.infof("✅ Enterprise shared services deployment triggered (dispatch ID: %s)", 
-                    sharedServicesDispatchId);
+                LOG.infof("✅ Terraform workflow triggered for enterprise tenant: %s (dispatch ID: %s)", 
+                    tenantId, terraformDispatchId);
             } else {
-                // Step 1: Trigger standard deployment
-                multiNamespaceDispatchId = githubService.triggerTenantDeployment(
+                // Step 1: Trigger Terraform for standard tier
+                terraformDispatchId = githubService.triggerTerraformWorkflow(
+                    "standard",
                     tenant.tenantNumber,
-                    environment,
-                    tenant.clusterName,
-                    tenant.identityPlatformTenantId
+                    null
                 );
                 
-                LOG.infof("✅ Standard deployment triggered for tenant: %s (dispatch ID: %s)", 
-                    tenantId, multiNamespaceDispatchId);
-                
-                // Step 2: Trigger shared services deployment
-                String sharedServicesDispatchId = githubService.triggerSharedServicesDeployment(
-                    environment,
-                    tenant.clusterName
-                );
-                
-                LOG.infof("✅ Shared services deployment triggered (dispatch ID: %s)", 
-                    sharedServicesDispatchId);
+                LOG.infof("✅ Terraform workflow triggered for standard tenant: %s (dispatch ID: %s)", 
+                    tenantId, terraformDispatchId);
             }
 
-            tenant.state = Tenant.ProvisioningState.PROVISIONING;
-            tenant.provisioningDispatchId = multiNamespaceDispatchId;
+            tenant.state = Tenant.ProvisioningState.TERRAFORM_PROVISIONING;
+            tenant.terraformDispatchId = terraformDispatchId;
             tenant.updatedAt = LocalDateTime.now();
             tenantRepository.update(tenant);
 
         } catch (Exception e) {
-            LOG.errorf(e, "❌ Failed to trigger deployment workflows for tenant: %s", tenantId);
+            LOG.errorf(e, "❌ Failed to trigger Terraform workflow for tenant: %s", tenantId);
             tenant.state = Tenant.ProvisioningState.FAILED;
-            tenant.errorMessage = "Failed to trigger deployment: " + e.getMessage();
+            tenant.errorMessage = "Failed to trigger Terraform: " + e.getMessage();
             tenant.updatedAt = LocalDateTime.now();
             tenantRepository.update(tenant);
-            throw new RuntimeException("Failed to trigger tenant deployment", e);
+            throw new RuntimeException("Failed to trigger Terraform workflow", e);
         }
 
         return tenant;
