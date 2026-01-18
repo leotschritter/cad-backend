@@ -119,6 +119,10 @@ ingress:
     sslRedirect: "true"
     forceSslRedirect: "true"
 
+serviceAccount:
+  name: recommendation-service-sa
+  gcpServiceAccount: "tripico-sa@graphite-plane-474510-s9.iam.gserviceaccount.com"
+
 certificate:
   name: recommendation-standard-tls-cert
   issuerName: letsencrypt-prod

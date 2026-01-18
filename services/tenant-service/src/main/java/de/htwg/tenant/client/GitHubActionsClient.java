@@ -55,5 +55,46 @@ public interface GitHubActionsClient {
         @HeaderParam("Authorization") String authorization,
         @HeaderParam("Accept") String accept
     );
+
+    /**
+     * Trigger a workflow dispatch event.
+     */
+    @POST
+    @Path("/actions/workflows/{workflow_id}/dispatches")
+    void dispatchWorkflow(
+        @PathParam("owner") String owner,
+        @PathParam("repo") String repo,
+        @PathParam("workflow_id") String workflowId,
+        @HeaderParam("Authorization") String authorization,
+        @HeaderParam("Accept") String accept,
+        de.htwg.tenant.client.dto.WorkflowDispatchRequest request
+    );
+
+    /**
+     * List artifacts for a workflow run.
+     */
+    @GET
+    @Path("/actions/runs/{run_id}/artifacts")
+    de.htwg.tenant.client.dto.ArtifactsResponse listArtifacts(
+        @PathParam("owner") String owner,
+        @PathParam("repo") String repo,
+        @PathParam("run_id") Long runId,
+        @HeaderParam("Authorization") String authorization,
+        @HeaderParam("Accept") String accept
+    );
+
+    /**
+     * Download an artifact.
+     * Returns a redirect URL to download the artifact ZIP.
+     */
+    @GET
+    @Path("/actions/artifacts/{artifact_id}/zip")
+    jakarta.ws.rs.core.Response downloadArtifact(
+        @PathParam("owner") String owner,
+        @PathParam("repo") String repo,
+        @PathParam("artifact_id") Long artifactId,
+        @HeaderParam("Authorization") String authorization,
+        @HeaderParam("Accept") String accept
+    );
 }
 

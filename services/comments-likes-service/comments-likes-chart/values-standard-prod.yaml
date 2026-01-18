@@ -1,7 +1,11 @@
-# Helm values for comments-likes-service in freemium namespace (DEV)
+# Helm values for comments-likes-service in standard namespace (PROD)
 namespaceOverride: standard
 
 replicaCount: 2
+
+image:
+  repository: ghcr.io/leotschritter/cad-backend/graphite-plane-474510-s9/comments-likes-service
+  pullPolicy: Always
 
 imagePullSecrets: []
 nameOverride: ""

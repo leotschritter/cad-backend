@@ -2,6 +2,7 @@ package de.htwg.tenant.model;
 
 import io.quarkus.mongodb.panache.common.MongoEntity;
 import io.quarkus.mongodb.panache.PanacheMongoEntity;
+import io.quarkus.panache.common.Sort;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -115,6 +116,16 @@ public class Tenant extends PanacheMongoEntity {
     public String frontendDeploymentDispatchId;
 
     /**
+     * GitHub workflow dispatch event ID for Terraform provisioning
+     */
+    public String terraformDispatchId;
+
+    /**
+     * GitHub workflow dispatch event ID for Terraform destroy
+     */
+    public String terraformDestroyDispatchId;
+
+    /**
      * Additional error message if provisioning/deprovisioning failed
      */
     public String errorMessage;
@@ -161,19 +172,21 @@ public class Tenant extends PanacheMongoEntity {
     }
 
     public static Integer findMaxTenantNumber() {
-        Tenant tenant = find("ORDER BY tenantNumber DESC")
+        Tenant tenant = findAll(Sort.descending("tenantNumber"))
             .page(0, 1)
             .firstResult();
         return tenant != null ? tenant.tenantNumber : 0;
     }
 
     public enum ProvisioningState {
-        PENDING,        // Initial state, not yet started
-        PROVISIONING,   // GitHub workflow is running
-        ACTIVE,         // Successfully provisioned and running
-        DEPROVISIONING, // Being deleted
-        DELETED,        // Successfully deleted
-        FAILED          // Provisioning or deprovisioning failed
+        PENDING,                  // Initial state, not yet started
+        TERRAFORM_PROVISIONING,   // Terraform apply workflow is running
+        PROVISIONING,             // Kubernetes/Helm deployment workflow is running
+        ACTIVE,                   // Successfully provisioned and running
+        DEPROVISIONING,           // Being deleted - Kubernetes cleanup in progress
+        TERRAFORM_DESTROYING,     // Terraform destroy workflow is running
+        DELETED,                  // Successfully deleted
+        FAILED                    // Provisioning or deprovisioning failed
     }
 
     public enum TenantTier {

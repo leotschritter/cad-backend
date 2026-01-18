@@ -1,6 +1,5 @@
 package de.htwg.tenant.service;
 
-import de.htwg.tenant.client.dto.WorkflowRun;
 import de.htwg.tenant.dto.CreateTenantRequest;
 import de.htwg.tenant.dto.TenantResponse;
 import de.htwg.tenant.model.Tenant;
@@ -8,7 +7,6 @@ import de.htwg.tenant.repository.TenantRepository;
 import de.htwg.tenant.util.TenantIdGenerator;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -55,8 +53,9 @@ public class TenantService {
      * 2. Create tenant record in MongoDB
      * 3. Trigger deploy-multi-namespace workflow (creates namespace, deploys services, creates Identity Platform tenant, creates Firestore DB)
      * 4. Trigger deploy-shared-services workflow (ensures shared services are available)
+     * 
+     * Note: @Transactional removed - MongoDB standalone mode doesn't support transactions
      */
-    @Transactional
     public Tenant createTenant(CreateTenantRequest request) {
         LOG.infof("📝 Creating new %s tier tenant: %s", request.getTier(), request.getName());
 
@@ -128,64 +127,47 @@ public class TenantService {
         tenant.firestoreDatabaseId = tenantId;
 
         // Trigger GitHub workflows in sequence:
-        // 1. deploy-multi-namespace (creates namespace and deploys services)
-        // 2. deploy-shared-services (deploys shared services if needed)
+        // 1. terraform.yml (provisions infrastructure: GCP resources, API Gateway, Identity Platform tenant)
+        // 2. deploy-multi-namespace (creates namespace and deploys services) - triggered by WorkflowMonitoringService after Terraform completes
+        // 3. deploy-shared-services (deploys shared services if needed) - already handled in deploy-multi-namespace
+        // 4. deploy-frontend-multi-namespace (deploys frontend) - triggered by WorkflowMonitoringService after backend deployment completes
         try {
-            String multiNamespaceDispatchId;
+            String terraformDispatchId;
             
             if (tier == Tenant.TenantTier.ENTERPRISE) {
-                // Step 1: Trigger enterprise deployment
-                multiNamespaceDispatchId = githubService.triggerEnterpriseDeployment(
-                    tenant.enterpriseName,
-                    environment,
-                    tenant.clusterName
-                );
-                
-                LOG.infof("✅ Enterprise deployment triggered for tenant: %s (dispatch ID: %s)", 
-                    tenantId, multiNamespaceDispatchId);
-                
-                // For enterprise, also trigger shared services on their dedicated cluster
-                String sharedServicesDispatchId = githubService.triggerSharedServicesDeployment(
-                    environment,
-                    tenant.clusterName,
+                // Step 1: Trigger Terraform for enterprise tier
+                terraformDispatchId = githubService.triggerTerraformWorkflow(
+                    "enterprise",
+                    tenant.tenantNumber,
                     tenant.enterpriseName
                 );
                 
-                LOG.infof("✅ Enterprise shared services deployment triggered (dispatch ID: %s)", 
-                    sharedServicesDispatchId);
+                LOG.infof("✅ Terraform workflow triggered for enterprise tenant: %s (dispatch ID: %s)", 
+                    tenantId, terraformDispatchId);
             } else {
-                // Step 1: Trigger standard deployment
-                multiNamespaceDispatchId = githubService.triggerTenantDeployment(
+                // Step 1: Trigger Terraform for standard tier
+                terraformDispatchId = githubService.triggerTerraformWorkflow(
+                    "standard",
                     tenant.tenantNumber,
-                    environment,
-                    tenant.clusterName
+                    null
                 );
                 
-                LOG.infof("✅ Standard deployment triggered for tenant: %s (dispatch ID: %s)", 
-                    tenantId, multiNamespaceDispatchId);
-                
-                // Step 2: Trigger shared services deployment
-                String sharedServicesDispatchId = githubService.triggerSharedServicesDeployment(
-                    environment,
-                    tenant.clusterName
-                );
-                
-                LOG.infof("✅ Shared services deployment triggered (dispatch ID: %s)", 
-                    sharedServicesDispatchId);
+                LOG.infof("✅ Terraform workflow triggered for standard tenant: %s (dispatch ID: %s)", 
+                    tenantId, terraformDispatchId);
             }
 
-            tenant.state = Tenant.ProvisioningState.PROVISIONING;
-            tenant.provisioningDispatchId = multiNamespaceDispatchId;
+            tenant.state = Tenant.ProvisioningState.TERRAFORM_PROVISIONING;
+            tenant.terraformDispatchId = terraformDispatchId;
             tenant.updatedAt = LocalDateTime.now();
             tenantRepository.update(tenant);
 
         } catch (Exception e) {
-            LOG.errorf(e, "❌ Failed to trigger deployment workflows for tenant: %s", tenantId);
+            LOG.errorf(e, "❌ Failed to trigger Terraform workflow for tenant: %s", tenantId);
             tenant.state = Tenant.ProvisioningState.FAILED;
-            tenant.errorMessage = "Failed to trigger deployment: " + e.getMessage();
+            tenant.errorMessage = "Failed to trigger Terraform: " + e.getMessage();
             tenant.updatedAt = LocalDateTime.now();
             tenantRepository.update(tenant);
-            throw new RuntimeException("Failed to trigger tenant deployment", e);
+            throw new RuntimeException("Failed to trigger Terraform workflow", e);
         }
 
         return tenant;
@@ -206,8 +188,9 @@ public class TenantService {
      * 1. Update tenant state to DEPROVISIONING
      * 2. Trigger cleanup-tenant workflow (deletes namespace, Firestore DB, Identity Platform tenant)
      * 3. Update tenant state to DELETED
+     * 
+     * Note: @Transactional removed - MongoDB standalone mode doesn't support transactions
      */
-    @Transactional
     public void deleteTenant(String tenantId) {
         LOG.infof("🗑️ Deleting tenant: %s", tenantId);
 
@@ -218,6 +201,7 @@ public class TenantService {
 
         // Check if tenant is already being deleted
         if (tenant.state == Tenant.ProvisioningState.DEPROVISIONING ||
+            tenant.state == Tenant.ProvisioningState.TERRAFORM_DESTROYING ||
             tenant.state == Tenant.ProvisioningState.DELETED) {
             throw new IllegalStateException("Tenant is already being deleted");
         }
@@ -245,15 +229,8 @@ public class TenantService {
             throw new RuntimeException("Failed to trigger tenant cleanup", e);
         }
 
-        // Update state to DELETED
-        tenant.state = Tenant.ProvisioningState.DELETED;
-        tenant.updatedAt = LocalDateTime.now();
-        tenantRepository.update(tenant);
-
-        LOG.infof("✅ Tenant deleted: %s", tenantId);
-
-        // Send deletion email
-        emailService.sendTenantDeletionEmail(tenant.ownerEmail, tenant.name);
+        // Note: The rest of the deletion flow (Terraform destroy, marking as DELETED, sending email)
+        // is handled by WorkflowMonitoringService after Kubernetes cleanup completes
     }
 
     /**
@@ -262,10 +239,11 @@ public class TenantService {
      * It will:
      * 1. Add the owner user to the Identity Platform tenant
      * 2. Trigger the frontend deployment
-     * 
+     *
      * @param tenant The tenant that was successfully provisioned
+     * 
+     * Note: @Transactional removed - MongoDB standalone mode doesn't support transactions
      */
-    @Transactional
     public void completeTenantProvisioning(Tenant tenant) {
         try {
             LOG.infof("🎉 Completing provisioning for tenant: %s", tenant.tenantId);
@@ -355,8 +333,9 @@ public class TenantService {
 
     /**
      * Update tenant state after polling workflow status.
+     * 
+     * Note: @Transactional removed - MongoDB standalone mode doesn't support transactions
      */
-    @Transactional
     public void updateTenantState(Tenant tenant, Tenant.ProvisioningState newState, String errorMessage) {
         tenant.state = newState;
         tenant.errorMessage = errorMessage;
