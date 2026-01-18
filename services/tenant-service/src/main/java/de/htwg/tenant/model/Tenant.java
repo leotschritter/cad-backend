@@ -28,8 +28,16 @@ public class Tenant extends PanacheMongoEntity {
     /**
      * Numeric tenant identifier for namespace (e.g., 1, 2, 3)
      * Used to create namespace: standard-{tenantNumber}
+     * Only used for STANDARD tier
      */
     public Integer tenantNumber;
+
+    /**
+     * Enterprise name for enterprise tier (e.g., "acme-corp", "company-x")
+     * Used to create namespace: enterprise-{enterpriseName}
+     * Only used for ENTERPRISE tier
+     */
+    public String enterpriseName;
 
     /**
      * Frontend subdomain (e.g., "frontend-standard-1.tripico.fun")
@@ -63,9 +71,18 @@ public class Tenant extends PanacheMongoEntity {
     public TenantTier tier = TenantTier.STANDARD;
 
     /**
-     * Kubernetes namespace name (e.g., "standard-1")
+     * Kubernetes namespace name 
+     * Standard: "standard-1", "standard-2", etc.
+     * Enterprise: "enterprise-acme-corp", "enterprise-company-x", etc.
      */
     public String namespace;
+
+    /**
+     * Kubernetes cluster name
+     * Standard: "tripico-cluster" (shared cluster)
+     * Enterprise: "tripico-{enterpriseName}-cluster" (dedicated cluster)
+     */
+    public String clusterName;
 
     /**
      * Identity Platform tenant ID (created via SDK)
@@ -133,6 +150,10 @@ public class Tenant extends PanacheMongoEntity {
 
     public static Tenant findByFrontendDomain(String frontendDomain) {
         return find("frontendDomain", frontendDomain).firstResult();
+    }
+
+    public static Tenant findByEnterpriseName(String enterpriseName) {
+        return find("enterpriseName", enterpriseName).firstResult();
     }
 
     public static long countByState(ProvisioningState state) {

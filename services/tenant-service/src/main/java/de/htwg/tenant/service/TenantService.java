@@ -48,15 +48,22 @@ public class TenantService {
 
     /**
      * Create a new tenant and trigger provisioning workflows.
+     * Supports both STANDARD and ENTERPRISE tiers.
+     * 
      * Steps:
-     * 1. Allocate next available tenant number
+     * 1. Determine tier and allocate identifiers (number for STANDARD, name for ENTERPRISE)
      * 2. Create tenant record in MongoDB
      * 3. Trigger deploy-multi-namespace workflow (creates namespace, deploys services, creates Identity Platform tenant, creates Firestore DB)
      * 4. Trigger deploy-shared-services workflow (ensures shared services are available)
      */
     @Transactional
     public Tenant createTenant(CreateTenantRequest request) {
-        LOG.infof("📝 Creating new tenant: %s", request.getName());
+        LOG.infof("📝 Creating new %s tier tenant: %s", request.getTier(), request.getName());
+
+        // Determine tier
+        Tenant.TenantTier tier = "ENTERPRISE".equals(request.getTier()) 
+            ? Tenant.TenantTier.ENTERPRISE 
+            : Tenant.TenantTier.STANDARD;
 
         // Generate tenant ID from name
         String tenantId = TenantIdGenerator.generateTenantId(request.getName());
@@ -69,30 +76,47 @@ public class TenantService {
             throw new IllegalArgumentException("A tenant with this name already exists");
         }
 
-        // Allocate next tenant number
-        Integer tenantNumber = allocateNextTenantNumber();
-        LOG.infof("Allocated tenant number: %d", tenantNumber);
-
-        // Build namespace, domain, and API Gateway URL
-        String namespace = "standard-" + tenantNumber;
-        String frontendDomain = String.format("frontend-standard-%d.%s", tenantNumber, baseDomain);
-        String apiGatewayUrl = buildApiGatewayUrl(tenantNumber);
-
-        // Create tenant entity
+        // Create tenant entity based on tier
         Tenant tenant = new Tenant();
         tenant.name = request.getName();
         tenant.tenantId = tenantId;
-        tenant.tenantNumber = tenantNumber;
-        tenant.namespace = namespace;
-        tenant.frontendDomain = frontendDomain;
-        tenant.apiGatewayUrl = apiGatewayUrl;
+        tenant.tier = tier;
         tenant.ownerEmail = request.getOwnerEmail();
         tenant.ownerPasswordHash = hashPassword(request.getOwnerPassword());
         tenant.state = Tenant.ProvisioningState.PENDING;
-        tenant.tier = Tenant.TenantTier.STANDARD;
         tenant.firestoreDatabaseId = tenantId;
         tenant.createdAt = LocalDateTime.now();
         tenant.updatedAt = LocalDateTime.now();
+
+        if (tier == Tenant.TenantTier.ENTERPRISE) {
+            // Enterprise tier: use provided enterprise name
+            if (request.getEnterpriseName() == null || request.getEnterpriseName().isEmpty()) {
+                throw new IllegalArgumentException("Enterprise name is required for ENTERPRISE tier");
+            }
+            
+            String enterpriseName = request.getEnterpriseName().toLowerCase();
+            tenant.enterpriseName = enterpriseName;
+            tenant.namespace = "enterprise-" + enterpriseName;
+            tenant.clusterName = "tripico-" + enterpriseName + "-cluster";
+            tenant.frontendDomain = String.format("frontend.%s.%s", enterpriseName, baseDomain);
+            tenant.apiGatewayUrl = String.format("https://api.%s.%s", enterpriseName, baseDomain);
+            
+            LOG.infof("Enterprise tenant config - Namespace: %s, Cluster: %s, Domain: %s", 
+                tenant.namespace, tenant.clusterName, tenant.frontendDomain);
+        } else {
+            // Standard tier: allocate next tenant number
+            Integer tenantNumber = allocateNextTenantNumber();
+            LOG.infof("Allocated tenant number: %d", tenantNumber);
+            
+            tenant.tenantNumber = tenantNumber;
+            tenant.namespace = "standard-" + tenantNumber;
+            tenant.clusterName = cluster; // Use shared cluster from config
+            tenant.frontendDomain = String.format("frontend-standard-%d.%s", tenantNumber, baseDomain);
+            tenant.apiGatewayUrl = buildApiGatewayUrl(tenantNumber);
+            
+            LOG.infof("Standard tenant config - Namespace: %s, Cluster: %s, Domain: %s", 
+                tenant.namespace, tenant.clusterName, tenant.frontendDomain);
+        }
 
         // Persist tenant
         tenantRepository.persist(tenant);
@@ -107,28 +131,53 @@ public class TenantService {
         // 1. deploy-multi-namespace (creates namespace and deploys services)
         // 2. deploy-shared-services (deploys shared services if needed)
         try {
-            // Step 1: Trigger multi-namespace deployment
-            String multiNamespaceDispatchId = githubService.triggerTenantDeployment(
-                tenantNumber,
-                environment,
-                cluster
-            );
+            String multiNamespaceDispatchId;
+            
+            if (tier == Tenant.TenantTier.ENTERPRISE) {
+                // Step 1: Trigger enterprise deployment
+                multiNamespaceDispatchId = githubService.triggerEnterpriseDeployment(
+                    tenant.enterpriseName,
+                    environment,
+                    tenant.clusterName
+                );
+                
+                LOG.infof("✅ Enterprise deployment triggered for tenant: %s (dispatch ID: %s)", 
+                    tenantId, multiNamespaceDispatchId);
+                
+                // For enterprise, also trigger shared services on their dedicated cluster
+                String sharedServicesDispatchId = githubService.triggerSharedServicesDeployment(
+                    environment,
+                    tenant.clusterName,
+                    tenant.enterpriseName
+                );
+                
+                LOG.infof("✅ Enterprise shared services deployment triggered (dispatch ID: %s)", 
+                    sharedServicesDispatchId);
+            } else {
+                // Step 1: Trigger standard deployment
+                multiNamespaceDispatchId = githubService.triggerTenantDeployment(
+                    tenant.tenantNumber,
+                    environment,
+                    tenant.clusterName
+                );
+                
+                LOG.infof("✅ Standard deployment triggered for tenant: %s (dispatch ID: %s)", 
+                    tenantId, multiNamespaceDispatchId);
+                
+                // Step 2: Trigger shared services deployment
+                String sharedServicesDispatchId = githubService.triggerSharedServicesDeployment(
+                    environment,
+                    tenant.clusterName
+                );
+                
+                LOG.infof("✅ Shared services deployment triggered (dispatch ID: %s)", 
+                    sharedServicesDispatchId);
+            }
 
             tenant.state = Tenant.ProvisioningState.PROVISIONING;
             tenant.provisioningDispatchId = multiNamespaceDispatchId;
             tenant.updatedAt = LocalDateTime.now();
             tenantRepository.update(tenant);
-
-            LOG.infof("✅ Multi-namespace deployment triggered for tenant: %s (dispatch ID: %s)", 
-                tenantId, multiNamespaceDispatchId);
-
-            // Step 2: Trigger shared services deployment
-            String sharedServicesDispatchId = githubService.triggerSharedServicesDeployment(
-                environment,
-                cluster
-            );
-
-            LOG.infof("✅ Shared services deployment triggered (dispatch ID: %s)", sharedServicesDispatchId);
 
         } catch (Exception e) {
             LOG.errorf(e, "❌ Failed to trigger deployment workflows for tenant: %s", tenantId);
@@ -241,12 +290,23 @@ public class TenantService {
 
             // Step 2: Trigger frontend deployment
             LOG.infof("🚀 Triggering frontend deployment for tenant: %s", tenant.tenantId);
-            String frontendDispatchId = githubService.triggerFrontendDeployment(
-                tenant.tenantNumber,
-                environment,
-                tenant.apiGatewayUrl,
-                tenant.identityPlatformTenantId
-            );
+            String frontendDispatchId;
+            
+            if (tenant.tier == Tenant.TenantTier.ENTERPRISE) {
+                frontendDispatchId = githubService.triggerEnterpriseFrontendDeployment(
+                    tenant.enterpriseName,
+                    environment,
+                    tenant.apiGatewayUrl,
+                    tenant.identityPlatformTenantId
+                );
+            } else {
+                frontendDispatchId = githubService.triggerFrontendDeployment(
+                    tenant.tenantNumber,
+                    environment,
+                    tenant.apiGatewayUrl,
+                    tenant.identityPlatformTenantId
+                );
+            }
 
             tenant.frontendDeploymentDispatchId = frontendDispatchId;
             tenant.updatedAt = LocalDateTime.now();
