@@ -162,7 +162,7 @@ public class Tenant extends PanacheMongoEntity {
     }
 
     public static Integer findMaxTenantNumber() {
-        Tenant tenant = find("", Sort.descending("tenantNumber"))
+        Tenant tenant = findAll(Sort.descending("tenantNumber"))
             .page(0, 1)
             .firstResult();
         return tenant != null ? tenant.tenantNumber : 0;
