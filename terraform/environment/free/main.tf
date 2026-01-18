@@ -64,6 +64,15 @@ locals {
       namespace    = "shared"
       port         = 8080
     }
+    # Tenant management service (shared across all tiers)
+    tenants = {
+      name         = "tenant-service"
+      ingress_url  = "https://tenant-service.${var.domain_name}"
+      path_prefix  = "/api/v1/tenants"
+      service_name = "tenant-service"
+      namespace    = "default"
+      port         = 8080
+    }
     feed = {
       name         = "recommendation-feed-service"
       ingress_url  = "https://recommendation-freemium.${var.domain_name}"
