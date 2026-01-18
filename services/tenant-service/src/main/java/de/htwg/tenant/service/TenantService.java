@@ -201,6 +201,7 @@ public class TenantService {
 
         // Check if tenant is already being deleted
         if (tenant.state == Tenant.ProvisioningState.DEPROVISIONING ||
+            tenant.state == Tenant.ProvisioningState.TERRAFORM_DESTROYING ||
             tenant.state == Tenant.ProvisioningState.DELETED) {
             throw new IllegalStateException("Tenant is already being deleted");
         }
@@ -228,15 +229,8 @@ public class TenantService {
             throw new RuntimeException("Failed to trigger tenant cleanup", e);
         }
 
-        // Update state to DELETED
-        tenant.state = Tenant.ProvisioningState.DELETED;
-        tenant.updatedAt = LocalDateTime.now();
-        tenantRepository.update(tenant);
-
-        LOG.infof("✅ Tenant deleted: %s", tenantId);
-
-        // Send deletion email
-        emailService.sendTenantDeletionEmail(tenant.ownerEmail, tenant.name);
+        // Note: The rest of the deletion flow (Terraform destroy, marking as DELETED, sending email)
+        // is handled by WorkflowMonitoringService after Kubernetes cleanup completes
     }
 
     /**

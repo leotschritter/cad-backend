@@ -1,20 +1,22 @@
 package de.htwg.tenant.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import de.htwg.tenant.client.GitHubActionsClient;
-import de.htwg.tenant.client.dto.RepositoryDispatchRequest;
-import de.htwg.tenant.client.dto.WorkflowDispatchRequest;
-import de.htwg.tenant.client.dto.WorkflowRun;
-import de.htwg.tenant.client.dto.WorkflowRunsResponse;
+import de.htwg.tenant.client.dto.*;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.ws.rs.core.Response;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.logging.Logger;
 
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
  * Service for interacting with GitHub Actions via repository dispatch.
@@ -410,9 +412,35 @@ public class GitHubService {
      * @return Workflow dispatch ID for tracking
      */
     public String triggerTerraformWorkflow(String tier, Integer tenantNumber, String tenantName) {
+        return triggerTerraformWorkflow("apply", tier, tenantNumber, tenantName);
+    }
+
+    /**
+     * Trigger Terraform destroy workflow to clean up infrastructure for a tenant.
+     * This should be called during tenant deletion.
+     *
+     * @param tier "standard" or "enterprise"
+     * @param tenantNumber The numeric tenant identifier (for standard)
+     * @param tenantName Custom tenant name (for enterprise, optional)
+     * @return Workflow dispatch ID for tracking
+     */
+    public String triggerTerraformDestroy(String tier, Integer tenantNumber, String tenantName) {
+        return triggerTerraformWorkflow("destroy", tier, tenantNumber, tenantName);
+    }
+
+    /**
+     * Internal method to trigger Terraform workflow with specified action.
+     *
+     * @param action "apply" or "destroy"
+     * @param tier "standard" or "enterprise"
+     * @param tenantNumber The numeric tenant identifier
+     * @param tenantName Custom tenant name (for enterprise, optional)
+     * @return Workflow dispatch ID for tracking
+     */
+    private String triggerTerraformWorkflow(String action, String tier, Integer tenantNumber, String tenantName) {
         try {
             Map<String, String> inputs = new HashMap<>();
-            inputs.put("action", "apply");
+            inputs.put("action", action); // "apply" or "destroy"
             inputs.put("environment", tier); // "standard" or "enterprise"
             
             if ("standard".equals(tier)) {
@@ -426,7 +454,7 @@ public class GitHubService {
 
             WorkflowDispatchRequest request = new WorkflowDispatchRequest(branch, inputs);
 
-            LOG.infof("🚀 Triggering Terraform workflow for %s tier (tenant: %s)", tier, 
+            LOG.infof("🚀 Triggering Terraform %s for %s tier (tenant: %s)", action, tier, 
                 tenantName != null ? tenantName : "standard-" + tenantNumber);
 
             githubClient.dispatchWorkflow(
@@ -438,12 +466,12 @@ public class GitHubService {
                 request
             );
 
-            LOG.infof("✅ Terraform workflow triggered successfully");
+            LOG.infof("✅ Terraform %s workflow triggered successfully", action);
             return UUID.randomUUID().toString(); // Return tracking ID
 
         } catch (Exception e) {
-            LOG.errorf(e, "❌ Failed to trigger Terraform workflow");
-            throw new RuntimeException("Failed to trigger Terraform workflow", e);
+            LOG.errorf(e, "❌ Failed to trigger Terraform %s workflow", action);
+            throw new RuntimeException("Failed to trigger Terraform " + action + " workflow", e);
         }
     }
 
@@ -473,6 +501,133 @@ public class GitHubService {
         } catch (Exception e) {
             LOG.errorf(e, "❌ Failed to get Terraform workflow runs");
             return Optional.empty();
+        }
+    }
+
+    /**
+     * Retrieve Terraform outputs from GitHub Actions artifacts.
+     * Downloads the tf-outputs.json artifact and parses it.
+     *
+     * @param tenantName The tenant name (e.g., "standard-1", "enterprise-acme")
+     * @return TerraformOutputs containing api_gateway_url and identity_platform_tenant_id
+     */
+    public Optional<TerraformOutputs> getTerraformOutputs(String tenantName) {
+        try {
+            LOG.infof("📥 Retrieving Terraform outputs for tenant: %s", tenantName);
+            
+            // Get the latest successful Terraform run
+            Optional<WorkflowRun> latestRun = getLatestTerraformRun();
+            if (latestRun.isEmpty()) {
+                LOG.warnf("No Terraform workflow runs found");
+                return Optional.empty();
+            }
+            
+            WorkflowRun run = latestRun.get();
+            if (!"success".equals(run.getConclusion())) {
+                LOG.warnf("Latest Terraform run did not succeed: %s", run.getConclusion());
+                return Optional.empty();
+            }
+            
+            // List artifacts for this workflow run
+            ArtifactsResponse artifactsResponse = githubClient.listArtifacts(
+                repoOwner,
+                repoName,
+                run.getId(),
+                "Bearer " + githubToken,
+                "application/vnd.github+json"
+            );
+            
+            if (artifactsResponse.getArtifacts() == null || artifactsResponse.getArtifacts().isEmpty()) {
+                LOG.warnf("No artifacts found for Terraform run %d", run.getId());
+                return Optional.empty();
+            }
+            
+            // Find the terraform-outputs artifact for this tenant
+            String artifactName = "terraform-outputs-" + tenantName;
+            Artifact terraformArtifact = artifactsResponse.getArtifacts().stream()
+                .filter(a -> artifactName.equals(a.getName()))
+                .findFirst()
+                .orElse(null);
+            
+            if (terraformArtifact == null) {
+                LOG.warnf("Terraform outputs artifact not found: %s", artifactName);
+                return Optional.empty();
+            }
+            
+            LOG.infof("Found artifact: %s (ID: %d)", artifactName, terraformArtifact.getId());
+            
+            // Download and parse the artifact
+            TerraformOutputs outputs = downloadAndParseTerraformOutputs(terraformArtifact);
+            
+            LOG.infof("✅ Retrieved Terraform outputs:");
+            if (outputs.getApiGatewayUrl() != null) {
+                LOG.infof("   API Gateway URL: %s", outputs.getApiGatewayUrl().getValue());
+            }
+            if (outputs.getIdentityPlatformTenantId() != null) {
+                LOG.infof("   Identity Platform Tenant ID: %s", outputs.getIdentityPlatformTenantId().getValue());
+            }
+            
+            return Optional.of(outputs);
+            
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to retrieve Terraform outputs for tenant: %s", tenantName);
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Download and parse Terraform outputs from a GitHub Actions artifact.
+     */
+    private TerraformOutputs downloadAndParseTerraformOutputs(Artifact artifact) throws Exception {
+        // Get the download URL from GitHub API
+        Response response = githubClient.downloadArtifact(
+            repoOwner,
+            repoName,
+            artifact.getId(),
+            "Bearer " + githubToken,
+            "application/vnd.github+json"
+        );
+        
+        // GitHub API returns a redirect to the actual download URL
+        String downloadUrl = response.getLocation().toString();
+        response.close();
+        
+        LOG.debugf("Downloading artifact from: %s", downloadUrl);
+        
+        // Download the ZIP file
+        HttpURLConnection connection = (HttpURLConnection) new URL(downloadUrl).openConnection();
+        connection.setRequestMethod("GET");
+        connection.setInstanceFollowRedirects(true);
+        
+        try (InputStream zipInputStream = connection.getInputStream();
+             ZipInputStream zis = new ZipInputStream(zipInputStream)) {
+            
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                if ("tf-outputs.json".equals(entry.getName())) {
+                    // Read the JSON file
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(zis));
+                    StringBuilder jsonContent = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        jsonContent.append(line);
+                    }
+                    
+                    // Parse JSON
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    TerraformOutputs outputs = objectMapper.readValue(
+                        jsonContent.toString(),
+                        TerraformOutputs.class
+                    );
+                    
+                    return outputs;
+                }
+                zis.closeEntry();
+            }
+            
+            throw new Exception("tf-outputs.json not found in artifact");
+        } finally {
+            connection.disconnect();
         }
     }
 }

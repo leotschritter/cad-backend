@@ -121,6 +121,11 @@ public class Tenant extends PanacheMongoEntity {
     public String terraformDispatchId;
 
     /**
+     * GitHub workflow dispatch event ID for Terraform destroy
+     */
+    public String terraformDestroyDispatchId;
+
+    /**
      * Additional error message if provisioning/deprovisioning failed
      */
     public String errorMessage;
@@ -175,10 +180,11 @@ public class Tenant extends PanacheMongoEntity {
 
     public enum ProvisioningState {
         PENDING,                  // Initial state, not yet started
-        TERRAFORM_PROVISIONING,   // Terraform workflow is running
+        TERRAFORM_PROVISIONING,   // Terraform apply workflow is running
         PROVISIONING,             // Kubernetes/Helm deployment workflow is running
         ACTIVE,                   // Successfully provisioned and running
-        DEPROVISIONING,           // Being deleted
+        DEPROVISIONING,           // Being deleted - Kubernetes cleanup in progress
+        TERRAFORM_DESTROYING,     // Terraform destroy workflow is running
         DELETED,                  // Successfully deleted
         FAILED                    // Provisioning or deprovisioning failed
     }
