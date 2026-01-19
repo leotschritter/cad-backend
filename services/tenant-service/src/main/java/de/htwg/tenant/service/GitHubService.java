@@ -541,10 +541,26 @@ public class GitHubService {
             LOG.infof("Searching through %d workflow runs for artifact: %s", response.getWorkflowRuns().size(), artifactName);
             int checkedRuns = 0;
             int successfulRuns = 0;
+            int inProgressRuns = 0;
+            int failedRuns = 0;
+            
+            // First, check for in-progress runs that might be for this tenant
+            for (WorkflowRun run : response.getWorkflowRuns()) {
+                if (run.getStatus() != null && !"completed".equals(run.getStatus())) {
+                    inProgressRuns++;
+                    LOG.infof("Found in-progress run %d (status: %s, created: %s) - might be for tenant %s", 
+                        run.getId(), run.getStatus(), run.getCreatedAt(), tenantName);
+                }
+            }
+            
+            // Now search through completed runs
             for (WorkflowRun run : response.getWorkflowRuns()) {
                 checkedRuns++;
-                // Only check successful runs
+                // Only check successful runs for artifacts
                 if (!"success".equals(run.getConclusion())) {
+                    if ("failure".equals(run.getConclusion()) || "cancelled".equals(run.getConclusion())) {
+                        failedRuns++;
+                    }
                     LOG.infof("Skipping run %d (status: %s, conclusion: %s, created: %s)", 
                         run.getId(), run.getStatus(), run.getConclusion(), run.getCreatedAt());
                     continue;
@@ -605,12 +621,22 @@ public class GitHubService {
             }
             
             LOG.warnf("❌ Terraform outputs artifact not found: %s", artifactName);
-            LOG.warnf("   Searched %d workflow runs (%d successful runs)", checkedRuns, successfulRuns);
+            LOG.warnf("   Searched %d workflow runs:", checkedRuns);
+            LOG.warnf("     - %d successful runs (checked for artifacts)", successfulRuns);
+            LOG.warnf("     - %d in-progress runs (workflow might still be running)", inProgressRuns);
+            LOG.warnf("     - %d failed/cancelled runs", failedRuns);
             LOG.warnf("   This could mean:");
-            LOG.warnf("   1. The Terraform workflow hasn't completed yet");
-            LOG.warnf("   2. The Terraform workflow failed");
+            LOG.warnf("   1. The Terraform workflow hasn't completed yet (check in-progress runs above)");
+            LOG.warnf("   2. The Terraform workflow failed (check failed runs above)");
             LOG.warnf("   3. The artifact wasn't uploaded (check workflow logs)");
             LOG.warnf("   4. The artifact name doesn't match (expected: %s)", artifactName);
+            LOG.warnf("   5. The workflow run is outside the last 20 runs (increase search range)");
+            
+            // If there are in-progress runs, suggest waiting
+            if (inProgressRuns > 0) {
+                LOG.infof("💡 Found %d in-progress Terraform workflow run(s). The artifact might become available soon.", inProgressRuns);
+            }
+            
             return Optional.empty();
             
         } catch (Exception e) {

@@ -64,6 +64,14 @@ public class WorkflowMonitoringService {
                         ? tenant.enterpriseName 
                         : "standard-" + tenant.tenantNumber;
                     
+                    // Log whether Terraform workflow was triggered
+                    if (tenant.terraformDispatchId != null && !tenant.terraformDispatchId.isEmpty()) {
+                        LOG.infof("  Terraform workflow dispatch ID: %s", tenant.terraformDispatchId);
+                    } else {
+                        LOG.warnf("  ⚠️ No Terraform dispatch ID found for tenant %s - workflow may not have been triggered!", 
+                            tenant.tenantId);
+                    }
+                    
                     // Check if Terraform outputs are available for this specific tenant
                     // If outputs are available, it means Terraform completed successfully
                     Optional<de.htwg.tenant.client.dto.TerraformOutputs> outputs = 

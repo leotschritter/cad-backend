@@ -1,11 +1,13 @@
 package de.htwg.tenant.client.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Terraform outputs from tf-outputs.json artifact.
  * Each output has a "value" field containing the actual value.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TerraformOutputs {
     
     @JsonProperty("api_gateway_url")
