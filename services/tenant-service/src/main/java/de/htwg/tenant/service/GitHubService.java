@@ -507,6 +507,9 @@ public class GitHubService {
     /**
      * Retrieve Terraform outputs from GitHub Actions artifacts.
      * Downloads the tf-outputs.json artifact and parses it.
+     * 
+     * Searches through recent successful Terraform workflow runs to find the one
+     * that contains the artifact for this specific tenant.
      *
      * @param tenantName The tenant name (e.g., "standard-1", "enterprise-acme")
      * @return TerraformOutputs containing api_gateway_url and identity_platform_tenant_id
@@ -515,59 +518,90 @@ public class GitHubService {
         try {
             LOG.infof("📥 Retrieving Terraform outputs for tenant: %s", tenantName);
             
-            // Get the latest successful Terraform run
-            Optional<WorkflowRun> latestRun = getLatestTerraformRun();
-            if (latestRun.isEmpty()) {
+            // Get multiple recent Terraform runs (in case multiple tenants are being provisioned)
+            WorkflowRunsResponse response = githubClient.getWorkflowRuns(
+                repoOwner,
+                repoName,
+                "terraform.yml",
+                "Bearer " + githubToken,
+                "application/vnd.github+json",
+                20  // Check last 20 runs to find the right one
+            );
+            
+            if (response.getWorkflowRuns() == null || response.getWorkflowRuns().isEmpty()) {
                 LOG.warnf("No Terraform workflow runs found");
                 return Optional.empty();
             }
             
-            WorkflowRun run = latestRun.get();
-            if (!"success".equals(run.getConclusion())) {
-                LOG.warnf("Latest Terraform run did not succeed: %s", run.getConclusion());
-                return Optional.empty();
-            }
-            
-            // List artifacts for this workflow run
-            ArtifactsResponse artifactsResponse = githubClient.listArtifacts(
-                repoOwner,
-                repoName,
-                run.getId(),
-                "Bearer " + githubToken,
-                "application/vnd.github+json"
-            );
-            
-            if (artifactsResponse.getArtifacts() == null || artifactsResponse.getArtifacts().isEmpty()) {
-                LOG.warnf("No artifacts found for Terraform run %d", run.getId());
-                return Optional.empty();
-            }
-            
-            // Find the terraform-outputs artifact for this tenant
+            // Find the artifact name we're looking for
             String artifactName = "terraform-outputs-" + tenantName;
-            Artifact terraformArtifact = artifactsResponse.getArtifacts().stream()
-                .filter(a -> artifactName.equals(a.getName()))
-                .findFirst()
-                .orElse(null);
+            LOG.infof("Looking for artifact: %s", artifactName);
             
-            if (terraformArtifact == null) {
-                LOG.warnf("Terraform outputs artifact not found: %s", artifactName);
-                return Optional.empty();
+            // Search through recent successful runs to find the one with our artifact
+            LOG.infof("Searching through %d workflow runs for artifact: %s", response.getWorkflowRuns().size(), artifactName);
+            for (WorkflowRun run : response.getWorkflowRuns()) {
+                // Only check successful runs
+                if (!"success".equals(run.getConclusion())) {
+                    LOG.debugf("Skipping run %d (status: %s, conclusion: %s)", run.getId(), run.getStatus(), run.getConclusion());
+                    continue;
+                }
+                
+                LOG.debugf("Checking run %d (created: %s, conclusion: %s)", run.getId(), run.getCreatedAt(), run.getConclusion());
+                
+                try {
+                    // List artifacts for this workflow run
+                    ArtifactsResponse artifactsResponse = githubClient.listArtifacts(
+                        repoOwner,
+                        repoName,
+                        run.getId(),
+                        "Bearer " + githubToken,
+                        "application/vnd.github+json"
+                    );
+                    
+                    if (artifactsResponse.getArtifacts() == null || artifactsResponse.getArtifacts().isEmpty()) {
+                        LOG.debugf("No artifacts found for Terraform run %d", run.getId());
+                        continue;
+                    }
+                    
+                    // Log all artifacts found for debugging
+                    LOG.debugf("Found %d artifacts in run %d:", artifactsResponse.getArtifacts().size(), run.getId());
+                    for (Artifact a : artifactsResponse.getArtifacts()) {
+                        LOG.debugf("  - %s (ID: %d, size: %d bytes)", a.getName(), a.getId(), a.getSizeInBytes());
+                    }
+                    
+                    // Check if this run has the artifact we're looking for
+                    Artifact terraformArtifact = artifactsResponse.getArtifacts().stream()
+                        .filter(a -> artifactName.equals(a.getName()))
+                        .findFirst()
+                        .orElse(null);
+                    
+                    if (terraformArtifact != null) {
+                        LOG.infof("✅ Found artifact: %s (ID: %d) in workflow run %d", 
+                            artifactName, terraformArtifact.getId(), run.getId());
+                        
+                        // Download and parse the artifact
+                        TerraformOutputs outputs = downloadAndParseTerraformOutputs(terraformArtifact);
+                        
+                        LOG.infof("✅ Retrieved Terraform outputs:");
+                        if (outputs.getApiGatewayUrl() != null) {
+                            LOG.infof("   API Gateway URL: %s", outputs.getApiGatewayUrl().getValue());
+                        }
+                        if (outputs.getIdentityPlatformTenantId() != null) {
+                            LOG.infof("   Identity Platform Tenant ID: %s", outputs.getIdentityPlatformTenantId().getValue());
+                        }
+                        
+                        return Optional.of(outputs);
+                    }
+                    
+                } catch (Exception e) {
+                    LOG.warnf(e, "⚠️ Error checking artifacts for run %d, continuing search", run.getId());
+                    // Continue searching other runs
+                }
             }
             
-            LOG.infof("Found artifact: %s (ID: %d)", artifactName, terraformArtifact.getId());
-            
-            // Download and parse the artifact
-            TerraformOutputs outputs = downloadAndParseTerraformOutputs(terraformArtifact);
-            
-            LOG.infof("✅ Retrieved Terraform outputs:");
-            if (outputs.getApiGatewayUrl() != null) {
-                LOG.infof("   API Gateway URL: %s", outputs.getApiGatewayUrl().getValue());
-            }
-            if (outputs.getIdentityPlatformTenantId() != null) {
-                LOG.infof("   Identity Platform Tenant ID: %s", outputs.getIdentityPlatformTenantId().getValue());
-            }
-            
-            return Optional.of(outputs);
+            LOG.warnf("❌ Terraform outputs artifact not found: %s (searched %d workflow runs)", 
+                artifactName, response.getWorkflowRuns().size());
+            return Optional.empty();
             
         } catch (Exception e) {
             LOG.errorf(e, "❌ Failed to retrieve Terraform outputs for tenant: %s", tenantName);

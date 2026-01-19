@@ -25,6 +25,8 @@ public class TenantResponse {
     private String state;
     private String tier;
     private String errorMessage;
+    private String identityPlatformTenantId;
+    private String apiGatewayUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime activatedAt;
@@ -48,6 +50,15 @@ public class TenantResponse {
         response.setState(tenant.state.toString());
         response.setTier(tenant.tier.toString());
         response.setErrorMessage(tenant.errorMessage);
+        
+        // Only set if available (from Terraform outputs)
+        if (tenant.identityPlatformTenantId != null && !tenant.identityPlatformTenantId.isEmpty()) {
+            response.setIdentityPlatformTenantId(tenant.identityPlatformTenantId);
+        }
+        if (tenant.apiGatewayUrl != null && !tenant.apiGatewayUrl.isEmpty()) {
+            response.setApiGatewayUrl(tenant.apiGatewayUrl);
+        }
+        
         response.setCreatedAt(tenant.createdAt);
         response.setUpdatedAt(tenant.updatedAt);
         response.setActivatedAt(tenant.activatedAt);
