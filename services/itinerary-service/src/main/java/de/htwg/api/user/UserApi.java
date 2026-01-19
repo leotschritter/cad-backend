@@ -23,10 +23,13 @@ import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.security.SecurityRequirement;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.jboss.logging.Logger;
 
 @Path("/user")
 @Tag(name = "User Management", description = "Operations for managing user accounts and profiles")
 public class UserApi {
+
+    private static final Logger LOG = Logger.getLogger(UserApi.class);
 
     private final UserService userService;
     private final ImageStorageService imageStorageService;
@@ -318,12 +321,14 @@ public class UserApi {
             );
             return Response.ok(response).build();
         } catch (IllegalArgumentException e) {
+            LOG.errorf(e, "❌ User not found or invalid request: %s", e.getMessage());
             return Response.status(Response.Status.NOT_FOUND)
                     .entity(e.getMessage())
                     .build();
         } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to upload profile image: %s", e.getMessage());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-                    .entity("An error occurred while uploading the profile image")
+                    .entity("An error occurred while uploading the profile image: " + e.getMessage())
                     .build();
         }
     }

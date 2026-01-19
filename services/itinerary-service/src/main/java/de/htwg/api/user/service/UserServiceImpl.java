@@ -57,24 +57,46 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void updateProfileImage(String email, String imageUrl) {
         Optional<User> userOptional = userRepository.findByEmail(email);
+        User user;
+        
         if (userOptional.isEmpty()) {
-            throw new IllegalArgumentException("User with email " + email + " not found");
+            // Auto-create user if they don't exist (they're authenticated via Identity Platform)
+            String name = email.split("@")[0];
+            user = User.builder()
+                    .email(email)
+                    .name(name)
+                    .build();
+            userRepository.persist(user);
+            log.info("Auto-created user for profile image update: " + email);
+        } else {
+            user = userOptional.get();
         }
 
-        User user = userOptional.get();
-        log.info("user available" + user.getEmail());
+        log.info("Updating profile image for user: " + user.getEmail());
         user.setProfileImageUrl(imageUrl);
         userRepository.persist(user);
     }
 
     @Override
+    @Transactional
     public String getProfileImageUrl(String email) {
         Optional<User> userOptional = userRepository.findByEmail(email);
+        User user;
+        
         if (userOptional.isEmpty()) {
-            throw new IllegalArgumentException("User with email " + email + " not found");
+            // Auto-create user if they don't exist (they're authenticated via Identity Platform)
+            String name = email.split("@")[0];
+            user = User.builder()
+                    .email(email)
+                    .name(name)
+                    .build();
+            userRepository.persist(user);
+            log.info("Auto-created user for profile image retrieval: " + email);
+            return null; // New user has no profile image yet
+        } else {
+            user = userOptional.get();
         }
 
-        User user = userOptional.get();
         String imageUrl = user.getProfileImageUrl();
         
         if (imageUrl == null) {

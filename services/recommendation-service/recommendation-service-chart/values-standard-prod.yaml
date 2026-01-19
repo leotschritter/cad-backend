@@ -42,7 +42,7 @@ neo4j:
 
 neo4jPvc:
   name: neo4j-data-pvc-standard
-  storage: 50Gi  # Larger storage for pro
+  storage: 10Gi  # Reduced from 50Gi to 10Gi
 
 recommendationApi:
   name: recommendation-service

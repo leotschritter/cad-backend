@@ -38,6 +38,9 @@ public class TenantService {
     @Inject
     FirestoreService firestoreService;
 
+    @Inject
+    ItineraryServiceClient itineraryServiceClient;
+
     @ConfigProperty(name = "tenant.base-domain")
     String baseDomain;
 
@@ -296,6 +299,25 @@ public class TenantService {
                 LOG.infof("✅ Owner user added to Identity Platform: %s (UID: %s)", 
                     tenant.ownerEmail, ownerUid);
 
+                // Also register user in itinerary service database via API Gateway
+                if (tenant.apiGatewayUrl != null && !tenant.apiGatewayUrl.isEmpty()) {
+                    LOG.infof("📝 Registering user in itinerary service via API Gateway: %s", tenant.ownerEmail);
+                    boolean registered = itineraryServiceClient.registerUser(
+                        tenant.apiGatewayUrl, 
+                        tenant.ownerEmail, 
+                        null // Name will be extracted from email
+                    );
+                    if (registered) {
+                        LOG.infof("✅ User registered in itinerary service: %s", tenant.ownerEmail);
+                    } else {
+                        LOG.warnf("⚠️ Failed to register user in itinerary service: %s (user may already exist or service unavailable)", 
+                            tenant.ownerEmail);
+                    }
+                } else {
+                    LOG.warnf("⚠️ API Gateway URL not available, skipping user registration for: %s", 
+                        tenant.ownerEmail);
+                }
+
                 // Clear the password hash now that user is created
                 tenant.ownerPasswordHash = null;
                 tenant.updatedAt = LocalDateTime.now();
@@ -304,6 +326,22 @@ public class TenantService {
                 LOG.infof("✅ Owner user already exists in Identity Platform: %s (UID: %s)", 
                     tenant.ownerEmail, tenant.ownerUid);
                 
+                // Also ensure user is registered in itinerary service database via API Gateway
+                if (tenant.apiGatewayUrl != null && !tenant.apiGatewayUrl.isEmpty()) {
+                    LOG.infof("📝 Ensuring user is registered in itinerary service via API Gateway: %s", tenant.ownerEmail);
+                    boolean registered = itineraryServiceClient.registerUser(
+                        tenant.apiGatewayUrl, 
+                        tenant.ownerEmail, 
+                        null // Name will be extracted from email
+                    );
+                    if (registered) {
+                        LOG.infof("✅ User registered/verified in itinerary service: %s", tenant.ownerEmail);
+                    } else {
+                        LOG.warnf("⚠️ Failed to register user in itinerary service: %s (user may already exist or service unavailable)", 
+                            tenant.ownerEmail);
+                    }
+                }
+                
                 // Clear password hash if it still exists (shouldn't happen, but safety check)
                 if (tenant.ownerPasswordHash != null && !tenant.ownerPasswordHash.isEmpty()) {
                     LOG.warnf("⚠️ Password hash still exists for tenant %s even though user is created. Clearing it.", tenant.tenantId);
@@ -311,22 +349,6 @@ public class TenantService {
                     tenant.updatedAt = LocalDateTime.now();
                     tenantRepository.update(tenant);
                 }
-            }
-
-            // Step 1.5: Create required Firestore indexes for comments-likes service
-            // Use firestoreDatabaseId if set, otherwise use "(default)" for standard tenants
-            String firestoreDatabaseId = (tenant.firestoreDatabaseId != null && !tenant.firestoreDatabaseId.isEmpty())
-                    ? tenant.firestoreDatabaseId
-                    : "(default)";
-            
-            LOG.infof("📊 Creating Firestore indexes for database: %s", firestoreDatabaseId);
-            try {
-                firestoreService.createRequiredIndexes(firestoreDatabaseId);
-                LOG.infof("✅ Firestore indexes creation initiated for database: %s", firestoreDatabaseId);
-            } catch (Exception e) {
-                LOG.warnf(e, "⚠️ Failed to create Firestore indexes for database: %s. " +
-                    "Indexes may already exist or will be created automatically when first used.", firestoreDatabaseId);
-                // Don't fail provisioning if index creation fails - indexes can be created later
             }
 
             // Step 2: Trigger frontend deployment (if not already triggered)
@@ -437,6 +459,26 @@ public class TenantService {
         }
         // For production environment
         return String.format("https://api-standard-%d.%s", tenantNumber, baseDomain);
+    }
+
+    /**
+     * Build the itinerary service URL for a tenant.
+     * 
+     * @param tenant The tenant
+     * @return The itinerary service URL (e.g., https://itinerary-standard-1.tripico.fun)
+     */
+    private String buildItineraryServiceUrl(Tenant tenant) {
+        if (tenant.tenantNumber == null) {
+            // Enterprise tier - would need different logic
+            return null;
+        }
+        
+        // For development environment
+        if ("dev".equalsIgnoreCase(environment)) {
+            return String.format("https://itinerary-standard-%d.dev.%s", tenant.tenantNumber, baseDomain);
+        }
+        // For production environment
+        return String.format("https://itinerary-standard-%d.%s", tenant.tenantNumber, baseDomain);
     }
 }
 
