@@ -403,6 +403,41 @@ public class GitHubService {
     }
 
     /**
+     * Get recent workflow runs for the frontend deploy-multi-namespace workflow.
+     * Can be used to check frontend deployment status.
+     */
+    public Optional<WorkflowRun> getLatestFrontendDeploymentRun() {
+        try {
+            if (frontendRepoOwner == null || frontendRepoOwner.isEmpty() || 
+                frontendRepoName == null || frontendRepoName.isEmpty()) {
+                LOG.warnf("Frontend repository not configured, cannot check frontend deployment status");
+                return Optional.empty();
+            }
+            
+            WorkflowRunsResponse response = githubClient.getWorkflowRuns(
+                frontendRepoOwner,
+                frontendRepoName,
+                "deploy-multi-namespace.yml",
+                "Bearer " + githubToken,
+                "application/vnd.github+json",
+                5  // Get last 5 runs
+            );
+
+            if (response.getWorkflowRuns() != null && !response.getWorkflowRuns().isEmpty()) {
+                // Return the most recent run
+                return response.getWorkflowRuns().stream()
+                    .max(Comparator.comparing(WorkflowRun::getCreatedAt));
+            }
+
+            return Optional.empty();
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to get frontend workflow runs");
+            return Optional.empty();
+        }
+    }
+
+    /**
      * Trigger Terraform workflow to provision infrastructure for a tenant.
      * This should be called BEFORE triggering the Kubernetes/Helm deployment.
      *

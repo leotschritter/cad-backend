@@ -3,7 +3,7 @@ name: tenant-service
 description: A Helm chart for the Tenant Service - Travel Planning Application
 type: application
 version: 1.0.0
-appVersion: "1.1.23"
+appVersion: "1.2.0"
 
 keywords:
   - quarkus

@@ -286,18 +286,10 @@ public class WorkflowMonitoringService {
                                 try {
                                     tenantService.completeTenantProvisioning(refreshedTenant);
                                     
-                                    // Update state to ACTIVE
-                                    tenantService.updateTenantState(refreshedTenant, Tenant.ProvisioningState.ACTIVE, null);
-                                    
-                                    // Send activation email
-                                    emailService.sendTenantActivationEmail(
-                                        refreshedTenant.ownerEmail,
-                                        refreshedTenant.name,
-                                        refreshedTenant.frontendDomain,
-                                        refreshedTenant.tenantId
-                                    );
-                                    
-                                    LOG.infof("✅ Tenant activated successfully: %s", refreshedTenant.tenantId);
+                                    // Don't set to ACTIVE or send email yet - wait for frontend deployment to complete
+                                    // The tenant will remain in PROVISIONING state until frontend deployment completes
+                                    // A separate scheduled job will check frontend deployment status and complete activation
+                                    LOG.infof("✅ Backend provisioning completed for tenant: %s. Frontend deployment triggered. Waiting for frontend to complete...", refreshedTenant.tenantId);
                                     
                                 } catch (Exception e) {
                                     LOG.errorf(e, "❌ Failed to complete provisioning for tenant: %s", refreshedTenant.tenantId);
@@ -334,13 +326,8 @@ public class WorkflowMonitoringService {
                             
                             try {
                                 tenantService.completeTenantProvisioning(refreshedTenant);
-                                tenantService.updateTenantState(refreshedTenant, Tenant.ProvisioningState.ACTIVE, null);
-                                emailService.sendTenantActivationEmail(
-                                    refreshedTenant.ownerEmail,
-                                    refreshedTenant.name,
-                                    refreshedTenant.frontendDomain,
-                                    refreshedTenant.tenantId
-                                );
+                                // Don't set to ACTIVE or send email yet - wait for frontend deployment to complete
+                                LOG.infof("✅ Backend provisioning completed for tenant: %s (timeout). Frontend deployment triggered. Waiting for frontend to complete...", refreshedTenant.tenantId);
                             } catch (Exception e) {
                                 LOG.errorf(e, "❌ Failed to complete provisioning after timeout for tenant: %s", refreshedTenant.tenantId);
                             }
@@ -355,12 +342,88 @@ public class WorkflowMonitoringService {
     }
 
     /**
+     * Poll for tenants in PROVISIONING state that have frontend deployment triggered.
+     * When frontend deployment completes successfully, mark tenant as ACTIVE and send activation email.
+     * This runs every 60 seconds.
+     */
+    @Scheduled(every = "60s", delay = 20)
+    void checkFrontendDeploymentTenants() {
+        try {
+            // Get tenants in PROVISIONING state that have frontend deployment triggered
+            List<Tenant> provisioningTenants = tenantService.getTenantsByState(Tenant.ProvisioningState.PROVISIONING);
+            
+            List<Tenant> frontendDeployingTenants = provisioningTenants.stream()
+                .filter(t -> t.frontendDeploymentDispatchId != null && !t.frontendDeploymentDispatchId.isEmpty())
+                .collect(java.util.stream.Collectors.toList());
+            
+            if (!frontendDeployingTenants.isEmpty()) {
+                LOG.infof("🔍 Checking frontend deployment status for %d tenants", frontendDeployingTenants.size());
+                
+                for (Tenant tenant : frontendDeployingTenants) {
+                    LOG.infof("Checking frontend deployment status for tenant %s", tenant.tenantId);
+                    
+                    // Query GitHub API for frontend deployment workflow status
+                    Optional<WorkflowRun> latestRun = githubService.getLatestFrontendDeploymentRun();
+                    
+                    if (latestRun.isPresent()) {
+                        WorkflowRun run = latestRun.get();
+                        String status = run.getStatus();
+                        String conclusion = run.getConclusion();
+                        
+                        LOG.debugf("Latest frontend deployment run status: %s, conclusion: %s", status, conclusion);
+                        
+                        if ("completed".equals(status)) {
+                            if ("success".equals(conclusion)) {
+                                LOG.infof("✅ Frontend deployment completed successfully for tenant: %s", tenant.tenantId);
+                                
+                                // Refresh tenant from database
+                                Tenant refreshedTenant = Tenant.findByTenantId(tenant.tenantId);
+                                if (refreshedTenant == null) {
+                                    LOG.errorf("❌ Tenant not found in database: %s", tenant.tenantId);
+                                    continue;
+                                }
+                                
+                                // Update state to ACTIVE
+                                tenantService.updateTenantState(refreshedTenant, Tenant.ProvisioningState.ACTIVE, null);
+                                
+                                // Send activation email
+                                emailService.sendTenantActivationEmail(
+                                    refreshedTenant.ownerEmail,
+                                    refreshedTenant.name,
+                                    refreshedTenant.frontendDomain,
+                                    refreshedTenant.tenantId
+                                );
+                                
+                                LOG.infof("✅ Tenant activated successfully: %s", refreshedTenant.tenantId);
+                                
+                            } else {
+                                LOG.errorf("❌ Frontend deployment failed for tenant %s: %s", tenant.tenantId, conclusion);
+                                String errorMessage = String.format("Frontend deployment failed with status: %s", conclusion);
+                                tenantService.updateTenantState(tenant, Tenant.ProvisioningState.FAILED, errorMessage);
+                                emailService.sendTenantProvisioningFailedEmail(tenant.ownerEmail, tenant.name, errorMessage);
+                            }
+                        } else {
+                            LOG.debugf("Frontend deployment still in progress for tenant %s (status: %s)", tenant.tenantId, status);
+                        }
+                    } else {
+                        LOG.debugf("No frontend deployment workflow runs found for tenant %s", tenant.tenantId);
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Error checking frontend deployment tenants: %s", e.getMessage());
+        }
+    }
+
+    /**
      * Activate a tenant after backend deployment completes successfully.
      * This triggers:
      * 1. User creation in Identity Platform
      * 2. Frontend deployment
-     * 3. State update to ACTIVE
-     * 4. Activation email
+     * 
+     * Note: State update to ACTIVE and activation email are sent after frontend deployment completes
+     * (handled by checkFrontendDeploymentTenants scheduled job)
      */
     public void activateTenant(String tenantId) {
         try {
@@ -380,18 +443,9 @@ public class WorkflowMonitoringService {
             // Complete provisioning (adds user to Identity Platform and deploys frontend)
             tenantService.completeTenantProvisioning(tenant);
 
-            // Update state to ACTIVE
-            tenantService.updateTenantState(tenant, Tenant.ProvisioningState.ACTIVE, null);
-
-            // Send activation email
-            emailService.sendTenantActivationEmail(
-                tenant.ownerEmail,
-                tenant.name,
-                tenant.frontendDomain,
-                tenant.tenantId
-            );
-
-            LOG.infof("✅ Tenant activated successfully: %s", tenantId);
+            // Don't set to ACTIVE or send email yet - wait for frontend deployment to complete
+            // The checkFrontendDeploymentTenants scheduled job will handle that
+            LOG.infof("✅ Tenant provisioning initiated for: %s. Frontend deployment triggered. Waiting for frontend to complete...", tenantId);
 
         } catch (Exception e) {
             LOG.errorf(e, "❌ Failed to activate tenant: %s", tenantId);
