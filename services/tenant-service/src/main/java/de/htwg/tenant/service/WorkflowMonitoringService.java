@@ -43,6 +43,10 @@ public class WorkflowMonitoringService {
      * Poll for tenants in TERRAFORM_PROVISIONING state and check if Terraform has completed.
      * When Terraform completes successfully, trigger the Kubernetes deployment.
      * This runs every 60 seconds.
+     * 
+     * Instead of checking the latest workflow run (which might be for a different tenant),
+     * we check if Terraform outputs are available for this specific tenant. If outputs are
+     * available, it means the Terraform workflow for this tenant completed successfully.
      */
     @Scheduled(every = "60s", delay = 5)
     void checkTerraformProvisioningTenants() {
@@ -53,28 +57,40 @@ public class WorkflowMonitoringService {
                 LOG.infof("🔍 Checking status of %d tenants in TERRAFORM_PROVISIONING state", terraformTenants.size());
                 
                 for (Tenant tenant : terraformTenants) {
-                    LOG.debugf("Checking Terraform status for tenant %s", tenant.tenantId);
+                    LOG.infof("Checking Terraform status for tenant %s", tenant.tenantId);
                     
-                    // Query GitHub API for Terraform workflow status
-                    Optional<WorkflowRun> latestRun = githubService.getLatestTerraformRun();
+                    // Determine tenant name for artifact lookup
+                    String tenantName = tenant.tier == Tenant.TenantTier.ENTERPRISE 
+                        ? tenant.enterpriseName 
+                        : "standard-" + tenant.tenantNumber;
                     
-                    if (latestRun.isPresent()) {
-                        WorkflowRun run = latestRun.get();
-                        String status = run.getStatus();
-                        String conclusion = run.getConclusion();
+                    // Check if Terraform outputs are available for this specific tenant
+                    // If outputs are available, it means Terraform completed successfully
+                    Optional<de.htwg.tenant.client.dto.TerraformOutputs> outputs = 
+                        githubService.getTerraformOutputs(tenantName);
+                    
+                    if (outputs.isPresent()) {
+                        LOG.infof("✅ Terraform outputs available for tenant: %s, triggering Kubernetes deployment", tenant.tenantId);
+                        triggerKubernetesDeployment(tenant);
+                    } else {
+                        // Outputs not available yet - Terraform workflow might still be running
+                        // or hasn't completed yet. We'll wait and check again in the next scheduled run.
+                        // This is more reliable than checking the latest run, which might be for a different tenant.
                         
-                        LOG.debugf("Latest Terraform run status: %s, conclusion: %s", status, conclusion);
+                        // Check how long the tenant has been in TERRAFORM_PROVISIONING state
+                        // If it's been more than 30 minutes, something might be wrong
+                        java.time.Duration timeSinceProvisioning = java.time.Duration.between(
+                            tenant.createdAt != null ? tenant.createdAt : java.time.LocalDateTime.now().minusHours(1),
+                            java.time.LocalDateTime.now()
+                        );
                         
-                        if ("completed".equals(status)) {
-                            if ("success".equals(conclusion)) {
-                                LOG.infof("✅ Terraform completed successfully for tenant: %s", tenant.tenantId);
-                                triggerKubernetesDeployment(tenant);
-                            } else {
-                                LOG.errorf("❌ Terraform failed for tenant %s: %s", tenant.tenantId, conclusion);
-                                String errorMessage = String.format("Terraform workflow failed with status: %s", conclusion);
-                                tenantService.updateTenantState(tenant, Tenant.ProvisioningState.FAILED, errorMessage);
-                                emailService.sendTenantProvisioningFailedEmail(tenant.ownerEmail, tenant.name, errorMessage);
-                            }
+                        if (timeSinceProvisioning.toMinutes() > 30) {
+                            LOG.warnf("⚠️ Terraform outputs not available for tenant %s after %d minutes. " +
+                                "This might indicate a problem, but will continue waiting.", 
+                                tenant.tenantId, timeSinceProvisioning.toMinutes());
+                        } else {
+                            LOG.debugf("Terraform outputs not yet available for tenant %s (elapsed: %d minutes), will retry", 
+                                tenant.tenantId, timeSinceProvisioning.toMinutes());
                         }
                     }
                 }
