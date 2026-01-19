@@ -115,7 +115,10 @@ public class ItineraryApi {
             ) final ItineraryDto itineraryDto) {
 
         String email = securityContext.getCurrentUserEmail();
-        itineraryService.createItineraryByEmail(itineraryDto, email);
+        String userName = securityContext.getCurrentUser() != null 
+                ? securityContext.getCurrentUser().getName() 
+                : null;
+        itineraryService.createItineraryByEmail(itineraryDto, email, userName);
 
         return Response.ok().build();
     }

@@ -46,13 +46,25 @@ public class ItineraryServiceImpl implements ItineraryService {
 
     @Override
     @Transactional
-    public void createItineraryByEmail(ItineraryDto itineraryDto, String email) {
+    public void createItineraryByEmail(ItineraryDto itineraryDto, String email, String userName) {
         Optional<User> userOptional = userRepository.find("email", email).firstResultOptional();
+        User user;
+        
         if (userOptional.isEmpty()) {
-            throw new IllegalArgumentException("User with email " + email + " not found");
+            // Auto-create user if they don't exist (they're authenticated via Identity Platform)
+            // Use provided name, or extract from email as fallback
+            String name = (userName != null && !userName.trim().isEmpty()) 
+                    ? userName 
+                    : email.split("@")[0];
+            user = User.builder()
+                    .email(email)
+                    .name(name)
+                    .build();
+            userRepository.persist(user);
+        } else {
+            user = userOptional.get();
         }
 
-        User user = userOptional.get();
         Itinerary itinerary = itineraryMapper.toEntity(itineraryDto, user);
         itineraryRepository.persist(itinerary);
     }

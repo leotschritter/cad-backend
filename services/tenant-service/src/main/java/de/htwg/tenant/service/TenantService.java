@@ -35,6 +35,9 @@ public class TenantService {
     @Inject
     IdentityPlatformService identityPlatformService;
 
+    @Inject
+    FirestoreService firestoreService;
+
     @ConfigProperty(name = "tenant.base-domain")
     String baseDomain;
 
@@ -263,62 +266,101 @@ public class TenantService {
                 throw new IllegalStateException("API Gateway URL is not set for tenant: " + tenant.tenantId);
             }
             
-            if (tenant.ownerPasswordHash == null || tenant.ownerPasswordHash.isEmpty()) {
-                LOG.errorf("❌ Owner password hash is missing for tenant: %s", tenant.tenantId);
-                throw new IllegalStateException("Owner password hash is not set for tenant: " + tenant.tenantId);
-            }
+            // Step 1: Add owner user to Identity Platform tenant (if not already created)
+            if (tenant.ownerUid == null || tenant.ownerUid.isEmpty()) {
+                // User doesn't exist yet, need to create it
+                if (tenant.ownerPasswordHash == null || tenant.ownerPasswordHash.isEmpty()) {
+                    LOG.errorf("❌ Owner password hash is missing for tenant: %s", tenant.tenantId);
+                    LOG.errorf("   This usually means the password was already used to create the user, but ownerUid was not saved.");
+                    LOG.errorf("   Check if user %s already exists in Identity Platform tenant %s", 
+                        tenant.ownerEmail, tenant.identityPlatformTenantId);
+                    throw new IllegalStateException("Owner password hash is not set for tenant: " + tenant.tenantId + 
+                        ". User may have already been created - check ownerUid field.");
+                }
 
-            // Decode the password from base64 (temporary storage)
-            String password = new String(java.util.Base64.getDecoder().decode(tenant.ownerPasswordHash));
+                // Decode the password from base64 (temporary storage)
+                String password = new String(java.util.Base64.getDecoder().decode(tenant.ownerPasswordHash));
 
-            // Step 1: Add owner user to Identity Platform tenant
-            LOG.infof("👤 Adding owner user to Identity Platform tenant: %s (tenant: %s)", 
-                tenant.ownerEmail, tenant.identityPlatformTenantId);
-            String ownerUid = identityPlatformService.addUserToTenant(
-                tenant.identityPlatformTenantId,
-                tenant.ownerEmail,
-                password
-            );
-            
-            tenant.ownerUid = ownerUid;
-        tenant.updatedAt = LocalDateTime.now();
-        tenantRepository.update(tenant);
-
-            LOG.infof("✅ Owner user added to Identity Platform: %s (UID: %s)", 
-                tenant.ownerEmail, ownerUid);
-
-            // Step 2: Trigger frontend deployment
-            LOG.infof("🚀 Triggering frontend deployment for tenant: %s", tenant.tenantId);
-            LOG.infof("   Using Identity Platform Tenant ID: %s", tenant.identityPlatformTenantId);
-            LOG.infof("   Using API Gateway URL: %s", tenant.apiGatewayUrl);
-            String frontendDispatchId;
-            
-            if (tenant.tier == Tenant.TenantTier.ENTERPRISE) {
-                frontendDispatchId = githubService.triggerEnterpriseFrontendDeployment(
-                    tenant.enterpriseName,
-                    environment,
-                    tenant.apiGatewayUrl,
-                    tenant.identityPlatformTenantId
+                LOG.infof("👤 Adding owner user to Identity Platform tenant: %s (tenant: %s)", 
+                    tenant.ownerEmail, tenant.identityPlatformTenantId);
+                String ownerUid = identityPlatformService.addUserToTenant(
+                    tenant.identityPlatformTenantId,
+                    tenant.ownerEmail,
+                    password
                 );
+                
+                tenant.ownerUid = ownerUid;
+                tenant.updatedAt = LocalDateTime.now();
+                tenantRepository.update(tenant);
+
+                LOG.infof("✅ Owner user added to Identity Platform: %s (UID: %s)", 
+                    tenant.ownerEmail, ownerUid);
+
+                // Clear the password hash now that user is created
+                tenant.ownerPasswordHash = null;
+                tenant.updatedAt = LocalDateTime.now();
+                tenantRepository.update(tenant);
             } else {
-                frontendDispatchId = githubService.triggerFrontendDeployment(
-                    tenant.tenantNumber,
-                    environment,
-                    tenant.apiGatewayUrl,
-                    tenant.identityPlatformTenantId
-                );
+                LOG.infof("✅ Owner user already exists in Identity Platform: %s (UID: %s)", 
+                    tenant.ownerEmail, tenant.ownerUid);
+                
+                // Clear password hash if it still exists (shouldn't happen, but safety check)
+                if (tenant.ownerPasswordHash != null && !tenant.ownerPasswordHash.isEmpty()) {
+                    LOG.warnf("⚠️ Password hash still exists for tenant %s even though user is created. Clearing it.", tenant.tenantId);
+                    tenant.ownerPasswordHash = null;
+                    tenant.updatedAt = LocalDateTime.now();
+                    tenantRepository.update(tenant);
+                }
             }
 
-            tenant.frontendDeploymentDispatchId = frontendDispatchId;
-            tenant.updatedAt = LocalDateTime.now();
-            tenantRepository.update(tenant);
+            // Step 1.5: Create required Firestore indexes for comments-likes service
+            // Use firestoreDatabaseId if set, otherwise use "(default)" for standard tenants
+            String firestoreDatabaseId = (tenant.firestoreDatabaseId != null && !tenant.firestoreDatabaseId.isEmpty())
+                    ? tenant.firestoreDatabaseId
+                    : "(default)";
+            
+            LOG.infof("📊 Creating Firestore indexes for database: %s", firestoreDatabaseId);
+            try {
+                firestoreService.createRequiredIndexes(firestoreDatabaseId);
+                LOG.infof("✅ Firestore indexes creation initiated for database: %s", firestoreDatabaseId);
+            } catch (Exception e) {
+                LOG.warnf(e, "⚠️ Failed to create Firestore indexes for database: %s. " +
+                    "Indexes may already exist or will be created automatically when first used.", firestoreDatabaseId);
+                // Don't fail provisioning if index creation fails - indexes can be created later
+            }
 
-            LOG.infof("✅ Frontend deployment triggered successfully");
+            // Step 2: Trigger frontend deployment (if not already triggered)
+            if (tenant.frontendDeploymentDispatchId == null || tenant.frontendDeploymentDispatchId.isEmpty()) {
+                LOG.infof("🚀 Triggering frontend deployment for tenant: %s", tenant.tenantId);
+                LOG.infof("   Using Identity Platform Tenant ID: %s", tenant.identityPlatformTenantId);
+                LOG.infof("   Using API Gateway URL: %s", tenant.apiGatewayUrl);
+                String frontendDispatchId;
+                
+                if (tenant.tier == Tenant.TenantTier.ENTERPRISE) {
+                    frontendDispatchId = githubService.triggerEnterpriseFrontendDeployment(
+                        tenant.enterpriseName,
+                        environment,
+                        tenant.apiGatewayUrl,
+                        tenant.identityPlatformTenantId
+                    );
+                } else {
+                    frontendDispatchId = githubService.triggerFrontendDeployment(
+                        tenant.tenantNumber,
+                        environment,
+                        tenant.apiGatewayUrl,
+                        tenant.identityPlatformTenantId
+                    );
+                }
 
-            // Clear the password hash now that user is created
-            tenant.ownerPasswordHash = null;
-            tenant.updatedAt = LocalDateTime.now();
-            tenantRepository.update(tenant);
+                tenant.frontendDeploymentDispatchId = frontendDispatchId;
+                tenant.updatedAt = LocalDateTime.now();
+                tenantRepository.update(tenant);
+
+                LOG.infof("✅ Frontend deployment triggered successfully");
+            } else {
+                LOG.infof("✅ Frontend deployment already triggered for tenant: %s (dispatch ID: %s)", 
+                    tenant.tenantId, tenant.frontendDeploymentDispatchId);
+            }
 
             LOG.infof("🎉 Tenant provisioning completed successfully: %s", tenant.tenantId);
 
