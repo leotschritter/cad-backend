@@ -416,6 +416,19 @@ public class WorkflowMonitoringService {
                 for (Tenant tenant : deprovisioningTenants) {
                     LOG.debugf("Checking Kubernetes cleanup status for tenant %s", tenant.tenantId);
                     
+                    // Check if Terraform destroy has already been triggered
+                    if (tenant.terraformDestroyDispatchId != null && !tenant.terraformDestroyDispatchId.isEmpty()) {
+                        LOG.debugf("Terraform destroy already triggered for tenant %s (dispatch ID: %s), skipping", 
+                            tenant.tenantId, tenant.terraformDestroyDispatchId);
+                        continue;
+                    }
+                    
+                    // Check if tenant is already in TERRAFORM_DESTROYING state (shouldn't happen, but safety check)
+                    if (tenant.state == Tenant.ProvisioningState.TERRAFORM_DESTROYING) {
+                        LOG.debugf("Tenant %s is already in TERRAFORM_DESTROYING state, skipping", tenant.tenantId);
+                        continue;
+                    }
+                    
                     // Query GitHub API for cleanup-tenant workflow status
                     // The cleanup workflow is triggered via repository_dispatch with event type "cleanup-tenant"
                     // We need to check the latest workflow runs to see if cleanup completed
@@ -499,27 +512,47 @@ public class WorkflowMonitoringService {
      */
     public void triggerTerraformDestroyManually(Tenant tenant) {
         try {
-            String tier = tenant.tier == Tenant.TenantTier.ENTERPRISE ? "enterprise" : "standard";
-            String tenantName = tenant.tier == Tenant.TenantTier.ENTERPRISE 
-                ? tenant.enterpriseName 
+            // Refresh tenant from database to get latest state
+            Tenant refreshedTenant = Tenant.findByTenantId(tenant.tenantId);
+            if (refreshedTenant == null) {
+                throw new IllegalArgumentException("Tenant not found: " + tenant.tenantId);
+            }
+            
+            // Check if Terraform destroy has already been triggered
+            if (refreshedTenant.terraformDestroyDispatchId != null && !refreshedTenant.terraformDestroyDispatchId.isEmpty()) {
+                LOG.warnf("⚠️ Terraform destroy already triggered for tenant %s (dispatch ID: %s), skipping duplicate trigger", 
+                    refreshedTenant.tenantId, refreshedTenant.terraformDestroyDispatchId);
+                return;
+            }
+            
+            // Check if tenant is already in TERRAFORM_DESTROYING state
+            if (refreshedTenant.state == Tenant.ProvisioningState.TERRAFORM_DESTROYING) {
+                LOG.warnf("⚠️ Tenant %s is already in TERRAFORM_DESTROYING state, skipping duplicate trigger", 
+                    refreshedTenant.tenantId);
+                return;
+            }
+            
+            String tier = refreshedTenant.tier == Tenant.TenantTier.ENTERPRISE ? "enterprise" : "standard";
+            String tenantName = refreshedTenant.tier == Tenant.TenantTier.ENTERPRISE 
+                ? refreshedTenant.enterpriseName 
                 : null;
             
-            LOG.infof("🚀 Triggering Terraform destroy for tenant: %s", tenant.tenantId);
+            LOG.infof("🚀 Triggering Terraform destroy for tenant: %s", refreshedTenant.tenantId);
             
             String destroyDispatchId = githubService.triggerTerraformDestroy(
                 tier,
-                tenant.tenantNumber,
+                refreshedTenant.tenantNumber,
                 tenantName
             );
             
             // Update tenant state to TERRAFORM_DESTROYING
-            tenant.state = Tenant.ProvisioningState.TERRAFORM_DESTROYING;
-            tenant.terraformDestroyDispatchId = destroyDispatchId;
-            tenant.updatedAt = java.time.LocalDateTime.now();
-            tenantRepository.update(tenant);
+            refreshedTenant.state = Tenant.ProvisioningState.TERRAFORM_DESTROYING;
+            refreshedTenant.terraformDestroyDispatchId = destroyDispatchId;
+            refreshedTenant.updatedAt = java.time.LocalDateTime.now();
+            tenantRepository.update(refreshedTenant);
             
             LOG.infof("✅ Terraform destroy triggered for tenant: %s (dispatch ID: %s)", 
-                tenant.tenantId, destroyDispatchId);
+                refreshedTenant.tenantId, destroyDispatchId);
             
         } catch (Exception e) {
             LOG.errorf(e, "❌ Failed to trigger Terraform destroy for tenant: %s", tenant.tenantId);

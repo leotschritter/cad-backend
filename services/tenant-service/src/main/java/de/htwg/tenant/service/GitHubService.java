@@ -539,14 +539,19 @@ public class GitHubService {
             
             // Search through recent successful runs to find the one with our artifact
             LOG.infof("Searching through %d workflow runs for artifact: %s", response.getWorkflowRuns().size(), artifactName);
+            int checkedRuns = 0;
+            int successfulRuns = 0;
             for (WorkflowRun run : response.getWorkflowRuns()) {
+                checkedRuns++;
                 // Only check successful runs
                 if (!"success".equals(run.getConclusion())) {
-                    LOG.debugf("Skipping run %d (status: %s, conclusion: %s)", run.getId(), run.getStatus(), run.getConclusion());
+                    LOG.infof("Skipping run %d (status: %s, conclusion: %s, created: %s)", 
+                        run.getId(), run.getStatus(), run.getConclusion(), run.getCreatedAt());
                     continue;
                 }
                 
-                LOG.debugf("Checking run %d (created: %s, conclusion: %s)", run.getId(), run.getCreatedAt(), run.getConclusion());
+                successfulRuns++;
+                LOG.infof("Checking successful run %d (created: %s)", run.getId(), run.getCreatedAt());
                 
                 try {
                     // List artifacts for this workflow run
@@ -559,14 +564,14 @@ public class GitHubService {
                     );
                     
                     if (artifactsResponse.getArtifacts() == null || artifactsResponse.getArtifacts().isEmpty()) {
-                        LOG.debugf("No artifacts found for Terraform run %d", run.getId());
+                        LOG.infof("No artifacts found for Terraform run %d", run.getId());
                         continue;
                     }
                     
                     // Log all artifacts found for debugging
-                    LOG.debugf("Found %d artifacts in run %d:", artifactsResponse.getArtifacts().size(), run.getId());
+                    LOG.infof("Found %d artifacts in run %d:", artifactsResponse.getArtifacts().size(), run.getId());
                     for (Artifact a : artifactsResponse.getArtifacts()) {
-                        LOG.debugf("  - %s (ID: %d, size: %d bytes)", a.getName(), a.getId(), a.getSizeInBytes());
+                        LOG.infof("  - %s (ID: %d, size: %d bytes)", a.getName(), a.getId(), a.getSizeInBytes());
                     }
                     
                     // Check if this run has the artifact we're looking for
@@ -599,8 +604,13 @@ public class GitHubService {
                 }
             }
             
-            LOG.warnf("❌ Terraform outputs artifact not found: %s (searched %d workflow runs)", 
-                artifactName, response.getWorkflowRuns().size());
+            LOG.warnf("❌ Terraform outputs artifact not found: %s", artifactName);
+            LOG.warnf("   Searched %d workflow runs (%d successful runs)", checkedRuns, successfulRuns);
+            LOG.warnf("   This could mean:");
+            LOG.warnf("   1. The Terraform workflow hasn't completed yet");
+            LOG.warnf("   2. The Terraform workflow failed");
+            LOG.warnf("   3. The artifact wasn't uploaded (check workflow logs)");
+            LOG.warnf("   4. The artifact name doesn't match (expected: %s)", artifactName);
             return Optional.empty();
             
         } catch (Exception e) {
