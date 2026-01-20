@@ -31,7 +31,7 @@ postgres:
 
 postgresPvc:
   name: weather-postgres-data-pvc
-  storage: 20Gi  # Increased for enterprise
+  storage: 10Gi  # Reduced to 10Gi for pod capacity
 
 weatherForecastApi:
   name: weather-forecast-service
@@ -96,7 +96,7 @@ weatherForecastConfig:
     language: "en"
     units: "metric"
   db:
-    url: "jdbc:postgresql://weather-postgres.default.svc.cluster.local:5432/weather_forecast"
+    url: "jdbc:postgresql://weather-postgres:5432/weather_forecast"
 
 ingress:
   name: weather-forecast-ingress

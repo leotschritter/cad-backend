@@ -44,7 +44,7 @@ neo4j:
 
 neo4jPvc:
   name: neo4j-data-pvc
-  storage: 20Gi  # More storage for enterprise
+  storage: 10Gi  # Reduced to 10Gi for pod capacity
 
 recommendationApi:
   name: recommendation-service
