@@ -119,7 +119,7 @@ public class WorkflowMonitoringService {
      * - api_gateway_url (the actual GCP API Gateway URL)
      * - identity_platform_tenant_id (the actual Identity Platform tenant ID)
      */
-    private void triggerKubernetesDeployment(Tenant tenant) {
+    public void triggerKubernetesDeployment(Tenant tenant) {
         try {
             // Retrieve Terraform outputs from GitHub Actions artifacts
             String tenantName = tenant.tier == Tenant.TenantTier.ENTERPRISE 

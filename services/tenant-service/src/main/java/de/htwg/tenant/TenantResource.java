@@ -330,6 +330,44 @@ public class TenantResource {
     }
 
     /**
+     * Retrigger a failed tenant deployment.
+     * Automatically determines where the tenant failed and retriggers from the appropriate stage.
+     */
+    @POST
+    @Path("/{tenantId}/retrigger")
+    @Operation(summary = "Retrigger failed tenant deployment", 
+               description = "Retriggers a failed tenant deployment from the appropriate stage based on current tenant state")
+    public Response retriggerFailedTenant(@PathParam("tenantId") String tenantId) {
+        try {
+            LOG.infof("🔄 Received retrigger request for tenant: %s", tenantId);
+            
+            tenantService.retriggerFailedTenant(tenantId);
+            
+            return Response.ok()
+                .entity(new SuccessResponse("Tenant deployment retriggered successfully. The provisioning process will resume from the appropriate stage."))
+                .build();
+
+        } catch (IllegalArgumentException e) {
+            LOG.warnf("⚠️ Invalid retrigger request: %s", e.getMessage());
+            return Response.status(Response.Status.NOT_FOUND)
+                .entity(new ErrorResponse(e.getMessage()))
+                .build();
+
+        } catch (IllegalStateException e) {
+            LOG.warnf("⚠️ Invalid state for retrigger: %s", e.getMessage());
+            return Response.status(Response.Status.CONFLICT)
+                .entity(new ErrorResponse(e.getMessage()))
+                .build();
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to retrigger tenant %s: %s", tenantId, e.getMessage());
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(new ErrorResponse("Failed to retrigger tenant deployment: " + e.getMessage()))
+                .build();
+        }
+    }
+
+    /**
      * Health check endpoint.
      */
     @GET
