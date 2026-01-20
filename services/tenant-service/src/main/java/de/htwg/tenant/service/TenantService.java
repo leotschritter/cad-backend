@@ -401,15 +401,15 @@ public class TenantService {
     }
 
     /**
-     * Retrigger a failed tenant deployment from the appropriate stage.
-     * Determines where the tenant failed and retriggers from that point.
+     * Retrigger a failed tenant deployment from the beginning.
+     * Always restarts provisioning from Terraform, regardless of where it failed.
      * 
      * @param tenantId The tenant ID to retrigger
      * @throws IllegalArgumentException if tenant not found or not in FAILED state
      * @throws IllegalStateException if tenant state is invalid for retrigger
      */
     public void retriggerFailedTenant(String tenantId) {
-        LOG.infof("🔄 Retriggering failed tenant deployment: %s", tenantId);
+        LOG.infof("🔄 Retriggering failed tenant deployment from the beginning: %s", tenantId);
         
         Tenant tenant = Tenant.findByTenantId(tenantId);
         if (tenant == null) {
@@ -420,73 +420,34 @@ public class TenantService {
             throw new IllegalStateException("Tenant must be in FAILED state to retrigger. Current state: " + tenant.state);
         }
         
-        // Determine where the tenant failed and retrigger from the appropriate point
-        // 1. If Terraform outputs are not available -> retrigger Terraform
-        // 2. If Terraform outputs are available but backend not deployed -> retrigger backend deployment
-        // 3. If backend deployed but frontend not deployed -> retrigger frontend deployment
+        // Always restart from Terraform provisioning, regardless of where it failed
+        LOG.infof("🔄 Retriggering Terraform workflow for tenant: %s (restarting from beginning)", tenantId);
         
-        boolean hasTerraformOutputs = tenant.apiGatewayUrl != null && !tenant.apiGatewayUrl.isEmpty() 
-            && tenant.identityPlatformTenantId != null && !tenant.identityPlatformTenantId.isEmpty()
-            && !tenant.identityPlatformTenantId.equals(tenant.tenantId); // Not placeholder
-        
-        boolean hasBackendDeployment = tenant.provisioningDispatchId != null && !tenant.provisioningDispatchId.isEmpty();
-        boolean hasFrontendDeployment = tenant.frontendDeploymentDispatchId != null && !tenant.frontendDeploymentDispatchId.isEmpty();
-        
-        LOG.infof("Tenant status - Terraform outputs: %s, Backend deployment: %s, Frontend deployment: %s", 
-            hasTerraformOutputs, hasBackendDeployment, hasFrontendDeployment);
-        
-        if (!hasTerraformOutputs) {
-            // Retrigger Terraform
-            LOG.infof("🔄 Retriggering Terraform workflow for tenant: %s", tenantId);
-            String terraformDispatchId;
-            
-            if (tenant.tier == Tenant.TenantTier.ENTERPRISE) {
-                terraformDispatchId = githubService.triggerTerraformWorkflow(
-                    "enterprise",
-                    tenant.tenantNumber,
-                    tenant.enterpriseName
-                );
-            } else {
-                terraformDispatchId = githubService.triggerTerraformWorkflow(
-                    "standard",
-                    tenant.tenantNumber,
-                    null
-                );
-            }
-            
-            tenant.state = Tenant.ProvisioningState.TERRAFORM_PROVISIONING;
-            tenant.terraformDispatchId = terraformDispatchId;
-            tenant.errorMessage = null; // Clear error message
-            tenant.updatedAt = LocalDateTime.now();
-            tenantRepository.update(tenant);
-            
-            LOG.infof("✅ Terraform workflow retriggered for tenant: %s (dispatch ID: %s)", tenantId, terraformDispatchId);
-            
-        } else if (!hasBackendDeployment) {
-            // Retrigger backend deployment (Terraform completed but backend not deployed)
-            LOG.infof("🔄 Retriggering backend deployment for tenant: %s", tenantId);
-            
-            // Use WorkflowMonitoringService to trigger Kubernetes deployment
-            // This will retrieve Terraform outputs and trigger the deployment
-            workflowMonitoringService.triggerKubernetesDeployment(tenant);
-            
-            LOG.infof("✅ Backend deployment retriggered for tenant: %s", tenantId);
-            
-        } else if (!hasFrontendDeployment) {
-            // Retrigger frontend deployment (Backend deployed but frontend not deployed)
-            LOG.infof("🔄 Retriggering frontend deployment for tenant: %s", tenantId);
-            
-            // Complete provisioning which will trigger frontend deployment
-            completeTenantProvisioning(tenant);
-            
-            LOG.infof("✅ Frontend deployment retriggered for tenant: %s", tenantId);
-            
+        String terraformDispatchId;
+        if (tenant.tier == Tenant.TenantTier.ENTERPRISE) {
+            terraformDispatchId = githubService.triggerTerraformWorkflow(
+                "enterprise",
+                tenant.tenantNumber,
+                tenant.enterpriseName
+            );
         } else {
-            // All deployments have been triggered, but tenant is still in FAILED state
-            // This shouldn't happen, but if it does, try to complete provisioning again
-            LOG.warnf("⚠️ All deployments appear to have been triggered for tenant %s, but tenant is still FAILED. Attempting to complete provisioning...", tenantId);
-            completeTenantProvisioning(tenant);
+            terraformDispatchId = githubService.triggerTerraformWorkflow(
+                "standard",
+                tenant.tenantNumber,
+                null
+            );
         }
+        
+        // Reset tenant state to start from the beginning
+        tenant.state = Tenant.ProvisioningState.TERRAFORM_PROVISIONING;
+        tenant.terraformDispatchId = terraformDispatchId;
+        tenant.provisioningDispatchId = null; // Clear backend deployment ID
+        tenant.frontendDeploymentDispatchId = null; // Clear frontend deployment ID
+        tenant.errorMessage = null; // Clear error message
+        tenant.updatedAt = LocalDateTime.now();
+        tenantRepository.update(tenant);
+        
+        LOG.infof("✅ Tenant provisioning restarted from beginning for tenant: %s (dispatch ID: %s)", tenantId, terraformDispatchId);
     }
 
     /**

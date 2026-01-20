@@ -331,12 +331,12 @@ public class TenantResource {
 
     /**
      * Retrigger a failed tenant deployment.
-     * Automatically determines where the tenant failed and retriggers from the appropriate stage.
+     * Always restarts provisioning from the beginning (Terraform), regardless of where it failed.
      */
     @POST
     @Path("/{tenantId}/retrigger")
     @Operation(summary = "Retrigger failed tenant deployment", 
-               description = "Retriggers a failed tenant deployment from the appropriate stage based on current tenant state")
+               description = "Retriggers a failed tenant deployment from the beginning (Terraform provisioning). All previous deployment state is cleared.")
     public Response retriggerFailedTenant(@PathParam("tenantId") String tenantId) {
         try {
             LOG.infof("🔄 Received retrigger request for tenant: %s", tenantId);
@@ -344,7 +344,7 @@ public class TenantResource {
             tenantService.retriggerFailedTenant(tenantId);
             
             return Response.ok()
-                .entity(new SuccessResponse("Tenant deployment retriggered successfully. The provisioning process will resume from the appropriate stage."))
+                .entity(new SuccessResponse("Tenant deployment retriggered successfully. Provisioning will restart from the beginning (Terraform)."))
                 .build();
 
         } catch (IllegalArgumentException e) {
