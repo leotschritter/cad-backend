@@ -287,6 +287,9 @@ resource "helm_release" "ingress_nginx" {
   create_namespace = true
   replace          = true
   force_update     = true
+  timeout          = 600  # 10 minutes timeout
+  wait             = true  # Wait for release to be ready
+  wait_for_jobs    = true  # Wait for jobs to complete
 
   values = [yamlencode({
     controller = {

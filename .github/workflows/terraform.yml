@@ -444,12 +444,29 @@ jobs:
             RESOURCE_ADDR="google_identity_platform_config.default"
           fi
 
-          if ! terraform state list 2>/dev/null | grep -q "^${RESOURCE_ADDR}$"; then
-            echo "Identity Platform config not in state, attempting to import..."
-            timeout 30 terraform import "$RESOURCE_ADDR" "projects/${PROJECT_ID}/config" \
-              || echo "Config import failed or already exists - continuing"
+          # Check if resource is already in Terraform state
+          if terraform state list 2>/dev/null | grep -q "^${RESOURCE_ADDR}$"; then
+            echo "✅ Identity Platform config already in Terraform state"
+            exit 0
+          fi
+
+          # Check if Identity Platform is already enabled in GCP
+          echo "Checking if Identity Platform is already enabled..."
+          if gcloud identity config describe --project="$PROJECT_ID" 2>/dev/null | grep -q "name:"; then
+            echo "Identity Platform config exists in GCP, attempting to import..."
+            # Try to import with retries
+            for i in 1 2 3; do
+              if terraform import "$RESOURCE_ADDR" "projects/${PROJECT_ID}/config" 2>&1; then
+                echo "✅ Successfully imported Identity Platform config"
+                exit 0
+              else
+                echo "⚠️ Import attempt $i failed, retrying..."
+                sleep 2
+              fi
+            done
+            echo "⚠️ Import failed after 3 attempts, but Identity Platform is enabled - Terraform will handle this"
           else
-            echo "Identity Platform config already in Terraform state"
+            echo "Identity Platform config does not exist in GCP, Terraform will create it"
           fi
 
       - name: Import existing Identity Platform tenant (standard/enterprise only)
