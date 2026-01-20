@@ -194,15 +194,8 @@ public class WorkflowMonitoringService {
                     tenant.tenantId, multiNamespaceDispatchId);
                 LOG.infof("   Using Identity Platform Tenant ID: %s", tenant.identityPlatformTenantId);
                 
-                // Trigger shared services on dedicated cluster
-                String sharedServicesDispatchId = githubService.triggerSharedServicesDeployment(
-                    environment,
-                    tenant.clusterName,
-                    tenant.enterpriseName
-                );
-                
-                LOG.infof("✅ Enterprise shared services deployment triggered (dispatch ID: %s)", 
-                    sharedServicesDispatchId);
+                // Note: Shared services deployment is NOT triggered for enterprise tier
+                // Enterprise tenants have their own dedicated cluster and services
             } else {
                 // Trigger standard deployment
                 LOG.infof("🚀 Triggering standard deployment with Identity Platform Tenant ID: %s", 
