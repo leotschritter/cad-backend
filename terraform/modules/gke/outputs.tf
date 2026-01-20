@@ -13,6 +13,11 @@ output "gke_cluster_endpoint" {
   value       = google_container_cluster.main.endpoint
 }
 
+output "gke_cluster_ca_certificate" {
+  description = "The CA certificate of the GKE cluster"
+  value       = google_container_cluster.main.master_auth[0].cluster_ca_certificate
+}
+
 output "gke_network_name" {
   description = "The name of the GKE network"
   value       = google_compute_network.gke_network.name

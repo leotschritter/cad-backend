@@ -48,8 +48,12 @@ provider "google-beta" {
   billing_project       = var.project_id
 }
 
+data "google_client_config" "default" {}
+
 provider "helm" {
   kubernetes {
-    config_path = pathexpand("~/.kube/config")
+    host                   = "https://${module.gke.gke_cluster_endpoint}"
+    token                  = data.google_client_config.default.access_token
+    cluster_ca_certificate = base64decode(module.gke.gke_cluster_ca_certificate)
   }
 }
