@@ -13,7 +13,7 @@ ingress:
 
 # Higher availability and resources for production
 travelWarningsApi:
-  replicas: 2
+  replicas: 1
   image: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/travel-warnings:latest
 
   resources:

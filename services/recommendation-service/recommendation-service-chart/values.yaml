@@ -102,8 +102,8 @@ recommendationConfig:
 # Autoscaling configuration
 autoscaling:
   enabled: true
-  minReplicas: 2
-  maxReplicas: 10
+  minReplicas: 1
+  maxReplicas: 2
   targetCPUUtilizationPercentage: 70
   # targetMemoryUtilizationPercentage: 80
 

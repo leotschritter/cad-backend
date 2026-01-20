@@ -52,9 +52,9 @@ resources:
     memory: 512Mi
 
 autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 5  # Lower max for freemium
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
   targetCPUUtilizationPercentage: 70
 
 # Quarkus application configuration

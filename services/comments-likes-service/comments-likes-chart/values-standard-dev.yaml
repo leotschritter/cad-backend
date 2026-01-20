@@ -66,9 +66,9 @@ resources:
     memory: 256Mi # Erhöht
 
 autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 10
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
   targetCPUUtilizationPercentage: 70
 
 # Quarkus application configuration

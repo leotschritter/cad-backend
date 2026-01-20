@@ -107,7 +107,7 @@ recommendationConfig:
 autoscaling:
   enabled: false  # Disabled for dev
   minReplicas: 1
-  maxReplicas: 3
+  maxReplicas: 1
   targetCPUUtilizationPercentage: 70
 
 ingress:

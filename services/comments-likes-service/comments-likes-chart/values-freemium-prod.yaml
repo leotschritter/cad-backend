@@ -1,7 +1,7 @@
 # Helm values for comments-likes-service in freemium namespace (DEV)
 namespaceOverride: freemium
 
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: ghcr.io/leotschritter/cad-backend/graphite-plane-474510-s9/comments-likes-service
@@ -67,9 +67,9 @@ resources:
     memory: 512Mi
 
 autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 10
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
   targetCPUUtilizationPercentage: 70
 
 # Quarkus application configuration

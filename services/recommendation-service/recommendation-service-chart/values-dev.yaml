@@ -10,7 +10,7 @@ ingress:
 
 # Higher availability and resources for production
 recommendationApi:
-  replicas: 2
+  replicas: 1
   image: ghcr.io/leotschritter/cad-backend/iaas-476910/recommendation-service:latest
 
   resources:

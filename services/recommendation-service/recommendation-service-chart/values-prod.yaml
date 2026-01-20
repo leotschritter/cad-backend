@@ -10,7 +10,7 @@ ingress:
 
 # Higher availability and resources for production
 recommendationApi:
-  replicas: 2
+  replicas: 1
   image: ghcr.io/leotschritter/cad-backend/graphite-plane-474510-s9/recommendation-service:latest
 
   resources:

@@ -102,9 +102,9 @@ recommendationConfig:
 
 # Autoscaling configuration
 autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 5  # Lower for freemium
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 2
   targetCPUUtilizationPercentage: 70
 
 ingress:

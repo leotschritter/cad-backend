@@ -44,7 +44,7 @@ travelWarningsApi:
   name: travel-warnings-service
   port: 8080
   image: europe-west1-docker.pkg.dev/graphite-plane-474510-s9/docker-repo/travel-warnings:latest
-  replicas: 3  # Higher replicas for enterprise
+  replicas: 1
 
   strategy:
     type: RollingUpdate
@@ -100,8 +100,8 @@ ingress:
 # Autoscaling configuration - higher for enterprise
 autoscaling:
   enabled: true
-  minReplicas: 3
-  maxReplicas: 10
+  minReplicas: 1
+  maxReplicas: 2
   targetCPUUtilizationPercentage: 70
 
 certificate:

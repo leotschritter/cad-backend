@@ -2,7 +2,7 @@
 # Enterprise uses default namespace in dedicated cluster
 namespaceOverride: default
 
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: ghcr.io/leotschritter/cad-backend/iaas-476910/comments-likes-service
@@ -70,8 +70,8 @@ resources:
 
 autoscaling:
   enabled: true
-  minReplicas: 2
-  maxReplicas: 10
+  minReplicas: 1
+  maxReplicas: 2
   targetCPUUtilizationPercentage: 70
 
 # Quarkus application configuration

@@ -38,7 +38,7 @@ weatherForecastApi:
   name: weather-forecast-service
   image: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/weather-forecast-service:latest
   port: 8080
-  replicas: 3  # Higher replicas for enterprise
+  replicas: 1
 
   strategy:
     type: RollingUpdate
@@ -112,8 +112,8 @@ ingress:
 # Autoscaling configuration - higher for enterprise
 autoscaling:
   enabled: true
-  minReplicas: 3
-  maxReplicas: 10
+  minReplicas: 1
+  maxReplicas: 2
   targetCPUUtilizationPercentage: 70
 
 certificate:

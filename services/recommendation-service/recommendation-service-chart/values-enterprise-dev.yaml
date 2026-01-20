@@ -140,8 +140,8 @@ ingress:
 
 autoscaling:
   enabled: true
-  minReplicas: 2
-  maxReplicas: 5
+  minReplicas: 1
+  maxReplicas: 2
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
 

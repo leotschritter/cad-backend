@@ -15,7 +15,7 @@ travelWarningsApi:
   name: travel-warnings-service
   port: 8080
   image: europe-west1-docker.pkg.dev/iaas-476910/docker-repo/travel-warnings:latest
-  replicas: 2
+  replicas: 1
 
   strategy:
     type: RollingUpdate
@@ -63,9 +63,9 @@ ingress:
 
 # Autoscaling configuration
 autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 4
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
   targetCPUUtilizationPercentage: 70
 
 certificate:
