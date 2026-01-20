@@ -57,12 +57,15 @@ public class WorkflowMonitoringService {
                 LOG.infof("🔍 Checking status of %d tenants in TERRAFORM_PROVISIONING state", terraformTenants.size());
                 
                 for (Tenant tenant : terraformTenants) {
-                    LOG.infof("Checking Terraform status for tenant %s", tenant.tenantId);
+                    LOG.infof("Checking Terraform status for tenant %s (tier: %s)", tenant.tenantId, tenant.tier);
                     
                     // Determine tenant name for artifact lookup
                     String tenantName = tenant.tier == Tenant.TenantTier.ENTERPRISE 
                         ? tenant.enterpriseName 
                         : "standard-" + tenant.tenantNumber;
+                    
+                    LOG.infof("  Using tenant name for artifact lookup: %s (expecting artifact: terraform-outputs-%s)", 
+                        tenantName, tenantName);
                     
                     // Log whether Terraform workflow was triggered
                     if (tenant.terraformDispatchId != null && !tenant.terraformDispatchId.isEmpty()) {
@@ -194,15 +197,8 @@ public class WorkflowMonitoringService {
                     tenant.tenantId, multiNamespaceDispatchId);
                 LOG.infof("   Using Identity Platform Tenant ID: %s", tenant.identityPlatformTenantId);
                 
-                // Trigger shared services on dedicated cluster
-                String sharedServicesDispatchId = githubService.triggerSharedServicesDeployment(
-                    environment,
-                    tenant.clusterName,
-                    tenant.enterpriseName
-                );
-                
-                LOG.infof("✅ Enterprise shared services deployment triggered (dispatch ID: %s)", 
-                    sharedServicesDispatchId);
+                // Note: Shared services deployment is NOT triggered for enterprise tier
+                // Enterprise tenants have their own dedicated cluster and services
             } else {
                 // Trigger standard deployment
                 LOG.infof("🚀 Triggering standard deployment with Identity Platform Tenant ID: %s", 
