@@ -451,9 +451,9 @@ jobs:
           echo "Checking current state..."
           terraform state list 2>&1 || echo "Empty state"
 
-          # Always try to import
+          # Always try to import (5 min timeout for slow API responses)
           echo "Importing Identity Platform config..."
-          terraform import "$RESOURCE_ADDR" "projects/${PROJECT_ID}/config" 2>&1 || true
+          timeout 300 terraform import "$RESOURCE_ADDR" "projects/${PROJECT_ID}/config" 2>&1 || true
 
           echo "State after import:"
           terraform state list 2>&1 | grep -i identity || echo "No identity resources"
