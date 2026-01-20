@@ -21,16 +21,17 @@ public class ItineraryServiceClient {
     private static final Logger LOG = Logger.getLogger(ItineraryServiceClient.class);
 
     /**
-     * Register a user in the itinerary service database via API Gateway.
+     * Register a user in the itinerary service database via direct ingress URL.
+     * Uses direct ingress to bypass API Gateway authentication (since /user/register is public).
      * 
-     * @param apiGatewayUrl Base URL of the API Gateway (e.g., https://tripico-standard-16-gateway-b1kp6vxb.ew.gateway.dev)
+     * @param itineraryServiceUrl Base URL of the itinerary service (e.g., https://itinerary-standard-16.tripico.fun)
      * @param email User's email address
      * @param name User's name (if null, will extract from email)
      * @return true if user was registered successfully, false if user already exists
      */
-    public boolean registerUser(String apiGatewayUrl, String email, String name) {
-        if (apiGatewayUrl == null || apiGatewayUrl.isEmpty()) {
-            LOG.warnf("⚠️ API Gateway URL is not set, skipping user registration for: %s", email);
+    public boolean registerUser(String itineraryServiceUrl, String email, String name) {
+        if (itineraryServiceUrl == null || itineraryServiceUrl.isEmpty()) {
+            LOG.warnf("⚠️ Itinerary service URL is not set, skipping user registration for: %s", email);
             return false;
         }
 
@@ -42,8 +43,8 @@ public class ItineraryServiceClient {
         Client client = ClientBuilder.newClient();
         
         try {
-            // Build the request URL - user API is at /user via API Gateway
-            String registerUrl = apiGatewayUrl;
+            // Build the request URL - user API is at /user via direct ingress
+            String registerUrl = itineraryServiceUrl;
             if (!registerUrl.endsWith("/")) {
                 registerUrl += "/";
             }
@@ -56,7 +57,7 @@ public class ItineraryServiceClient {
             payload.put("name", userName);
             // id and profileImageUrl are null/omitted for new registrations
             
-            LOG.infof("👤 Registering user in itinerary service via API Gateway: %s (name: %s)", email, userName);
+            LOG.infof("👤 Registering user in itinerary service via direct ingress: %s (name: %s)", email, userName);
             LOG.infof("   Request URL: %s", registerUrl);
             LOG.debugf("   Request payload: %s", payload);
             

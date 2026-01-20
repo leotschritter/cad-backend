@@ -299,11 +299,12 @@ public class TenantService {
                 LOG.infof("✅ Owner user added to Identity Platform: %s (UID: %s)", 
                     tenant.ownerEmail, ownerUid);
 
-                // Also register user in itinerary service database via API Gateway
-                if (tenant.apiGatewayUrl != null && !tenant.apiGatewayUrl.isEmpty()) {
-                    LOG.infof("📝 Registering user in itinerary service via API Gateway: %s", tenant.ownerEmail);
+                // Also register user in itinerary service database via direct ingress (bypasses API Gateway auth)
+                String itineraryServiceUrl = buildItineraryServiceUrl(tenant);
+                if (itineraryServiceUrl != null && !itineraryServiceUrl.isEmpty()) {
+                    LOG.infof("📝 Registering user in itinerary service via direct ingress: %s", tenant.ownerEmail);
                     boolean registered = itineraryServiceClient.registerUser(
-                        tenant.apiGatewayUrl, 
+                        itineraryServiceUrl, 
                         tenant.ownerEmail, 
                         null // Name will be extracted from email
                     );
@@ -314,7 +315,7 @@ public class TenantService {
                             tenant.ownerEmail);
                     }
                 } else {
-                    LOG.warnf("⚠️ API Gateway URL not available, skipping user registration for: %s", 
+                    LOG.warnf("⚠️ Itinerary service URL not available, skipping user registration for: %s", 
                         tenant.ownerEmail);
                 }
 
@@ -326,11 +327,12 @@ public class TenantService {
                 LOG.infof("✅ Owner user already exists in Identity Platform: %s (UID: %s)", 
                     tenant.ownerEmail, tenant.ownerUid);
                 
-                // Also ensure user is registered in itinerary service database via API Gateway
-                if (tenant.apiGatewayUrl != null && !tenant.apiGatewayUrl.isEmpty()) {
-                    LOG.infof("📝 Ensuring user is registered in itinerary service via API Gateway: %s", tenant.ownerEmail);
+                // Also ensure user is registered in itinerary service database via direct ingress (bypasses API Gateway auth)
+                String itineraryServiceUrl = buildItineraryServiceUrl(tenant);
+                if (itineraryServiceUrl != null && !itineraryServiceUrl.isEmpty()) {
+                    LOG.infof("📝 Ensuring user is registered in itinerary service via direct ingress: %s", tenant.ownerEmail);
                     boolean registered = itineraryServiceClient.registerUser(
-                        tenant.apiGatewayUrl, 
+                        itineraryServiceUrl, 
                         tenant.ownerEmail, 
                         null // Name will be extracted from email
                     );
