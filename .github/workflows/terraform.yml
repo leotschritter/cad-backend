@@ -432,25 +432,31 @@ jobs:
           TF_VAR_is_prod_environment: ${{ env.TF_VAR_is_prod_environment }}
           TF_VAR_tenant_name: ${{ steps.set-env.outputs.TENANT_NAME }}
         run: |
+          set -x
           PROJECT_ID="${{ env.GCP_PROJECT_ID }}"
           TF_ENV="${{ steps.set-env.outputs.TF_ENV }}"
 
+          echo "=== Import Identity Platform Config ==="
+          echo "Environment: $TF_ENV"
+          echo "Project: $PROJECT_ID"
+
           # Identity Platform config - different resource path per environment
-          # Free tier: uses module.project.google_identity_platform_config.default
-          # Standard/Enterprise: uses google_identity_platform_config.default (no module)
           if [ "$TF_ENV" = "free" ]; then
             RESOURCE_ADDR="module.project.google_identity_platform_config.default"
           else
             RESOURCE_ADDR="google_identity_platform_config.default"
           fi
 
-          if ! terraform state list 2>/dev/null | grep -q "^${RESOURCE_ADDR}$"; then
-            echo "Identity Platform config not in state, attempting to import..."
-            timeout 30 terraform import "$RESOURCE_ADDR" "projects/${PROJECT_ID}/config" \
-              || echo "Config import failed or already exists - continuing"
-          else
-            echo "Identity Platform config already in Terraform state"
-          fi
+          echo "Resource address: $RESOURCE_ADDR"
+          echo "Checking current state..."
+          terraform state list 2>&1 || echo "Empty state"
+
+          # Always try to import
+          echo "Importing Identity Platform config..."
+          terraform import "$RESOURCE_ADDR" "projects/${PROJECT_ID}/config" 2>&1 || true
+
+          echo "State after import:"
+          terraform state list 2>&1 | grep -i identity || echo "No identity resources"
 
       - name: Import existing Identity Platform tenant (standard/enterprise only)
         if: ${{ steps.set-env.outputs.TF_ENV == 'standard' || steps.set-env.outputs.TF_ENV == 'enterprise' }}
