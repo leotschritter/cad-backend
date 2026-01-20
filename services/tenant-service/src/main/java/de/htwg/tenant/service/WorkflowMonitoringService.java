@@ -57,12 +57,15 @@ public class WorkflowMonitoringService {
                 LOG.infof("🔍 Checking status of %d tenants in TERRAFORM_PROVISIONING state", terraformTenants.size());
                 
                 for (Tenant tenant : terraformTenants) {
-                    LOG.infof("Checking Terraform status for tenant %s", tenant.tenantId);
+                    LOG.infof("Checking Terraform status for tenant %s (tier: %s)", tenant.tenantId, tenant.tier);
                     
                     // Determine tenant name for artifact lookup
                     String tenantName = tenant.tier == Tenant.TenantTier.ENTERPRISE 
                         ? tenant.enterpriseName 
                         : "standard-" + tenant.tenantNumber;
+                    
+                    LOG.infof("  Using tenant name for artifact lookup: %s (expecting artifact: terraform-outputs-%s)", 
+                        tenantName, tenantName);
                     
                     // Log whether Terraform workflow was triggered
                     if (tenant.terraformDispatchId != null && !tenant.terraformDispatchId.isEmpty()) {
