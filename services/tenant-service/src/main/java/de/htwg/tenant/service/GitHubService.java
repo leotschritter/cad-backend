@@ -687,6 +687,130 @@ public class GitHubService {
     }
 
     /**
+     * Check if there's a matching Terraform workflow run for the given tenant name.
+     * This checks if any workflow run (successful or failed) contains the expected artifact.
+     * 
+     * @param tenantName The tenant name (e.g., "standard-1", "enterprise-acme")
+     * @return true if a matching workflow run exists, false otherwise
+     */
+    public boolean hasMatchingTerraformWorkflow(String tenantName) {
+        try {
+            String artifactName = "terraform-outputs-" + tenantName;
+            
+            // Get recent Terraform runs
+            WorkflowRunsResponse response = githubClient.getWorkflowRuns(
+                repoOwner,
+                repoName,
+                "terraform.yml",
+                "Bearer " + githubToken,
+                "application/vnd.github+json",
+                50  // Check more runs to find the matching one
+            );
+            
+            if (response.getWorkflowRuns() == null || response.getWorkflowRuns().isEmpty()) {
+                return false;
+            }
+            
+            // Search through all runs (not just successful ones) to find the matching artifact
+            for (WorkflowRun run : response.getWorkflowRuns()) {
+                try {
+                    // List artifacts for this workflow run
+                    ArtifactsResponse artifactsResponse = githubClient.listArtifacts(
+                        repoOwner,
+                        repoName,
+                        run.getId(),
+                        "Bearer " + githubToken,
+                        "application/vnd.github+json"
+                    );
+                    
+                    if (artifactsResponse.getArtifacts() != null && !artifactsResponse.getArtifacts().isEmpty()) {
+                        // Check if this run has the artifact we're looking for
+                        boolean hasArtifact = artifactsResponse.getArtifacts().stream()
+                            .anyMatch(a -> artifactName.equals(a.getName()));
+                        
+                        if (hasArtifact) {
+                            LOG.infof("✅ Found matching workflow run %d for tenant %s (artifact: %s)", 
+                                run.getId(), tenantName, artifactName);
+                            return true;
+                        }
+                    }
+                } catch (Exception e) {
+                    LOG.debugf("Error checking artifacts for run %d: %s", run.getId(), e.getMessage());
+                    // Continue searching other runs
+                }
+            }
+            
+            return false;
+            
+        } catch (Exception e) {
+            LOG.warnf(e, "⚠️ Error checking for matching Terraform workflow for tenant: %s", tenantName);
+            return false;
+        }
+    }
+
+    /**
+     * Get the matching Terraform workflow run for the given tenant name.
+     * Returns the workflow run that contains the expected artifact.
+     * 
+     * @param tenantName The tenant name (e.g., "standard-1", "enterprise-acme")
+     * @return Optional containing the matching workflow run, or empty if not found
+     */
+    public Optional<WorkflowRun> getMatchingTerraformWorkflowRun(String tenantName) {
+        try {
+            String artifactName = "terraform-outputs-" + tenantName;
+            
+            // Get recent Terraform runs
+            WorkflowRunsResponse response = githubClient.getWorkflowRuns(
+                repoOwner,
+                repoName,
+                "terraform.yml",
+                "Bearer " + githubToken,
+                "application/vnd.github+json",
+                50  // Check more runs to find the matching one
+            );
+            
+            if (response.getWorkflowRuns() == null || response.getWorkflowRuns().isEmpty()) {
+                return Optional.empty();
+            }
+            
+            // Search through all runs to find the matching artifact
+            for (WorkflowRun run : response.getWorkflowRuns()) {
+                try {
+                    // List artifacts for this workflow run
+                    ArtifactsResponse artifactsResponse = githubClient.listArtifacts(
+                        repoOwner,
+                        repoName,
+                        run.getId(),
+                        "Bearer " + githubToken,
+                        "application/vnd.github+json"
+                    );
+                    
+                    if (artifactsResponse.getArtifacts() != null && !artifactsResponse.getArtifacts().isEmpty()) {
+                        // Check if this run has the artifact we're looking for
+                        boolean hasArtifact = artifactsResponse.getArtifacts().stream()
+                            .anyMatch(a -> artifactName.equals(a.getName()));
+                        
+                        if (hasArtifact) {
+                            LOG.infof("✅ Found matching workflow run %d for tenant %s (artifact: %s, status: %s, conclusion: %s)", 
+                                run.getId(), tenantName, artifactName, run.getStatus(), run.getConclusion());
+                            return Optional.of(run);
+                        }
+                    }
+                } catch (Exception e) {
+                    LOG.debugf("Error checking artifacts for run %d: %s", run.getId(), e.getMessage());
+                    // Continue searching other runs
+                }
+            }
+            
+            return Optional.empty();
+            
+        } catch (Exception e) {
+            LOG.warnf(e, "⚠️ Error getting matching Terraform workflow run for tenant: %s", tenantName);
+            return Optional.empty();
+        }
+    }
+
+    /**
      * Download and parse Terraform outputs from a GitHub Actions artifact.
      */
     private TerraformOutputs downloadAndParseTerraformOutputs(Artifact artifact) throws Exception {

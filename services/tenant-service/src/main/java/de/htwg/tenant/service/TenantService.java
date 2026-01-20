@@ -520,11 +520,26 @@ public class TenantService {
      * Build the itinerary service URL for a tenant.
      * 
      * @param tenant The tenant
-     * @return The itinerary service URL (e.g., https://itinerary-standard-1.tripico.fun)
+     * @return The itinerary service URL (e.g., https://itinerary-standard-1.tripico.fun or https://itinerary.enttest3.tripico.fun)
      */
     private String buildItineraryServiceUrl(Tenant tenant) {
+        if (tenant.tier == Tenant.TenantTier.ENTERPRISE) {
+            // Enterprise tier: https://itinerary.{enterpriseName}.{baseDomain}
+            // e.g., https://itinerary.enttest3.tripico.fun or https://itinerary.enttest3.dev.tripico.fun
+            if (tenant.enterpriseName == null || tenant.enterpriseName.isEmpty()) {
+                LOG.warnf("⚠️ Enterprise tier tenant %s has no enterprise name", tenant.tenantId);
+                return null;
+            }
+            
+            if ("dev".equalsIgnoreCase(environment)) {
+                return String.format("https://itinerary.%s.dev.%s", tenant.enterpriseName, baseDomain);
+            }
+            return String.format("https://itinerary.%s.%s", tenant.enterpriseName, baseDomain);
+        }
+        
+        // Standard tier: https://itinerary-standard-{number}.{baseDomain}
         if (tenant.tenantNumber == null) {
-            // Enterprise tier - would need different logic
+            LOG.warnf("⚠️ Standard tier tenant %s has no tenant number", tenant.tenantId);
             return null;
         }
         

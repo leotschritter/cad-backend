@@ -31,7 +31,7 @@ postgres:
 
 postgresPvc:
   name: weather-postgres-data-pvc
-  storage: 10Gi  # Reduced to 10Gi for pod capacity
+  storage: 20Gi  # Keeping 20Gi to match existing PVC (Kubernetes doesn't allow reducing PVC size)
 
 weatherForecastApi:
   name: weather-forecast-service

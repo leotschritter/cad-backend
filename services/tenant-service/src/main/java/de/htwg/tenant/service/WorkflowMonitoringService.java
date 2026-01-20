@@ -89,19 +89,71 @@ public class WorkflowMonitoringService {
                         // This is more reliable than checking the latest run, which might be for a different tenant.
                         
                         // Check how long the tenant has been in TERRAFORM_PROVISIONING state
-                        // If it's been more than 30 minutes, something might be wrong
                         java.time.Duration timeSinceProvisioning = java.time.Duration.between(
                             tenant.createdAt != null ? tenant.createdAt : java.time.LocalDateTime.now().minusHours(1),
                             java.time.LocalDateTime.now()
                         );
                         
-                        if (timeSinceProvisioning.toMinutes() > 30) {
+                        long hoursSinceProvisioning = timeSinceProvisioning.toHours();
+                        long minutesSinceProvisioning = timeSinceProvisioning.toMinutes();
+                        
+                        // If tenant has been stuck for more than 10 hours, check if workflow exists and mark as FAILED
+                        if (hoursSinceProvisioning >= 10) {
+                            LOG.warnf("⚠️ Tenant %s has been in TERRAFORM_PROVISIONING state for %d hours. " +
+                                "Checking for matching workflow run...", tenant.tenantId, hoursSinceProvisioning);
+                            
+                            // Check if there's a matching workflow run with the expected artifact
+                            boolean hasMatchingWorkflow = githubService.hasMatchingTerraformWorkflow(tenantName);
+                            
+                            if (!hasMatchingWorkflow) {
+                                // No matching workflow found - mark as FAILED
+                                String errorMessage = String.format(
+                                    "Terraform provisioning timeout: No matching workflow run found after %d hours. " +
+                                    "Expected artifact 'terraform-outputs-%s' was not found in any recent workflow runs.",
+                                    hoursSinceProvisioning, tenantName
+                                );
+                                
+                                LOG.errorf("❌ Marking tenant %s as FAILED: %s", tenant.tenantId, errorMessage);
+                                tenantService.updateTenantState(tenant, Tenant.ProvisioningState.FAILED, errorMessage);
+                                emailService.sendTenantProvisioningFailedEmail(tenant.ownerEmail, tenant.name, errorMessage);
+                                
+                                // Skip to next tenant - this one is now FAILED and won't be checked again
+                                continue;
+                            } else {
+                                // Matching workflow exists but outputs not available - might be failed or still running
+                                // Check if the workflow failed
+                                Optional<WorkflowRun> matchingRun = githubService.getMatchingTerraformWorkflowRun(tenantName);
+                                if (matchingRun.isPresent()) {
+                                    WorkflowRun run = matchingRun.get();
+                                    if ("completed".equals(run.getStatus()) && 
+                                        ("failure".equals(run.getConclusion()) || "cancelled".equals(run.getConclusion()))) {
+                                        // Workflow failed - mark tenant as FAILED
+                                        String errorMessage = String.format(
+                                            "Terraform provisioning failed after %d hours. Workflow run %d concluded with status: %s",
+                                            hoursSinceProvisioning, run.getId(), run.getConclusion()
+                                        );
+                                        
+                                        LOG.errorf("❌ Marking tenant %s as FAILED: %s", tenant.tenantId, errorMessage);
+                                        tenantService.updateTenantState(tenant, Tenant.ProvisioningState.FAILED, errorMessage);
+                                        emailService.sendTenantProvisioningFailedEmail(tenant.ownerEmail, tenant.name, errorMessage);
+                                        
+                                        // Skip to next tenant
+                                        continue;
+                                    }
+                                }
+                                
+                                // Workflow exists but might still be running or completed without artifact
+                                LOG.warnf("⚠️ Matching workflow found for tenant %s but outputs not available after %d hours. " +
+                                    "This might indicate a problem, but will continue waiting.", 
+                                    tenant.tenantId, hoursSinceProvisioning);
+                            }
+                        } else if (minutesSinceProvisioning > 30) {
                             LOG.warnf("⚠️ Terraform outputs not available for tenant %s after %d minutes. " +
                                 "This might indicate a problem, but will continue waiting.", 
-                                tenant.tenantId, timeSinceProvisioning.toMinutes());
+                                tenant.tenantId, minutesSinceProvisioning);
                         } else {
                             LOG.debugf("Terraform outputs not yet available for tenant %s (elapsed: %d minutes), will retry", 
-                                tenant.tenantId, timeSinceProvisioning.toMinutes());
+                                tenant.tenantId, minutesSinceProvisioning);
                         }
                     }
                 }
