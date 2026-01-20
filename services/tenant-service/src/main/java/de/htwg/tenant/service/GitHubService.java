@@ -479,18 +479,24 @@ public class GitHubService {
             inputs.put("environment", tier); // "standard" or "enterprise"
             
             if ("standard".equals(tier)) {
-                inputs.put("tenant_number", tenantNumber.toString());
+                if (tenantNumber != null) {
+                    inputs.put("tenant_number", tenantNumber.toString());
+                } else {
+                    throw new IllegalArgumentException("tenantNumber is required for standard tier");
+                }
             } else if ("enterprise".equals(tier)) {
-                inputs.put("tenant_number", tenantNumber.toString());
+                // Enterprise tier uses tenant_name, not tenant_number
                 if (tenantName != null && !tenantName.isEmpty()) {
                     inputs.put("tenant_name", tenantName);
+                } else {
+                    throw new IllegalArgumentException("tenantName is required for enterprise tier");
                 }
             }
 
             WorkflowDispatchRequest request = new WorkflowDispatchRequest(branch, inputs);
 
             LOG.infof("🚀 Triggering Terraform %s for %s tier (tenant: %s)", action, tier, 
-                tenantName != null ? tenantName : "standard-" + tenantNumber);
+                tenantName != null ? tenantName : (tenantNumber != null ? "standard-" + tenantNumber : "unknown"));
 
             githubClient.dispatchWorkflow(
                 repoOwner,
