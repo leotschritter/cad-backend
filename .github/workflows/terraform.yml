@@ -425,7 +425,7 @@ jobs:
 
       - name: Import existing Identity Platform config (all environments)
         working-directory: ${{ steps.set-env.outputs.WORKING_DIR }}
-        continue-on-error: true
+        continue-on-error: false
         env:
           TF_VAR_project_id: ${{ env.GCP_PROJECT_ID }}
           TF_VAR_domain_name: ${{ env.TF_VAR_domain_name }}
