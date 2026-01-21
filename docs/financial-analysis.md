@@ -21,19 +21,60 @@ This document provides a comprehensive financial analysis of the Tripico multi-t
 
 | Tier | Infrastructure Model | Target Customer |
 |------|---------------------|-----------------|
-| **Freemium** | Shared cluster, shared namespace | Individual users, trial |
-| **Standard** | Shared cluster, dedicated namespace | Small-medium businesses |
-| **Enterprise** | Dedicated cluster, full isolation | Large organizations |
+| **Freemium** | Shared cluster, dedicated namespace, shared services | Individual users, trial |
+| **Standard** | Shared cluster, dedicated namespace, shared services | Small-medium businesses |
+| **Enterprise** | Dedicated cluster, full isolation, dedicated services | Large organizations |
+
+### Cluster Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      SHARED CLUSTER                             │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │                   SHARED NAMESPACE                         │ │
+│  │  • weather-forecast-service (shared by Freemium+Standard) │ │
+│  │  • travel-warnings-service (shared by Freemium+Standard)  │ │
+│  │  • weather-postgres                                        │ │
+│  └───────────────────────────────────────────────────────────┘ │
+│                              ▲                                  │
+│               ┌──────────────┴──────────────┐                  │
+│               │                             │                  │
+│  ┌────────────▼────────────┐  ┌─────────────▼─────────────┐   │
+│  │    FREEMIUM NAMESPACE   │  │    STANDARD NAMESPACE     │   │
+│  │  • itinerary-service    │  │  • itinerary-service      │   │
+│  │  • recommendation-svc   │  │  • recommendation-svc     │   │
+│  │  • comments-likes-svc   │  │  • comments-likes-svc     │   │
+│  │  • neo4j (1-2Gi)        │  │  • neo4j (2-4Gi)          │   │
+│  │  • postgres (10Gi)      │  │  • postgres (10Gi)        │   │
+│  │  Autoscaling: OFF       │  │  Autoscaling: ON          │   │
+│  └─────────────────────────┘  └───────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                 ENTERPRISE CLUSTER (DEDICATED)                  │
+│  ┌───────────────────────────────────────────────────────────┐ │
+│  │                   DEFAULT NAMESPACE                        │ │
+│  │  • itinerary-service (dedicated)                          │ │
+│  │  • recommendation-service (dedicated)                      │ │
+│  │  • comments-likes-service (dedicated)                      │ │
+│  │  • weather-forecast-service (dedicated)                    │ │
+│  │  • travel-warnings-service (dedicated)                     │ │
+│  │  • neo4j, postgres (dedicated)                            │ │
+│  │  Autoscaling: ON                                          │ │
+│  └───────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ### Resource Allocation by Tier
 
 | Resource | Freemium | Standard | Enterprise |
 |----------|----------|----------|------------|
 | GKE Cluster | Shared | Shared | Dedicated |
-| Kubernetes Namespace | Shared (default) | Dedicated | Dedicated (default) |
+| Kubernetes Namespace | Dedicated (freemium) | Dedicated (standard) | Dedicated (default) |
+| Shared Services | Uses shared | Uses shared | Has own dedicated |
 | VPC Network | Shared | Shared | Dedicated |
-| Storage Bucket | Shared | Dedicated | Dedicated |
-| API Gateway | Shared | Dedicated | Dedicated |
+| Storage Bucket | Shared | Shared | Dedicated |
+| API Gateway | Shared | Shared | Dedicated |
 | Identity Platform Tenant | None (project-level) | Dedicated | Dedicated |
 | Static IP | Shared | Shared | Dedicated |
 | DNS Records | Shared wildcard | Shared wildcard | Dedicated wildcard |
@@ -42,63 +83,124 @@ This document provides a comprehensive financial analysis of the Tripico multi-t
 
 ## Cost Analysis by Tier
 
-### Freemium Tier - Base Infrastructure Costs
+### Shared Cluster - Base Infrastructure Costs
 
-These are the foundational costs shared across all tenants:
+These are the foundational costs for the shared cluster (used by Freemium AND Standard):
 
 | Resource | Monthly Cost (EUR) | Notes |
 |----------|-------------------|-------|
 | GKE Autopilot Cluster | ~73.00 | Management fee (~0.10/hour) |
-| GKE Compute (base) | ~150-300 | Depends on pod scaling |
 | Cloud DNS Zone | ~0.20 | Single managed zone |
 | Artifact Registry | ~10-50 | Image storage + egress |
-| Firestore | ~25-100 | Depends on usage |
 | Cloud Storage (base bucket) | ~5-20 | Per-GB pricing |
-| API Gateway | ~3.50 | Per million calls |
 | Static IP | ~7.30 | Regional IP |
-| Identity Platform | Free | Up to 50k MAU free |
-| **Base Monthly Total** | **~275-555** | Without compute scaling |
+| NGINX Ingress Controller | ~20-50 | Shared load balancer |
+| cert-manager | ~0 | No direct cost |
+| **Base Infrastructure** | **~115-200** | Fixed costs |
 
-### Standard Tier - Per-Tenant Incremental Costs
+### Shared Services Costs (weather + travel-warnings)
 
-Additional costs for each Standard tenant:
+Shared services deployed once in the `shared` namespace, used by both Freemium and Standard:
 
-| Resource | Monthly Cost (EUR) | Notes |
-|----------|-------------------|-------|
-| Namespace overhead | ~0 | Logical isolation only |
-| Storage Bucket | ~5-20 | Dedicated bucket |
-| API Gateway Config | ~3.50 | Additional gateway |
-| Workload Identity Binding | ~0 | IAM configuration |
-| Identity Platform Tenant | ~0 | Included in free tier |
-| Additional Compute | ~50-150 | Tenant workload pods |
-| **Per-Tenant Monthly** | **~60-175** | |
+| Service | CPU Request | Memory | Storage | Monthly Cost (EUR) |
+|---------|-------------|--------|---------|-------------------|
+| weather-forecast-service | 500m | 1Gi | - | ~20 |
+| weather-postgres | 250m | 512Mi | 10Gi | ~15 |
+| travel-warnings-service | 500m | 512Mi | - | ~17 |
+| travel-warnings-postgres | 250m | 512Mi | 4Gi | ~12 |
+| **Shared Services Total** | | | | **~64** |
 
-### Enterprise Tier - Per-Tenant Full Costs
+### Freemium Tier - Per-Namespace Costs
 
-Complete isolated infrastructure per Enterprise tenant:
+Services deployed in the `freemium` namespace:
+
+| Service | CPU Request | Memory | Storage | Monthly Cost (EUR) |
+|---------|-------------|--------|---------|-------------------|
+| itinerary-service | 250m | 512Mi | - | ~9 |
+| itinerary-postgres | 100m | 256Mi | 10Gi | ~8 |
+| recommendation-service | 250m | 512Mi | - | ~9 |
+| neo4j | 500m | 1Gi | 10Gi | ~22 |
+| comments-likes-service | 250m | 512Mi | - | ~9 |
+| **Freemium Namespace** | | | | **~57** |
+
+*Note: Autoscaling is DISABLED for Freemium*
+
+### Standard Tier - Per-Namespace Costs
+
+Services deployed in the `standard` namespace (higher resources than Freemium):
+
+| Service | CPU Request | Memory | Storage | Monthly Cost (EUR) |
+|---------|-------------|--------|---------|-------------------|
+| itinerary-service | 250m | 512Mi | - | ~9 |
+| itinerary-postgres | 100m | 256Mi | 10Gi | ~8 |
+| recommendation-service | 500m | 1Gi | - | ~18 |
+| neo4j | 1000m | 2Gi | 10Gi | ~40 |
+| comments-likes-service | 250m | 512Mi | - | ~9 |
+| **Standard Namespace** | | | | **~84** |
+
+*Note: Autoscaling ENABLED (max 2 replicas) - costs can increase under load*
+
+### Enterprise Tier - Dedicated Cluster Costs
+
+Complete isolated infrastructure per Enterprise tenant (dedicated cluster with all services):
 
 | Resource | Monthly Cost (EUR) | Notes |
 |----------|-------------------|-------|
 | Dedicated GKE Cluster | ~73.00 | Management fee |
-| GKE Compute | ~200-500 | Full cluster workloads |
-| Dedicated VPC Network | ~0 | No direct cost |
-| VPC Subnets | ~0 | No direct cost |
-| Firewall Rules | ~0 | No direct cost |
-| Storage Bucket | ~10-50 | Higher usage expected |
-| API Gateway | ~7-20 | Higher traffic |
+| itinerary-service | ~9 | Dedicated instance |
+| itinerary-postgres | ~8 | 10Gi storage |
+| recommendation-service | ~9 | Dedicated instance |
+| neo4j | ~18 | 10Gi storage |
+| comments-likes-service | ~9 | Dedicated instance |
+| weather-forecast-service | ~20 | Dedicated (not shared) |
+| weather-postgres | ~15 | 10Gi storage |
+| travel-warnings-service | ~17 | Dedicated (not shared) |
+| travel-warnings-postgres | ~12 | 4Gi storage |
+| Storage Bucket | ~10-20 | Dedicated bucket |
 | Static IP | ~7.30 | Dedicated regional IP |
 | DNS Wildcard Record | ~0.50 | Per record |
 | NGINX Ingress Controller | ~20-50 | Dedicated load balancer |
-| Identity Platform Tenant | ~0 | Included in free tier |
-| **Per-Tenant Monthly** | **~320-700** | |
+| **Per-Enterprise Monthly** | **~230-270** | Fully isolated |
 
 ### Cost Summary Table
 
-| Tier | Monthly Infrastructure Cost | Notes |
-|------|---------------------------|-------|
-| Freemium (base) | EUR 275-555 | Shared by all users |
-| Standard (incremental) | EUR 60-175 per tenant | On top of base |
-| Enterprise (full) | EUR 320-700 per tenant | Fully isolated |
+| Component | Monthly Cost (EUR) | Notes |
+|-----------|-------------------|-------|
+| **Shared Cluster Base** | ~115-200 | GKE, DNS, Registry, IP, Ingress |
+| **Shared Services** | ~64 | weather + travel-warnings |
+| **Freemium Namespace** | ~57 | Lower resources, no autoscaling |
+| **Standard Namespace** | ~84 | Higher resources, autoscaling enabled |
+| **Enterprise (Full)** | ~230-270 | Dedicated cluster + all services |
+
+### Total Cost Scenarios
+
+**Scenario A: Shared Cluster with 1 Freemium + 1 Standard Tenant**
+
+| Component | Cost (EUR) |
+|-----------|------------|
+| Shared Cluster Base | ~150 |
+| Shared Services (weather + travel) | ~64 |
+| Freemium Namespace | ~57 |
+| Standard Namespace | ~84 |
+| **Total Monthly** | **~355** |
+
+**Scenario B: 1 Enterprise Tenant (Dedicated Cluster)**
+
+| Component | Cost (EUR) |
+|-----------|------------|
+| Enterprise Full Stack | ~250 |
+| **Total Monthly** | **~250** |
+
+**Scenario C: Shared Cluster (5 Freemium + 3 Standard) + 1 Enterprise**
+
+| Component | Cost (EUR) |
+|-----------|------------|
+| Shared Cluster Base | ~150 |
+| Shared Services | ~64 |
+| Freemium Namespaces (5x) | 5 × ~57 = ~285 |
+| Standard Namespaces (3x) | 3 × ~84 = ~252 |
+| Enterprise Cluster | ~250 |
+| **Total Monthly** | **~1,001** |
 
 ---
 
@@ -107,14 +209,18 @@ Complete isolated infrastructure per Enterprise tenant:
 ### Scenario: 100 Freemium + 10 Standard + 2 Enterprise Tenants
 
 **Infrastructure Costs:**
+
 | Component | Calculation | Monthly Cost (EUR) |
 |-----------|-------------|-------------------|
-| Base infrastructure | Fixed | 400 |
-| Standard tenants (10x) | 10 x 120 | 1,200 |
-| Enterprise tenants (2x) | 2 x 500 | 1,000 |
-| **Total Infrastructure** | | **2,600** |
+| Shared Cluster Base | Fixed | 175 |
+| Shared Services | Fixed | 64 |
+| Freemium namespaces (100x) | 100 × 57 | 5,700 |
+| Standard namespaces (10x) | 10 × 84 | 840 |
+| Enterprise clusters (2x) | 2 × 250 | 500 |
+| **Total Infrastructure** | | **7,279** |
 
 **Revenue (Fixed Pricing Model):**
+
 | Tier | Tenants | Price/Month | Revenue (EUR) |
 |------|---------|-------------|---------------|
 | Freemium | 100 | 0 | 0 |
@@ -123,20 +229,37 @@ Complete isolated infrastructure per Enterprise tenant:
 | **Total Revenue** | | | **3,988** |
 
 **Profitability:**
-- **Gross Profit:** EUR 3,988 - EUR 2,600 = EUR 1,388/month
-- **Gross Margin:** 34.8%
+- **Gross Profit:** EUR 3,988 - EUR 7,279 = **EUR -3,291/month (LOSS)**
+- This shows that 100 freemium tenants are too expensive without conversions
+
+### Realistic Scenario: 10 Freemium + 10 Standard + 2 Enterprise
+
+| Component | Calculation | Monthly Cost (EUR) |
+|-----------|-------------|-------------------|
+| Shared Cluster Base | Fixed | 175 |
+| Shared Services | Fixed | 64 |
+| Freemium namespaces (10x) | 10 × 57 | 570 |
+| Standard namespaces (10x) | 10 × 84 | 840 |
+| Enterprise clusters (2x) | 2 × 250 | 500 |
+| **Total Infrastructure** | | **2,149** |
+
+**Revenue:** EUR 1,990 + EUR 1,998 = **EUR 3,988**
+
+**Profitability:**
+- **Gross Profit:** EUR 3,988 - EUR 2,149 = **EUR 1,839/month**
+- **Gross Margin:** 46.1%
 
 ### Break-Even Analysis
 
-| Tier | Cost/Tenant | Price | Margin | Break-Even |
-|------|------------|-------|--------|------------|
-| Standard | EUR 120 | EUR 199 | EUR 79 (40%) | 1 tenant |
-| Enterprise | EUR 500 | EUR 999 | EUR 499 (50%) | 1 tenant |
+| Tier | Infrastructure Cost | Price | Margin per Tenant |
+|------|---------------------|-------|-------------------|
+| Freemium | EUR 57 | EUR 0 | EUR -57 (loss) |
+| Standard | EUR 84 | EUR 199 | EUR 115 (58%) |
+| Enterprise | EUR 250 | EUR 999 | EUR 749 (75%) |
 
-**To cover base infrastructure (EUR 400/month):**
-- Need ~5 Standard tenants, OR
-- Need ~1 Enterprise tenant, OR
-- Mix: 3 Standard + partial Enterprise
+**To cover shared infrastructure (EUR 239/month = base + shared services):**
+- Need ~3 Standard tenants, OR
+- Need ~1 Enterprise tenant
 
 ---
 
@@ -369,25 +492,26 @@ To cover all costs including telemetry:
 
 | Cost Component | Monthly (EUR) |
 |----------------|---------------|
-| Base Infrastructure | 400 |
+| Shared Cluster Base | 175 |
+| Shared Services | 64 |
 | Telemetry Stack | 100 |
-| **Total Fixed Costs** | **500** |
+| **Total Fixed Costs** | **339** |
 
 **Break-even scenarios:**
-- 7 Standard tenants @ EUR 149 (hybrid) = EUR 1,043 revenue, EUR 543 profit
-- 1 Enterprise tenant @ EUR 799 (hybrid) = EUR 799 revenue, EUR 299 profit
-- 3 Standard + 1 Enterprise = EUR 1,246 revenue, EUR 746 profit
+- 3 Standard tenants @ EUR 199 = EUR 597 revenue, covers fixed + 3 namespaces
+- 1 Enterprise tenant @ EUR 999 = EUR 999 revenue, covers dedicated cluster
+- 2 Standard + 1 Enterprise = EUR 1,397 revenue
 
 ### Scaling Economics
 
 | Scale | Fixed Costs | Variable Costs | Revenue | Margin |
 |-------|-------------|----------------|---------|--------|
-| 10 Std + 1 Ent | EUR 500 | EUR 1,700 | EUR 2,289 | 4% |
-| 25 Std + 3 Ent | EUR 500 | EUR 4,500 | EUR 6,122 | 18% |
-| 50 Std + 5 Ent | EUR 500 | EUR 8,500 | EUR 11,445 | 21% |
-| 100 Std + 10 Ent | EUR 500 | EUR 17,000 | EUR 22,890 | 24% |
+| 5 Std + 1 Ent | EUR 339 | EUR 670 | EUR 1,994 | 49% |
+| 10 Std + 2 Ent | EUR 339 | EUR 1,340 | EUR 3,988 | 58% |
+| 25 Std + 5 Ent | EUR 339 | EUR 3,350 | EUR 9,970 | 63% |
+| 50 Std + 10 Ent | EUR 339 | EUR 6,700 | EUR 19,940 | 65% |
 
-*Note: Margins improve with scale due to fixed cost dilution*
+*Note: Margins improve with scale due to fixed cost dilution and shared services*
 
 ---
 
@@ -397,6 +521,7 @@ To cover all costs including telemetry:
 1. **Start with fixed pricing** (Model A) for simplicity
 2. **Implement basic telemetry** (API calls, storage, users)
 3. **Target**: 5 Standard + 1 Enterprise tenant to reach profitability
+4. **Limit Freemium users** to control costs (max 10-20 initially)
 
 ### Medium-Term (6-12 months)
 1. **Transition to hybrid pricing** (Model C) as telemetry matures
@@ -414,9 +539,10 @@ To cover all costs including telemetry:
 |--------|--------|-------------|
 | Customer Acquisition Cost | < EUR 500 | Marketing spend / new customers |
 | Monthly Recurring Revenue | > EUR 5,000 | Sum of all subscriptions |
-| Gross Margin | > 25% | (Revenue - Infra Cost) / Revenue |
+| Gross Margin | > 50% | (Revenue - Infra Cost) / Revenue |
 | Churn Rate | < 5% monthly | Lost customers / total customers |
 | Net Revenue Retention | > 100% | Expansion - churn |
+| Freemium Conversion Rate | > 10% | Freemium to paid conversions |
 
 ---
 
@@ -426,7 +552,7 @@ To cover all costs including telemetry:
 
 | Service | Pricing Model | Approximate Cost |
 |---------|---------------|------------------|
-| GKE Autopilot | Per vCPU-hour + memory-hour | ~EUR 0.05/vCPU-hr |
+| GKE Autopilot | Per vCPU-hour + memory-hour | ~EUR 0.04/vCPU-hr, EUR 0.004/GB-hr |
 | Cloud Storage | Per GB/month + operations | ~EUR 0.02/GB |
 | Firestore | Per document read/write + storage | ~EUR 0.06/100k reads |
 | API Gateway | Per million calls | ~EUR 3.50/million |
@@ -442,7 +568,19 @@ To cover all costs including telemetry:
 | `modules/api-gateway` | Gateway, Config | API calls |
 | `modules/project` | Identity Platform | MAU (free tier) |
 
+### Resource Configuration Reference
+
+| Service | Freemium | Standard | Enterprise |
+|---------|----------|----------|------------|
+| itinerary-service | 250m/512Mi | 250m/512Mi | 100m/512Mi |
+| recommendation-service | 250m/512Mi | 500m/1Gi | 100m/512Mi |
+| neo4j | 500m/1-2Gi | 1000m/2-4Gi | 100m/512Mi-1Gi |
+| comments-likes-service | 250m/512Mi | 250m/512Mi | 100m/512Mi |
+| weather-forecast (shared) | 500m/1Gi | 500m/1Gi | 500m/1Gi (dedicated) |
+| travel-warnings (shared) | 500m/512Mi | 500m/512Mi | 500m/512Mi (dedicated) |
+
 ---
 
 *Last updated: January 2025*
 *Analysis based on GCP europe-west1 (Belgium) region pricing*
+*Resource configurations from Helm values-*-prod.yaml files*
