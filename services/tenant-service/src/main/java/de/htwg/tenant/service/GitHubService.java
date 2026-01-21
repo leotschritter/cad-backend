@@ -811,6 +811,61 @@ public class GitHubService {
     }
 
     /**
+     * Trigger tenant update workflow for continuous deployment.
+     * This dispatches an update-tenant workflow that redeploys specified services to a tenant's namespace.
+     *
+     * @param tenant The tenant to update
+     * @param services List of services to deploy (e.g., ["itinerary", "comments-likes", "recommendation"])
+     * @param environment Environment to deploy to (prod or dev)
+     * @return Dispatch ID for tracking
+     */
+    public String triggerTenantUpdate(de.htwg.tenant.model.Tenant tenant, List<String> services, String environment) {
+        try {
+            String dispatchId = UUID.randomUUID().toString();
+
+            Map<String, Object> clientPayload = new HashMap<>();
+            clientPayload.put("tenant_id", tenant.tenantId);
+            clientPayload.put("tenant_name", tenant.name);
+            clientPayload.put("namespace", tenant.namespace);
+            clientPayload.put("tier", tenant.tier.name().toLowerCase());
+            clientPayload.put("services", String.join(",", services));
+            clientPayload.put("environment", environment);
+            clientPayload.put("cluster", tenant.clusterName);
+            clientPayload.put("dispatch_id", dispatchId);
+
+            // Add tier-specific parameters
+            if (tenant.tier == de.htwg.tenant.model.Tenant.TenantTier.ENTERPRISE) {
+                clientPayload.put("enterprise_name", tenant.enterpriseName);
+            } else {
+                clientPayload.put("tenant_number", tenant.tenantNumber.toString());
+            }
+
+            RepositoryDispatchRequest request = new RepositoryDispatchRequest(
+                "update-tenant",
+                clientPayload
+            );
+
+            LOG.infof("🚀 Triggering tenant update for %s (namespace: %s, services: %s, dispatch ID: %s)",
+                tenant.tenantId, tenant.namespace, String.join(",", services), dispatchId);
+
+            githubClient.dispatchRepository(
+                repoOwner,
+                repoName,
+                "Bearer " + githubToken,
+                "application/vnd.github+json",
+                request
+            );
+
+            LOG.infof("✅ Tenant update triggered successfully for %s", tenant.tenantId);
+            return dispatchId;
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to trigger tenant update for: %s", tenant.tenantId);
+            throw new RuntimeException("Failed to trigger tenant update", e);
+        }
+    }
+
+    /**
      * Download and parse Terraform outputs from a GitHub Actions artifact.
      */
     private TerraformOutputs downloadAndParseTerraformOutputs(Artifact artifact) throws Exception {

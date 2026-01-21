@@ -3,6 +3,8 @@ package de.htwg.tenant;
 import de.htwg.tenant.dto.CreateTenantRequest;
 import de.htwg.tenant.dto.TenantCreatedResponse;
 import de.htwg.tenant.dto.TenantResponse;
+import de.htwg.tenant.dto.TriggerCdRequest;
+import de.htwg.tenant.dto.TriggerCdResponse;
 import de.htwg.tenant.model.Tenant;
 import de.htwg.tenant.service.TenantService;
 import jakarta.inject.Inject;
@@ -363,6 +365,41 @@ public class TenantResource {
             LOG.errorf(e, "❌ Failed to retrigger tenant %s: %s", tenantId, e.getMessage());
             return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
                 .entity(new ErrorResponse("Failed to retrigger tenant deployment: " + e.getMessage()))
+                .build();
+        }
+    }
+
+    /**
+     * Trigger continuous deployment for all active tenants.
+     * This endpoint fetches all active tenants and triggers deployment updates for specified services.
+     */
+    @POST
+    @Path("/cd/trigger")
+    @Operation(summary = "Trigger continuous deployment",
+               description = "Triggers deployment updates for specified services across all active tenants")
+    public Response triggerContinuousDeployment(@Valid TriggerCdRequest request) {
+        try {
+            LOG.infof("🚀 Received CD trigger request for services: %s", request.getServices());
+
+            TriggerCdResponse response = tenantService.triggerContinuousDeployment(
+                request.getServicesList(),
+                request.getEnvironment()
+            );
+
+            return Response.status(Response.Status.ACCEPTED)
+                .entity(response)
+                .build();
+
+        } catch (IllegalArgumentException e) {
+            LOG.warnf("⚠️ Invalid CD trigger request: %s", e.getMessage());
+            return Response.status(Response.Status.BAD_REQUEST)
+                .entity(new ErrorResponse(e.getMessage()))
+                .build();
+
+        } catch (Exception e) {
+            LOG.errorf(e, "❌ Failed to trigger CD: %s", e.getMessage());
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .entity(new ErrorResponse("Failed to trigger continuous deployment: " + e.getMessage()))
                 .build();
         }
     }

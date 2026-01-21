@@ -2,6 +2,7 @@ package de.htwg.tenant.service;
 
 import de.htwg.tenant.dto.CreateTenantRequest;
 import de.htwg.tenant.dto.TenantResponse;
+import de.htwg.tenant.dto.TriggerCdResponse;
 import de.htwg.tenant.model.Tenant;
 import de.htwg.tenant.repository.TenantRepository;
 import de.htwg.tenant.util.TenantIdGenerator;
@@ -491,6 +492,66 @@ public class TenantService {
 
         tenantRepository.update(tenant);
         LOG.infof("Updated tenant %s state to %s", tenant.tenantId, newState);
+    }
+
+    /**
+     * Trigger continuous deployment for all active tenants.
+     * This method:
+     * 1. Fetches all active tenants
+     * 2. For each tenant, triggers a deployment update workflow with the specified services
+     *
+     * @param services List of services to deploy (e.g., ["itinerary", "comments-likes"])
+     * @param environment Environment to deploy to (prod or dev)
+     * @return Response with triggered tenant information
+     */
+    public TriggerCdResponse triggerContinuousDeployment(List<String> services, String environment) {
+        LOG.infof("🚀 Triggering continuous deployment for services: %s, environment: %s", services, environment);
+
+        if (services == null || services.isEmpty()) {
+            throw new IllegalArgumentException("At least one service must be specified");
+        }
+
+        // Get all active tenants
+        List<Tenant> activeTenants = Tenant.list("state", Tenant.ProvisioningState.ACTIVE);
+
+        if (activeTenants.isEmpty()) {
+            LOG.warn("⚠️ No active tenants found for CD trigger");
+        }
+
+        TriggerCdResponse response = new TriggerCdResponse();
+        response.setServices(services);
+        response.setTenantsTriggered(activeTenants.size());
+        response.setTenants(new java.util.ArrayList<>());
+
+        // Trigger deployment for each tenant
+        for (Tenant tenant : activeTenants) {
+            try {
+                String dispatchId = githubService.triggerTenantUpdate(
+                    tenant,
+                    services,
+                    environment != null ? environment : this.environment
+                );
+
+                TriggerCdResponse.TenantDeploymentInfo info = new TriggerCdResponse.TenantDeploymentInfo();
+                info.setTenantId(tenant.tenantId);
+                info.setTenantName(tenant.name);
+                info.setNamespace(tenant.namespace);
+                info.setTier(tenant.tier.name());
+                info.setDispatchId(dispatchId);
+
+                response.getTenants().add(info);
+
+                LOG.infof("✅ Triggered CD for tenant %s (namespace: %s)", tenant.tenantId, tenant.namespace);
+
+            } catch (Exception e) {
+                LOG.errorf(e, "❌ Failed to trigger CD for tenant %s", tenant.tenantId);
+                // Continue with other tenants even if one fails
+            }
+        }
+
+        response.setMessage(String.format("Continuous deployment triggered for %d active tenant(s)", activeTenants.size()));
+
+        return response;
     }
 
     /**

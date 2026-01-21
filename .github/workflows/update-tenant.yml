@@ -1,0 +1,218 @@
+name: Update Tenant Services (CD)
+
+on:
+  repository_dispatch:
+    types: [update-tenant]
+  workflow_dispatch:
+    inputs:
+      tenant_id:
+        description: 'Tenant ID'
+        required: true
+        type: string
+      tenant_name:
+        description: 'Tenant Name'
+        required: true
+        type: string
+      namespace:
+        description: 'Kubernetes namespace'
+        required: true
+        type: string
+      tier:
+        description: 'Tenant tier'
+        required: true
+        type: choice
+        options:
+          - standard
+          - enterprise
+        default: standard
+      services:
+        description: 'Comma-separated list of services to deploy (e.g., itinerary,comments-likes,recommendation)'
+        required: true
+        type: string
+      environment:
+        description: 'Environment'
+        required: true
+        type: choice
+        options:
+          - prod
+          - dev
+        default: prod
+      cluster:
+        description: 'Target cluster'
+        required: true
+        type: string
+        default: tripico-cluster
+      tenant_number:
+        description: 'Tenant number (for standard tier)'
+        required: false
+        type: string
+      enterprise_name:
+        description: 'Enterprise name (for enterprise tier)'
+        required: false
+        type: string
+
+jobs:
+  update-services:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'workflow_dispatch' && (inputs.environment == 'prod' && 'production' || 'develop') || github.event_name == 'repository_dispatch' && (github.event.client_payload.environment == 'prod' && 'production' || 'develop') || 'production' }}
+    permissions:
+      contents: read
+      id-token: write
+
+    env:
+      TENANT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_id || github.event.client_payload.tenant_id }}
+      TENANT_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_name || github.event.client_payload.tenant_name }}
+      NAMESPACE: ${{ github.event_name == 'workflow_dispatch' && inputs.namespace || github.event.client_payload.namespace }}
+      TIER: ${{ github.event_name == 'workflow_dispatch' && inputs.tier || github.event.client_payload.tier }}
+      SERVICES: ${{ github.event_name == 'workflow_dispatch' && inputs.services || github.event.client_payload.services }}
+      ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.event.client_payload.environment }}
+      CLUSTER: ${{ github.event_name == 'workflow_dispatch' && inputs.cluster || github.event.client_payload.cluster }}
+      TENANT_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.tenant_number || github.event.client_payload.tenant_number }}
+      ENTERPRISE_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.enterprise_name || github.event.client_payload.enterprise_name }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Install GKE Auth Plugin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Get GKE Credentials
+        run: |
+          echo "Connecting to cluster: $CLUSTER"
+          gcloud container clusters get-credentials $CLUSTER \
+            --region europe-west1 \
+            --project ${{ vars.PROJECT_ID }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Deploy Services
+        run: |
+          echo "🚀 Updating services for tenant: $TENANT_NAME"
+          echo "   Namespace: $NAMESPACE"
+          echo "   Services: $SERVICES"
+          echo "   Tier: $TIER"
+          
+          # Parse services list
+          IFS=',' read -ra SERVICE_ARRAY <<< "$SERVICES"
+          
+          for service in "${SERVICE_ARRAY[@]}"; do
+            service=$(echo "$service" | xargs)  # trim whitespace
+            echo ""
+            echo "📦 Deploying service: $service"
+            
+            case $service in
+              itinerary)
+                echo "Deploying itinerary-service..."
+                helm upgrade --install itinerary-service \
+                  ./services/itinerary-service/kubernetes/itinerary-service-chart \
+                  --namespace $NAMESPACE \
+                  --set image.repository=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/itinerary-service \
+                  --set image.tag=latest \
+                  --set env.TENANT_NUMBER="$TENANT_NUMBER" \
+                  --set env.ENTERPRISE_NAME="$ENTERPRISE_NAME" \
+                  --set env.TIER="$TIER" \
+                  --wait --timeout 5m
+                ;;
+                
+              comments-likes)
+                echo "Deploying comments-likes-service..."
+                helm upgrade --install comments-likes-service \
+                  ./services/comments-likes-service/comments-likes-chart \
+                  --namespace $NAMESPACE \
+                  --set image.repository=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/comments-likes-service \
+                  --set image.tag=latest \
+                  --set env.TENANT_NUMBER="$TENANT_NUMBER" \
+                  --set env.ENTERPRISE_NAME="$ENTERPRISE_NAME" \
+                  --set env.TIER="$TIER" \
+                  --wait --timeout 5m
+                ;;
+                
+              recommendation)
+                echo "Deploying recommendation-service..."
+                helm upgrade --install recommendation-service \
+                  ./services/recommendation-service/recommendation-service-chart \
+                  --namespace $NAMESPACE \
+                  --set image.repository=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/recommendation-service \
+                  --set image.tag=latest \
+                  --set env.TENANT_NUMBER="$TENANT_NUMBER" \
+                  --set env.ENTERPRISE_NAME="$ENTERPRISE_NAME" \
+                  --set env.TIER="$TIER" \
+                  --wait --timeout 5m
+                ;;
+                
+              weather-forecast)
+                echo "Deploying weather-forecast-service to shared namespace..."
+                helm upgrade --install weather-forecast-service \
+                  ./services/weather-forecast-service/weather-forecast-chart \
+                  --namespace shared \
+                  --set image.repository=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/weather-forecast-service \
+                  --set image.tag=latest \
+                  --wait --timeout 5m
+                ;;
+                
+              travel-warnings)
+                echo "Deploying travel-warnings-service to shared namespace..."
+                helm upgrade --install travel-warnings-service \
+                  ./services/travel_warnings/travel-warnings-chart \
+                  --namespace shared \
+                  --set image.repository=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/travel-warnings-service \
+                  --set image.tag=latest \
+                  --wait --timeout 5m
+                ;;
+                
+              tenant-service)
+                echo "Deploying tenant-service..."
+                helm upgrade --install tenant-service \
+                  ./services/tenant-service/tenant-service-chart \
+                  --namespace $NAMESPACE \
+                  --set image.repository=europe-west1-docker.pkg.dev/${{ vars.PROJECT_ID }}/docker-repo/tenant-service \
+                  --set image.tag=latest \
+                  --wait --timeout 5m
+                ;;
+                
+              *)
+                echo "⚠️ Unknown service: $service"
+                ;;
+            esac
+            
+            if [ $? -eq 0 ]; then
+              echo "✅ Service $service deployed successfully"
+            else
+              echo "❌ Failed to deploy service $service"
+              exit 1
+            fi
+          done
+
+      - name: Verify Deployments
+        run: |
+          echo ""
+          echo "🔍 Verifying deployments in namespace: $NAMESPACE"
+          kubectl get pods -n $NAMESPACE
+          
+          echo ""
+          echo "📊 Services:"
+          kubectl get services -n $NAMESPACE
+          
+          echo ""
+          echo "📈 Ingresses:"
+          kubectl get ingress -n $NAMESPACE
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "✅ Continuous deployment completed successfully!"
+          echo "   Tenant: $TENANT_NAME ($TENANT_ID)"
+          echo "   Namespace: $NAMESPACE"
+          echo "   Services updated: $SERVICES"
