@@ -1,0 +1,62 @@
+@startuml system-context
+!theme plain
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+
+title Tripico System Context
+
+actor "Traveler" as user
+
+rectangle "Web Frontend\n(Vue.js/Vuetify)" as frontend #LightBlue
+
+package "Tripico Microservices" {
+    component "Itinerary Service" as itinerary #LightGreen {
+        card "Users" as it1
+        card "Itineraries" as it2
+        card "Locations" as it3
+    }
+
+    component "Comments & Likes\nService" as comments #LightGreen {
+        card "Comments" as cl1
+        card "Likes" as cl2
+    }
+
+    component "Recommendation\nService" as recommendation #LightGreen {
+        card "Feed" as rc1
+        card "Graph Sync" as rc2
+        card "Popularity" as rc3
+    }
+
+    component "Weather Forecast\nService" as weather #LightYellow {
+        card "Daily" as wf1
+        card "Hourly" as wf2
+    }
+
+    component "Travel Warnings\nService" as warnings #LightYellow {
+        card "Warnings" as tw1
+        card "Alerts" as tw2
+    }
+
+    component "Tenant Service" as tenant #LightCoral {
+        card "Tenant Config" as ts1
+        card "Onboarding" as ts2
+    }
+}
+
+' User interactions
+user --> frontend
+
+' Frontend to services
+frontend --> itinerary
+frontend --> comments
+frontend --> recommendation
+frontend --> weather
+frontend --> warnings
+frontend --> tenant
+
+' Service to service communication
+itinerary <--> comments
+comments <--> recommendation
+itinerary --> weather
+
+@enduml
