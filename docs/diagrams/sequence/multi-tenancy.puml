@@ -1,0 +1,101 @@
+@startuml
+  skinparam backgroundColor white
+  skinparam activityBackgroundColor #f5f5f5
+  skinparam activityBorderColor #333333
+  skinparam arrowColor #333333
+
+  title Backend Authentication Flow with Tenant Validation
+
+  start
+
+  :Incoming API Request
+  Authorization: Bearer <JWT>;
+
+  :1. Verify JWT Signature
+  (Firebase Admin SDK);
+
+  if (Valid Signature?) then (yes)
+    :2. Extract tenant claim
+    from decoded token;
+
+    if (expectedTenantId configured?) then (empty string\n**FREEMIUM**)
+      #90EE90:✅ ALLOW REQUEST
+
+      No tenant validation
+      Any valid user can
+      access freemium;
+      stop
+    else (has value\n**STANDARD/ENTERPRISE**)
+      :3. Compare token.tenant
+      with expectedTenantId;
+
+      if (token.tenant == expectedTenantId?) then (match ✅)
+        #90EE90:✅ ALLOW REQUEST
+
+        User belongs
+        to this tenant;
+        stop
+      else (no match ❌)
+        #FF6B6B:❌ 401 UNAUTHORIZED
+
+        "Invalid tenant";
+        stop
+      endif
+    endif
+  else (no)
+    #FF6B6B:❌ 401 UNAUTHORIZED
+
+    "Invalid token";
+    stop
+  endif
+
+  @enduml
+
+  Or as a sequence diagram:
+
+  @startuml
+  skinparam backgroundColor white
+  skinparam participantBackgroundColor #f5f5f5
+
+  title Tenant Authentication Flow
+
+  actor User
+  participant "Frontend" as FE
+  participant "Firebase Auth" as FB
+  participant "Backend Service" as BE
+  database "Identity Platform" as IDP
+
+  == Login (with Tenant ID) ==
+  User -> FE: Login request
+  FE -> FE: Set auth.tenantId\n(from runtime-config.js)
+
+  alt Freemium
+      FE -> FB: signIn() [no tenantId]
+  else Standard/Enterprise
+      FE -> FB: signIn() [tenantId = "std-xxx"]
+  end
+
+  FB -> IDP: Authenticate user
+  IDP --> FB: User authenticated
+  FB --> FE: JWT with tenant claim
+
+  == API Request ==
+  User -> FE: Action (e.g., create itinerary)
+  FE -> BE: API Request\nAuthorization: Bearer <JWT>
+
+  BE -> BE: 1. Verify JWT signature
+  BE -> BE: 2. Extract tenant from token
+
+  alt Freemium (expectedTenantId = "")
+      BE -> BE: Skip tenant check
+      BE --> FE: ✅ 200 OK
+  else Standard/Enterprise (expectedTenantId = "std-xxx")
+      BE -> BE: 3. Compare tenants
+      alt Match
+          BE --> FE: ✅ 200 OK
+      else No Match
+          BE --> FE: ❌ 401 Unauthorized\n"Invalid tenant"
+      end
+  end
+
+  @enduml
