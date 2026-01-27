@@ -1,0 +1,48 @@
+@startuml identity-platform-tenants
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+
+title Google Identity Platform - Multi-Tenant Structure
+
+package "Google Identity Platform\n(Project Level)" as gip #LightBlue {
+
+    package "Project-Level Users\n(Freemium)" as freemium #LightGreen {
+        actor "User A" as freeUser1
+        actor "User B" as freeUser2
+        note bottom: No tenant ID\nin JWT claims
+    }
+
+    package "Tenant: std-standard-1" as std1 #LightYellow {
+        actor "User C" as stdUser1
+        actor "User D" as stdUser2
+    }
+
+    package "Tenant: std-standard-2" as std2 #LightYellow {
+        actor "User E" as stdUser3
+    }
+
+    package "Tenant: ent-acme-corp" as ent1 #LightCoral {
+        actor "User F" as entUser1
+        actor "User G" as entUser2
+    }
+}
+
+note bottom of std1
+  Standard tier tenants
+  use "std-" prefix
+end note
+
+note bottom of ent1
+  Enterprise tier tenants
+  use "ent-" prefix
+end note
+
+note right of gip
+  Each tenant has isolated:
+  - User accounts
+  - Authentication config
+  - Password policies
+end note
+
+@enduml

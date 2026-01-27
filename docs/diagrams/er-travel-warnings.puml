@@ -1,0 +1,65 @@
+@startuml er-travel-warnings
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam linetype ortho
+
+title Travel Warnings Service - ER Diagram (PostgreSQL)
+
+entity "travel_warnings" as warnings {
+    * id : BIGINT <<PK>>
+    --
+    * content_id : VARCHAR <<UNIQUE>>
+    * country_code : VARCHAR(2)
+    iso3_country_code : VARCHAR(3)
+    * country_name : VARCHAR
+    * title : VARCHAR(500)
+    * warning : BOOLEAN
+    * partial_warning : BOOLEAN
+    * situation_warning : BOOLEAN
+    * situation_part_warning : BOOLEAN
+    content : TEXT
+    * last_modified : BIGINT
+    * effective : BIGINT
+    * fetched_at : TIMESTAMP
+}
+
+entity "user_trips" as trips {
+    * id : BIGINT <<PK>>
+    --
+    * email : VARCHAR
+    * country_code : VARCHAR(2)
+    * country_name : VARCHAR
+    * start_date : DATE
+    * end_date : DATE
+    * trip_name : VARCHAR
+    * notifications_enabled : BOOLEAN
+}
+
+entity "warning_notifications" as notifications {
+    * id : BIGINT <<PK>>
+    --
+    * user_trip_id : BIGINT <<FK>>
+    * travel_warning_id : BIGINT <<FK>>
+    * sent_at : TIMESTAMP
+    * notification_type : VARCHAR
+    * email_sent : BOOLEAN
+}
+
+trips ||--o{ notifications : "receives"
+warnings ||--o{ notifications : "triggers"
+
+note bottom of warnings
+  Indexed on:
+  - country_code
+  - content_id
+  - last_modified
+end note
+
+note bottom of trips
+  Indexed on:
+  - email
+  - country_code
+  - (start_date, end_date)
+end note
+
+@enduml

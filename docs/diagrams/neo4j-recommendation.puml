@@ -1,0 +1,45 @@
+@startuml neo4j-recommendation
+!pragma layout smetana
+skinparam backgroundColor white
+
+title Recommendation Service - Neo4j Graph Model
+
+' Node definitions
+class "User" as user #LightBlue {
+    userId : String
+    email : String
+    tenantId : String
+}
+
+class "Itinerary" as itinerary #LightGreen {
+    itineraryId : Long
+    title : String
+    destination : String
+    likesCount : Integer
+    tenantId : String
+}
+
+class "Location" as location #LightYellow {
+    name : String
+    country : String
+    tenantId : String
+}
+
+' Relationships
+user -right-> itinerary : "LIKES\n{createdAt}"
+itinerary -right-> location : "LOCATED_IN"
+
+note bottom of user
+  Users are synced from
+  Itinerary Service
+end note
+
+note bottom of itinerary
+  likesCount updated
+  on LIKES relationship
+  changes
+end note
+
+note "All nodes filtered\nby tenantId for\nmulti-tenant isolation" as N1
+
+@enduml

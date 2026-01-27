@@ -1,0 +1,72 @@
+@startuml cicd-pipeline-flow
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+
+title CI/CD Pipeline Flow
+
+' Build Workflows
+package "Build Workflows\n(ghcr-and-gcp-*.yml)" as build #LightBlue {
+    rectangle "Detect\nappVersion\nchange" as detect
+    rectangle "Build\nDocker\nImage" as docker
+    rectangle "Push to\nGHCR" as ghcr
+
+    detect -right-> docker
+    docker -right-> ghcr
+}
+
+cloud "GitHub Container Registry\n(ghcr.io)" as registry #White {
+    component "itinerary-service:v1.x" as img1
+    component "recommendation-service:v1.x" as img2
+    component "weather-forecast:v1.x" as img3
+}
+
+ghcr -down-> registry
+
+' Deploy Tenant Services
+package "deploy-multi-namespace.yml" as deployTenant #LightGreen {
+    rectangle "Freemium\nNamespace" as freemium
+    rectangle "Standard-N\nNamespace" as standard
+}
+
+' Deploy Shared Services
+package "deploy-shared-services.yml" as deployShared #LightCoral {
+    rectangle "Shared\nNamespace\n(weather, warnings)" as shared
+    rectangle "Enterprise\nCluster\n(dedicated)" as enterprise
+}
+
+registry -down-> deployTenant
+registry -down-> deployShared
+
+' Terraform Pipeline
+package "terraform.yml\n(Manual trigger)" as terraform #LightYellow {
+    rectangle "Standard\nTier\n(namespace)" as tfStandard
+    rectangle "Enterprise\nTier\n(cluster)" as tfEnterprise
+}
+
+note right of build
+  Triggered on:
+  Chart.yaml appVersion change
+end note
+
+note right of deployTenant
+  Deploys:
+  - itinerary-service
+  - recommendation-service
+  - comments-likes-service
+end note
+
+note right of deployShared
+  Deploys:
+  - weather-forecast-service
+  - travel-warnings-service
+end note
+
+note bottom of terraform
+  Creates:
+  - Identity Platform tenant
+  - Storage bucket
+  - Workload Identity
+end note
+
+@enduml

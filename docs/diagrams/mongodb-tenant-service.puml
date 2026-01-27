@@ -1,0 +1,85 @@
+@startuml mongodb-tenant-service
+!pragma layout smetana
+skinparam backgroundColor white
+
+title Tenant Service - MongoDB Data Model
+
+class "tenants" as tenant <<(C,#FFAAAA) Collection>> {
+    **_id** : ObjectId <<PK>>
+    --
+    **Tenant Identification**
+    name : String
+    tenantId : String
+    tenantNumber : Integer
+    enterpriseName : String
+    tier : TenantTier
+    --
+    **Infrastructure**
+    namespace : String
+    clusterName : String
+    frontendDomain : String
+    apiGatewayUrl : String
+    --
+    **Identity Platform**
+    identityPlatformTenantId : String
+    firestoreDatabaseId : String
+    ownerEmail : String
+    ownerUid : String
+    ownerPasswordHash : String
+    --
+    **Provisioning State**
+    state : ProvisioningState
+    provisioningDispatchId : String
+    deprovisioningDispatchId : String
+    frontendDeploymentDispatchId : String
+    terraformDispatchId : String
+    terraformDestroyDispatchId : String
+    errorMessage : String
+    --
+    **Timestamps**
+    createdAt : LocalDateTime
+    updatedAt : LocalDateTime
+    activatedAt : LocalDateTime
+    deletedAt : LocalDateTime
+}
+
+enum ProvisioningState {
+    PENDING
+    TERRAFORM_PROVISIONING
+    PROVISIONING
+    ACTIVE
+    DEPROVISIONING
+    TERRAFORM_DESTROYING
+    DELETED
+    FAILED
+}
+
+enum TenantTier {
+    FREE
+    STANDARD
+    ENTERPRISE
+}
+
+tenant --> ProvisioningState : state
+tenant --> TenantTier : tier
+
+note right of tenant
+  **Indexes:**
+  - tenantId (unique)
+  - tenantNumber
+  - frontendDomain
+  - enterpriseName
+  - state
+end note
+
+note bottom of ProvisioningState
+  State Machine Flow:
+  PENDING → TERRAFORM_PROVISIONING
+  → PROVISIONING → ACTIVE
+
+  Deletion Flow:
+  ACTIVE → DEPROVISIONING
+  → TERRAFORM_DESTROYING → DELETED
+end note
+
+@enduml

@@ -1,0 +1,70 @@
+@startuml er-weather-forecast
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam linetype ortho
+
+title Weather Forecast Service - ER Diagram (PostgreSQL)
+
+entity "weather_forecasts" as forecast {
+    * id : BIGINT <<PK>>
+    --
+    * location : VARCHAR
+    * latitude : DOUBLE
+    * longitude : DOUBLE
+    * timezone : VARCHAR
+    * last_updated : TIMESTAMP
+    * created_at : TIMESTAMP
+}
+
+entity "daily_forecasts" as daily {
+    * id : BIGINT <<PK>>
+    --
+    * weather_forecast_id : BIGINT <<FK>>
+    * date : DATE
+    temperature_min : DOUBLE
+    temperature_max : DOUBLE
+    precipitation : DOUBLE
+    precipitation_probability : INTEGER
+    wind_speed : DOUBLE
+    humidity : INTEGER
+    uv_index : DOUBLE
+    weather_code : INTEGER
+    summary : VARCHAR
+}
+
+entity "hourly_forecasts" as hourly {
+    * id : BIGINT <<PK>>
+    --
+    * weather_forecast_id : BIGINT <<FK>>
+    * datetime : TIMESTAMP
+    temperature : DOUBLE
+    feels_like : DOUBLE
+    precipitation : DOUBLE
+    precipitation_probability : INTEGER
+    wind_speed : DOUBLE
+    wind_direction : INTEGER
+    humidity : INTEGER
+    cloud_cover : INTEGER
+    weather_code : INTEGER
+    summary : VARCHAR
+}
+
+forecast ||--o{ daily : "has"
+forecast ||--o{ hourly : "has"
+
+note bottom of forecast
+  Cache key: location + coordinates
+  TTL: refreshed daily
+end note
+
+note right of daily
+  7-day forecast
+  from Meteosource API
+end note
+
+note right of hourly
+  24-hour forecast
+  from Meteosource API
+end note
+
+@enduml

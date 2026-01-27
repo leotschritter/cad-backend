@@ -1,0 +1,71 @@
+@startuml er-itinerary-service
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam linetype ortho
+
+title Itinerary Service - ER Diagram (PostgreSQL)
+
+entity "travel_user" as user {
+    * id : BIGINT <<PK>>
+    --
+    name : VARCHAR
+    email : VARCHAR
+    profile_image_url : VARCHAR
+}
+
+entity "itinerary" as itinerary {
+    * id : BIGINT <<PK>>
+    --
+    * user_id : BIGINT <<FK>>
+    title : VARCHAR
+    short_description : VARCHAR
+    destination : VARCHAR
+    detailed_description : TEXT
+    start_date : DATE
+}
+
+entity "location" as location {
+    * id : BIGINT <<PK>>
+    --
+    * itinerary_id : BIGINT <<FK>>
+    transport_id : BIGINT <<FK>>
+    accommodation_id : BIGINT <<FK>>
+    name : VARCHAR
+    description : TEXT
+    latitude : DOUBLE
+    longitude : DOUBLE
+    from_date : DATE
+    to_date : DATE
+}
+
+entity "location_images" as images {
+    * location_id : BIGINT <<PK,FK>>
+    * image_url : VARCHAR <<PK>>
+}
+
+entity "transport" as transport {
+    * id : BIGINT <<PK>>
+    --
+    transport_type : VARCHAR
+    duration : BIGINT
+    distance : BIGINT
+}
+
+entity "accommodation" as accommodation {
+    * id : BIGINT <<PK>>
+    --
+    name : VARCHAR
+    price_per_night : DOUBLE
+    rating : FLOAT
+    notes : TEXT
+    accommodation_image_url : VARCHAR
+    booking_page_url : VARCHAR
+}
+
+user ||--o{ itinerary : "creates"
+itinerary ||--o{ location : "contains"
+location ||--o{ images : "has"
+location |o--o| transport : "has"
+location |o--o| accommodation : "has"
+
+@enduml

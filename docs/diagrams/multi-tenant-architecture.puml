@@ -1,0 +1,90 @@
+@startuml multi-tenant-architecture
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+
+title Tripico Multi-Tenant Cloud Architecture
+caption Google Cloud Platform
+
+' ----------------------------------------------------------
+' Shared Infrastructure
+' ----------------------------------------------------------
+
+package "Shared Infrastructure" as shared #LightGray {
+    component "Artifact\nRegistry" as registry #White
+    component "Cloud\nDNS" as dns #White
+    component "Identity\nPlatform" as identity #White
+    component "Cloud\nFirestore" as firestore #White
+}
+
+' ----------------------------------------------------------
+' Shared GKE Cluster
+' ----------------------------------------------------------
+
+package "Shared GKE Cluster (tripico-cluster)" as sharedCluster #LightBlue {
+
+    package "Shared Namespace" as sharedNs #LightCyan {
+        component "weather-service\n+ postgres" as weatherShared #White
+        component "travel-warnings\n+ postgres" as warningsShared #White
+    }
+
+    package "Freemium Namespace" as freemiumNs #LightGreen {
+        component "itinerary-service\nrecommendation\ncomments-likes\nneo4j + postgres" as freemiumStack #White
+        note bottom of freemiumStack
+            Autoscaling: OFF
+            No tenant ID
+        end note
+    }
+
+    package "Standard Namespace (per tenant)" as standardNs #LightYellow {
+        component "itinerary-service\nrecommendation\ncomments-likes\nneo4j + postgres" as standardStack #White
+        note bottom of standardStack
+            Autoscaling: ON
+            Tenant: std-{name}
+        end note
+    }
+}
+
+' ----------------------------------------------------------
+' Enterprise GKE Cluster
+' ----------------------------------------------------------
+
+package "Enterprise GKE Cluster (tripico-{tenant}-cluster)" as enterpriseCluster #LightCoral {
+
+    package "Default Namespace" as entNs #MistyRose {
+        component "itinerary-service\nrecommendation\ncomments-likes\nneo4j + postgres" as entCoreStack #White
+        component "weather-service\n(dedicated)" as weatherEnt #White
+        component "travel-warnings\n(dedicated)" as warningsEnt #White
+
+        note bottom of entCoreStack
+            Autoscaling: ON (max 10)
+            Tenant: ent-{name}
+            Dedicated VPC
+            Static IP
+            DNS Wildcard
+        end note
+    }
+}
+
+' ----------------------------------------------------------
+' Relationships
+' ----------------------------------------------------------
+
+' Shared infra connections
+registry -[hidden]right-> dns
+dns -[hidden]right-> identity
+identity -[hidden]right-> firestore
+
+' Cluster uses shared infra
+sharedCluster ..> registry : pulls images
+sharedCluster ..> identity : authenticates
+sharedCluster ..> firestore : stores data
+
+enterpriseCluster ..> registry : pulls images
+enterpriseCluster ..> identity : authenticates
+
+' Namespace connections to shared services
+freemiumNs ..> sharedNs : uses
+standardNs ..> sharedNs : uses
+
+@enduml

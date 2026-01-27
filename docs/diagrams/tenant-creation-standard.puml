@@ -1,0 +1,46 @@
+@startuml tenant-creation-standard
+!pragma layout smetana
+skinparam backgroundColor white
+
+title Standard Tenant Creation Flow
+
+|Trigger|
+start
+:GitHub Actions
+workflow_dispatch;
+note right
+  Parameters:
+  - environment: standard
+  - action: apply
+  - tenant_number: 1, 2, 3...
+end note
+
+|Terraform|
+:Create Infrastructure Resources;
+note right
+  - Identity Platform Tenant (std-standard-N)
+  - Workload Identity Bindings
+  - Storage Bucket (tenant-specific)
+  - API Gateway Configuration
+  - State: terraform/state/standard-N
+end note
+
+|Deployment|
+:Deploy Services via Helm;
+note right
+  helm upgrade --install itinerary-service
+    -n standard-N --create-namespace
+    --set identityPlatform.tenantId=<tenant-id>
+    -f values-standard-prod.yaml
+end note
+
+|Result|
+:Tenant Ready;
+note right
+  Frontend: frontend-standard-N.tripico.fun
+  API: itinerary-standard-N.tripico.fun
+end note
+
+stop
+
+@enduml

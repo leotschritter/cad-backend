@@ -1,0 +1,208 @@
+@startuml er-complete-overview
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam linetype ortho
+
+title Tripico - Complete Data Model Overview
+caption All Datastores Across Microservices
+
+' ============================================================
+' ITINERARY SERVICE (PostgreSQL)
+' ============================================================
+package "Itinerary Service\n(PostgreSQL)" as itinerary_pkg #LightGreen {
+    entity "travel_user" as user {
+        * id : BIGINT <<PK>>
+        --
+        name : VARCHAR
+        email : VARCHAR
+        profile_image_url : VARCHAR
+    }
+
+    entity "itinerary" as itinerary {
+        * id : BIGINT <<PK>>
+        --
+        * user_id : BIGINT <<FK>>
+        title : VARCHAR
+        destination : VARCHAR
+        short_description : VARCHAR
+        start_date : DATE
+    }
+
+    entity "location" as location {
+        * id : BIGINT <<PK>>
+        --
+        * itinerary_id : BIGINT <<FK>>
+        name : VARCHAR
+        latitude : DOUBLE
+        longitude : DOUBLE
+        from_date : DATE
+        to_date : DATE
+    }
+
+    entity "accommodation" as accommodation {
+        * id : BIGINT <<PK>>
+        --
+        name : VARCHAR
+        price_per_night : DOUBLE
+        rating : FLOAT
+    }
+
+    entity "transport" as transport {
+        * id : BIGINT <<PK>>
+        --
+        transport_type : VARCHAR
+        duration : BIGINT
+        distance : BIGINT
+    }
+
+    user ||--o{ itinerary
+    itinerary ||--o{ location
+    location |o--o| accommodation
+    location |o--o| transport
+}
+
+' ============================================================
+' TENANT SERVICE (MongoDB)
+' ============================================================
+package "Tenant Service\n(MongoDB)" as tenant_pkg #LightGray {
+    entity "tenants" as tenant {
+        * _id : ObjectId <<PK>>
+        --
+        tenantId : String
+        tenantNumber : Integer
+        tier : Enum
+        state : Enum
+        namespace : String
+        identityPlatformTenantId : String
+        ownerEmail : String
+    }
+}
+
+' ============================================================
+' COMMENTS & LIKES SERVICE (Firestore)
+' ============================================================
+package "Comments & Likes Service\n(Firestore)" as social_pkg #LightCoral {
+    entity "comments" as comment {
+        * id : String <<PK>>
+        --
+        userEmail : String
+        itineraryId : Long
+        comment : String
+        createdAt : Timestamp
+    }
+
+    entity "likes" as like {
+        * id : String <<PK>>
+        --
+        userEmail : String
+        itineraryId : Long
+        createdAt : Timestamp
+    }
+}
+
+' ============================================================
+' RECOMMENDATION SERVICE (Neo4j)
+' ============================================================
+package "Recommendation Service\n(Neo4j)" as rec_pkg #LightYellow {
+    entity "User" as neo_user <<Node>> {
+        userId : String
+        email : String
+        tenantId : String
+    }
+
+    entity "Itinerary" as neo_itin <<Node>> {
+        itineraryId : Long
+        title : String
+        likesCount : Integer
+        tenantId : String
+    }
+
+    entity "Location" as neo_loc <<Node>> {
+        name : String
+        country : String
+        tenantId : String
+    }
+
+    neo_user -right-> neo_itin : LIKES
+    neo_itin -right-> neo_loc : LOCATED_IN
+}
+
+' ============================================================
+' TRAVEL WARNINGS SERVICE (PostgreSQL)
+' ============================================================
+package "Travel Warnings Service\n(PostgreSQL)" as warnings_pkg #LightSkyBlue {
+    entity "travel_warnings" as warning {
+        * id : BIGINT <<PK>>
+        --
+        country_code : VARCHAR(2)
+        country_name : VARCHAR
+        warning : BOOLEAN
+        content : TEXT
+        last_modified : BIGINT
+    }
+
+    entity "user_trips" as trip {
+        * id : BIGINT <<PK>>
+        --
+        email : VARCHAR
+        country_code : VARCHAR(2)
+        start_date : DATE
+        end_date : DATE
+    }
+
+    entity "warning_notifications" as notif {
+        * id : BIGINT <<PK>>
+        --
+        * user_trip_id : BIGINT <<FK>>
+        * travel_warning_id : BIGINT <<FK>>
+        sent_at : TIMESTAMP
+    }
+
+    trip ||--o{ notif
+    warning ||--o{ notif
+}
+
+' ============================================================
+' WEATHER FORECAST SERVICE (PostgreSQL)
+' ============================================================
+package "Weather Forecast Service\n(PostgreSQL)" as weather_pkg #LightPink {
+    entity "weather_forecasts" as forecast {
+        * id : BIGINT <<PK>>
+        --
+        location : VARCHAR
+        latitude : DOUBLE
+        longitude : DOUBLE
+        last_updated : TIMESTAMP
+    }
+
+    entity "daily_forecasts" as daily {
+        * id : BIGINT <<PK>>
+        --
+        * weather_forecast_id : BIGINT <<FK>>
+        date : DATE
+        temperature_min : DOUBLE
+        temperature_max : DOUBLE
+    }
+
+    entity "hourly_forecasts" as hourly {
+        * id : BIGINT <<PK>>
+        --
+        * weather_forecast_id : BIGINT <<FK>>
+        datetime : TIMESTAMP
+        temperature : DOUBLE
+    }
+
+    forecast ||--o{ daily
+    forecast ||--o{ hourly
+}
+
+' ============================================================
+' CROSS-SERVICE REFERENCES (Logical, not FK)
+' ============================================================
+comment ..> itinerary : "references\nitineraryId"
+like ..> itinerary : "references\nitineraryId"
+neo_itin ..> itinerary : "synced from"
+neo_user ..> user : "synced from"
+trip ..> user : "references\nemail"
+
+@enduml

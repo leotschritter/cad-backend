@@ -1,0 +1,60 @@
+@startuml tenant-creation-enterprise
+!pragma layout smetana
+skinparam backgroundColor white
+
+title Enterprise Tenant Creation Flow
+
+|Trigger|
+start
+:GitHub Actions
+workflow_dispatch;
+note right
+  Parameters:
+  - environment: enterprise
+  - action: apply
+  - tenant_number: 1
+  - tenant_name: "acme-corp"
+end note
+
+|Terraform|
+:Create Full Infrastructure;
+note right
+  **Dedicated Resources:**
+  - GKE Cluster (tripico-acme-corp-cluster)
+  - VPC Network (tripico-acme-corp-network)
+  - Static IP (dedicated)
+  - DNS Wildcard (*.acme-corp.tripico.fun)
+  - Identity Platform Tenant (ent-acme-corp)
+  - Storage Bucket (dedicated)
+  - Workload Identity Bindings
+  - NGINX Ingress Controller
+  - API Gateway Configuration
+  - State: terraform/state/acme-corp
+end note
+
+|Deployment|
+:Connect to Enterprise Cluster;
+:Deploy All Services;
+note right
+  gcloud container clusters get-credentials
+    tripico-acme-corp-cluster --region europe-west1
+
+  helm upgrade --install itinerary-service
+    --set identityPlatform.tenantId=<tenant-id>
+    -f values-enterprise-prod.yaml
+
+  **Including dedicated:**
+  - weather-service
+  - travel-warnings-service
+end note
+
+|Result|
+:Tenant Ready;
+note right
+  Frontend: acme-corp.tripico.fun
+  API: itinerary.acme-corp.tripico.fun
+end note
+
+stop
+
+@enduml

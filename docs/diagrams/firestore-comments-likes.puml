@@ -1,0 +1,49 @@
+@startuml firestore-comments-likes
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+
+title Comments & Likes Service - Firestore Structure
+
+package "Freemium (Project-Level)" as freemium #LightGreen {
+    database "comments" as fc
+    database "likes" as fl
+}
+
+package "Standard/Enterprise (Tenant-Prefixed)" as tenant #LightBlue {
+    package "tenants" as t {
+        package "{tenantId}" as tid {
+            database "comments" as tc
+            database "likes" as tl
+        }
+    }
+}
+
+note bottom of fc
+  **Comment Document**
+  {
+    id: string
+    userEmail: string
+    itineraryId: number
+    comment: string
+    createdAt: timestamp
+  }
+end note
+
+note bottom of fl
+  **Like Document**
+  {
+    id: string
+    userEmail: string
+    itineraryId: number
+    createdAt: timestamp
+  }
+end note
+
+note bottom of tenant
+  Tenant ID examples:
+  - std-tenant-1
+  - ent-acme
+end note
+
+@enduml

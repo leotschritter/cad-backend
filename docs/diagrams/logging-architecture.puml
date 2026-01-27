@@ -1,0 +1,43 @@
+@startuml logging-architecture
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam componentStyle rectangle
+
+title GKE Logging Architecture
+
+rectangle "Kubernetes Pods" as pods #LightBlue {
+    component "itinerary-service\n(stdout/stderr)" as itin
+    component "recommendation-service\n(stdout/stderr)" as rec
+    component "comments-likes\n(stdout/stderr)" as social
+}
+
+rectangle "GKE Node" as node #LightYellow {
+    component "Fluentd Agent\n(DaemonSet)" as fluentd
+}
+
+cloud "Google Cloud" as gcp #LightGreen {
+    database "Cloud Logging" as logging
+    component "Log Explorer\n(Console)" as explorer
+    component "Log-based\nMetrics" as metrics
+    component "Alerting\nPolicies" as alerts
+}
+
+pods -down-> fluentd : "Container logs"
+fluentd -down-> logging : "Structured JSON"
+logging -right-> explorer
+logging -down-> metrics
+metrics -right-> alerts
+
+note bottom of fluentd
+  Auto-configured in
+  GKE Autopilot
+end note
+
+note bottom of logging
+  Log filters by:
+  - namespace (tenant)
+  - pod name
+  - severity
+end note
+
+@enduml

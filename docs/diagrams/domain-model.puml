@@ -1,0 +1,160 @@
+@startuml domain-model
+!pragma layout smetana
+
+title Tripico Domain Model - Bounded Contexts\nMulti-Tenant Travel SaaS Platform
+caption Last updated: 2025-01-27
+
+' ----------------------------------------------------------
+' Multi-Tenancy Context (NEW for M3)
+' ----------------------------------------------------------
+
+package "Tenant Management\nContext" as TenantContext #LightGray {
+  rectangle "Tenant" #White
+  rectangle "Tenant Config" #White
+  rectangle "Onboarding" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • Tenant registration & provisioning
+    • Tier management (Free/Std/Ent)
+    • Identity Platform tenant creation
+    • Infrastructure orchestration
+  end note
+}
+
+' ----------------------------------------------------------
+' Itinerary Management Context
+' ----------------------------------------------------------
+
+package "Itinerary Management\nContext" as ItineraryContext #LightGreen {
+  rectangle "User" #White
+  rectangle "Itinerary" #White
+  rectangle "Location" #White
+  rectangle "Accommodation" #White
+  rectangle "Transport" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • User management (per tenant)
+    • Create & manage itineraries
+    • Manage locations & visits
+    • Trip scheduling & planning
+    • Image storage (Cloud Storage)
+  end note
+}
+
+' ----------------------------------------------------------
+' Social Interaction Context
+' ----------------------------------------------------------
+
+package "Social Interaction\nContext" as SocialContext #LightCoral {
+  rectangle "Like" #White
+  rectangle "Comment" #White
+  rectangle "Engagement" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • Like/unlike itineraries
+    • Comment on itineraries
+    • Track user engagement
+    • Cross-tenant interactions
+  end note
+}
+
+' ----------------------------------------------------------
+' Personalized Feed Context
+' ----------------------------------------------------------
+
+package "Recommendation\nContext" as FeedContext #LightYellow {
+  rectangle "Feed Generation" #White
+  rectangle "Graph Database\n(Neo4j)" #White
+  rectangle "Popularity\nRanking" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • Generate personalized feed
+    • Collaborative filtering
+    • Graph-based recommendations
+    • Popularity scoring
+  end note
+}
+
+' ----------------------------------------------------------
+' Travel Warnings Context
+' ----------------------------------------------------------
+
+package "Travel Warnings\nContext" as WarningContext #LightSkyBlue {
+  rectangle "Warning Fetcher" #White
+  rectangle "Warning Matcher" #White
+  rectangle "Alert Dispatcher" #White
+  rectangle "User Trips" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • Fetch official travel warnings
+      (Auswärtiges Amt API)
+    • Match warnings with destinations
+    • Email notifications (SMTP)
+    • Manage alert subscriptions
+  end note
+}
+
+' ----------------------------------------------------------
+' Weather Forecast Context
+' ----------------------------------------------------------
+
+package "Weather Forecast\nContext" as WeatherContext #LightPink {
+  rectangle "Daily Forecast" #White
+  rectangle "Hourly Forecast" #White
+  rectangle "Forecast Cache" #White
+
+  note bottom
+    **Core Responsibilities:**
+    • Fetch weather forecasts
+      (Meteosource API)
+    • Cache forecast data (Firestore)
+    • 7-day daily forecasts
+    • 24-hour hourly forecasts
+  end note
+}
+
+' ----------------------------------------------------------
+' Relationships
+' ----------------------------------------------------------
+
+' Tenant context provisions other contexts
+TenantContext -down-> ItineraryContext : Provisions namespace\n& Identity tenant
+
+' Social context interacts with Itinerary
+SocialContext -up-> ItineraryContext : References\nItinerary ID
+
+' Feed context consumes data from Social and Itinerary
+FeedContext -up-> SocialContext : Fetches\nLikes & Comments
+FeedContext -up-> ItineraryContext : Fetches\nItinerary Data
+
+' Warning context depends on Itinerary for matching
+ItineraryContext -right-> WarningContext : Provides\nDestinations
+
+' Weather context provides forecasts for locations
+ItineraryContext -right-> WeatherContext : Requests\nForecasts
+
+' Event-driven relationships
+SocialContext ..> FeedContext : LikeAdded\nCommentAdded
+ItineraryContext ..> FeedContext : ItineraryCreated
+ItineraryContext ..> WarningContext : LocationAdded
+
+' ----------------------------------------------------------
+' Legend
+' ----------------------------------------------------------
+
+legend right
+  |= Color |= Context |= Service |
+  | <#LightGray> | Tenant Management | tenant-service |
+  | <#LightGreen> | Itinerary Management | itinerary-service |
+  | <#LightCoral> | Social Interaction | comments-likes-service |
+  | <#LightYellow> | Recommendation | recommendation-service |
+  | <#LightSkyBlue> | Travel Warnings | travel-warnings-service |
+  | <#LightPink> | Weather Forecast | weather-forecast-service |
+endlegend
+
+@enduml

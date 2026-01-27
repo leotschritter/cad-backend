@@ -1,0 +1,46 @@
+@startuml auth-flow-tenant
+!pragma layout smetana
+skinparam backgroundColor white
+skinparam sequenceArrowThickness 2
+skinparam sequenceMessageAlign center
+
+title Authentication Flow with Multi-Tenant Isolation
+
+actor "User" as user
+participant "Frontend\n(Vue.js)" as frontend #LightBlue
+participant "Identity Platform\n(Firebase Auth)" as idp #LightYellow
+participant "Backend Service\n(Quarkus)" as backend #LightGreen
+database "Tenant Data" as db #LightGray
+
+== Login Flow ==
+
+user -> frontend : 1. Enter credentials\n(email + password)
+frontend -> frontend : 2. Detect tenant from\ndomain/config
+
+alt Freemium User
+    frontend -> idp : 3a. signInWithEmailAndPassword()\n(no tenant context)
+else Standard/Enterprise User
+    frontend -> idp : 3b. signInWithEmailAndPassword()\n(with tenantId: "std-xxx" or "ent-xxx")
+end
+
+idp -> idp : 4. Validate credentials\nfor tenant context
+idp --> frontend : 5. Return JWT token\n(includes firebase.tenant claim)
+
+== API Request Flow ==
+
+frontend -> backend : 6. API request\nAuthorization: Bearer {JWT}
+backend -> backend : 7. Validate JWT signature\n(Firebase public keys)
+backend -> backend : 8. Extract tenant ID from\nfirebase.tenant claim
+backend -> backend : 9. Compare with expected\ntenant from config
+
+alt Tenant Mismatch
+    backend --> frontend : 403 Forbidden\n"Tenant mismatch"
+else Tenant Valid
+    backend -> db : 10. Query with tenant filter
+    db --> backend : 11. Tenant-scoped data
+    backend --> frontend : 12. Response
+end
+
+frontend --> user : 13. Display result
+
+@enduml
